@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --accent: #F09D51;
+  --accent-dim: #e08a3a;
+  --tomato: #F06543;
+  --black: #1a1a1a;
+  --bg: #1e2123;
+  --card: #242829;
+  --card2: #1a1e20;
+  --border: #2c3033;
+  --muted: #55595c;
+  --text: #f0ede8;
+  --gunmetal: #f0ede8;
+  --red: #e03e1a;
+}
+
+body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(240,157,81,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(240,157,81,0.04) 1px, transparent 1px),
+    radial-gradient(ellipse at 20% 20%, rgba(240,157,81,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(240,101,67,0.04) 0%, transparent 50%);
+  background-size: 48px 48px, 48px 48px, 100% 100%, 100% 100%;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+}
+
+input, select, textarea {
+  background: #1a1e20;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+}
+
+input::placeholder {
+  color: var(--muted);
+}
+
+select option {
+  background: #1a1e20;
+  color: var(--text);
+}
+
+button {
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.fade-up { animation: fadeUp 0.45s ease both; }
+.fade-up-2 { animation: fadeUp 0.45s 0.1s ease both; }
+.fade-up-3 { animation: fadeUp 0.45s 0.2s ease both; }
