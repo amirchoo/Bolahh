@@ -31,7 +31,7 @@ export default function HomePage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ minHeight: '100vh' }}>
       <Navbar />
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px' }}>
 
