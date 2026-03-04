@@ -62,7 +62,7 @@ export default function GameDetailPage() {
   const open = game.slots - playerCount;
 
   const tagStyle = {
-    background: 'var(--card2)', color: 'var(--muted)',
+    background: 'var(--card2)', color: 'var(--text)',
     border: '1px solid var(--border)', borderRadius: 6,
     padding: '4px 12px', fontSize: 12, fontFamily: "'Space Mono'"
   };
@@ -133,7 +133,7 @@ export default function GameDetailPage() {
               <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 40, letterSpacing: 3, color: 'var(--text)', marginBottom: 4 }}>
                 {game.title}
               </h1>
-              <p style={{ color: 'var(--muted)', fontSize: 14 }}>📍 {field?.name} · {game.area}</p>
+              <p style={{ color: 'var(--text)', fontSize: 14, opacity: 0.75 }}>📍 {field?.name} · {game.area}</p>
             </div>
             <div style={{ textAlign: 'right' }}>
               <span style={{
@@ -192,21 +192,21 @@ export default function GameDetailPage() {
         {game.description && (
           <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
             <div style={sectionTitle}>MATCH DESCRIPTION</div>
-            <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.8 }}>{game.description}</p>
+            <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.8, opacity: 0.8 }}>{game.description}</p>
           </div>
         )}
 
         {game.game_rules && (
           <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
             <div style={sectionTitle}>⚽ GAME RULES</div>
-            <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-line' }}>{game.game_rules}</p>
+            <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-line', opacity: 0.8 }}>{game.game_rules}</p>
           </div>
         )}
 
         {field?.field_rules && (
           <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
             <div style={sectionTitle}>🏟️ FIELD RULES</div>
-            <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-line' }}>{field.field_rules}</p>
+            <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-line', opacity: 0.8 }}>{field.field_rules}</p>
           </div>
         )}
 
@@ -235,7 +235,7 @@ export default function GameDetailPage() {
 
         <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
           <div style={sectionTitle}>📍 LOCATION</div>
-          <p style={{ color: 'var(--muted)', fontSize: 14 }}>{field?.address}</p>
+          <p style={{ color: 'var(--text)', fontSize: 14, opacity: 0.8 }}>{field?.address}</p>
         </div>
 
       </div>
