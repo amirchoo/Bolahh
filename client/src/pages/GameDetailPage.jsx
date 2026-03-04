@@ -7,7 +7,7 @@ import Navbar from '../components/Navbar';
 export default function GameDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [game, setGame] = useState(null);
   const [field, setField] = useState(null);
   const [playerCount, setPlayerCount] = useState(0);
@@ -16,6 +16,7 @@ export default function GameDetailPage() {
   const [joining, setJoining] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => { fetchGame(); }, [id]);
 
@@ -26,6 +27,7 @@ export default function GameDetailPage() {
     if (error || !data) { navigate('/home'); return; }
     setGame(data);
     setField(data.fields);
+    setIsOwner(data.created_by === user?.id);
 
     const { count } = await supabase
       .from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', id);
@@ -188,6 +190,20 @@ export default function GameDetailPage() {
             {joining ? 'Joining...' : hasJoined ? '✓ Already Joined' : full ? 'Game Full' : 'Join Game'}
           </button>
         </div>
+
+        {/* Admin rate button - only shown to game creator */}
+        {isAdmin && isOwner && (
+          <div className="fade-up-2" style={{ marginBottom: 16 }}>
+            <button onClick={() => navigate(`/game/${id}/rate`)} style={{
+              width: '100%', padding: '13px',
+              background: 'transparent', color: 'var(--accent)',
+              border: '1.5px solid var(--accent)', borderRadius: 10,
+              fontWeight: 700, fontSize: 14
+            }}>
+              🎖️ Rate Players for this Game
+            </button>
+          </div>
+        )}
 
         {game.description && (
           <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
