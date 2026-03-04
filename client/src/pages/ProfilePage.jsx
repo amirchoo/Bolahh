@@ -131,25 +131,48 @@ export default function ProfilePage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <Navbar />
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '32px 24px' }}>
 
-        <h2 className="fade-up" style={{ fontFamily: "'Bebas Neue'", fontSize: 36, letterSpacing: 3, marginBottom: 28, color: 'var(--text)' }}>
+      <style>{`
+        @media (max-width: 480px) {
+          .profile-header { flex-direction: column !important; align-items: center !important; text-align: center !important; }
+          .profile-header .edit-btn { margin-top: 12px; width: 100%; }
+          .profile-info { align-items: center !important; }
+          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
+
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
+
+        <h2 className="fade-up" style={{
+          fontFamily: "'Bebas Neue'", fontSize: 32,
+          letterSpacing: 3, marginBottom: 20, color: 'var(--text)'
+        }}>
           MY PROFILE
         </h2>
 
         {/* Profile Card */}
-        <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, overflow: 'hidden', marginBottom: 16 }}>
-          <div style={{ background: 'linear-gradient(135deg, rgba(240,157,81,0.08), transparent)', padding: '28px 28px 24px', display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+        <div className="fade-up-2" style={{
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 20, overflow: 'hidden', marginBottom: 16
+        }}>
+          <div className="profile-header" style={{
+            background: 'linear-gradient(135deg, rgba(240,157,81,0.08), transparent)',
+            padding: '24px 20px',
+            display: 'flex', gap: 16, alignItems: 'flex-start'
+          }}>
 
             {/* Avatar */}
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <div onClick={() => fileInputRef.current?.click()} style={{
-                width: 80, height: 80, borderRadius: '50%',
-                background: profile?.avatar_url ? 'transparent' : 'linear-gradient(135deg, var(--accent), var(--accent-dim))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: "'Space Mono'", fontSize: 26, fontWeight: 700, color: '#fff',
-                border: '3px solid var(--border)', cursor: 'pointer', overflow: 'hidden', position: 'relative'
-              }}>
+            <div style={{ flexShrink: 0 }}>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: 72, height: 72, borderRadius: '50%',
+                  background: profile?.avatar_url ? 'transparent' : 'linear-gradient(135deg, var(--accent), var(--accent-dim))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: "'Space Mono'", fontSize: 22, fontWeight: 700, color: '#fff',
+                  border: '3px solid var(--border)', cursor: 'pointer', overflow: 'hidden', position: 'relative'
+                }}
+              >
                 {profile?.avatar_url
                   ? <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : getInitials(profile?.name)}
@@ -166,32 +189,45 @@ export default function ProfilePage() {
               <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
             </div>
 
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 1, marginBottom: 4, color: 'var(--text)' }}>
+            {/* Info */}
+            <div className="profile-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
+              <div style={{
+                fontFamily: "'Bebas Neue'", fontSize: 24,
+                letterSpacing: 1, marginBottom: 4, color: 'var(--text)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%'
+              }}>
                 {profile?.name || 'No username set'}
               </div>
-              <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 10 }}>{user?.email}</div>
+              <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                {user?.email}
+              </div>
               {profile?.position
                 ? <span style={{ background: 'rgba(240,157,81,0.15)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.3)', borderRadius: 6, padding: '2px 12px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700 }}>{profile.position}</span>
                 : <span style={{ color: 'var(--muted)', fontSize: 12 }}>No position set</span>}
             </div>
 
-            <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving} style={{
-              background: editing ? 'var(--accent)' : 'transparent',
-              color: editing ? '#fff' : 'var(--accent)',
-              border: '1.5px solid var(--accent)', borderRadius: 8, padding: '8px 18px',
-              fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1
-            }}>
+            <button
+              className="edit-btn"
+              onClick={() => editing ? handleSave() : setEditing(true)}
+              disabled={saving}
+              style={{
+                background: editing ? 'var(--accent)' : 'transparent',
+                color: editing ? '#fff' : 'var(--accent)',
+                border: '1.5px solid var(--accent)', borderRadius: 8, padding: '8px 18px',
+                fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
+                flexShrink: 0
+              }}
+            >
               {saving ? 'Saving...' : editing ? 'Save' : 'Edit'}
             </button>
           </div>
 
-          <div style={{ padding: '8px 28px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ padding: '8px 20px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
             📷 Click your avatar to change profile picture
           </div>
 
           {editing && (
-            <div style={{ padding: '20px 28px 24px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ padding: '20px 20px 24px', borderTop: '1px solid var(--border)' }}>
               {saveMsg && (
                 <div style={{ marginBottom: 14, background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8, padding: '8px 14px', color: 'var(--red)', fontSize: 13 }}>
                   {saveMsg}
@@ -209,7 +245,7 @@ export default function ProfilePage() {
                       background: form.position === p ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
                       color: form.position === p ? 'var(--accent)' : 'var(--muted)',
                       border: `1px solid ${form.position === p ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 500, transition: 'all 0.15s'
+                      borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500, transition: 'all 0.15s'
                     }}>{p}</button>
                   ))}
                 </div>
@@ -227,13 +263,13 @@ export default function ProfilePage() {
         </div>
 
         {/* Stats */}
-        <div className="fade-up-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
+        <div className="fade-up-3 stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
           {[
             { label: 'Games Joined', val: upcomingGames.length + recentGames.length },
             { label: 'Member Since', val: new Date(user?.created_at).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' }) },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: 'var(--accent)', letterSpacing: 1 }}>{s.val}</div>
+            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px' }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--accent)', letterSpacing: 1 }}>{s.val}</div>
               <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
@@ -241,7 +277,7 @@ export default function ProfilePage() {
 
         {/* Upcoming Games */}
         <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Upcoming Games</span>
             <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700 }}>
               {upcomingGames.length}
@@ -249,8 +285,8 @@ export default function ProfilePage() {
           </div>
 
           {upcomingGames.length === 0 ? (
-            <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
+            <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>📅</div>
               No upcoming games.{' '}
               <span onClick={() => navigate('/home')} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
                 Find one →
@@ -260,19 +296,19 @@ export default function ProfilePage() {
             upcomingGames.map((entry, i) => (
               <div key={entry.id} onClick={() => navigate(`/game/${entry.games.id}`)}
                 style={{
-                  padding: '16px 20px',
+                  padding: '14px 18px',
                   borderBottom: i < upcomingGames.length - 1 ? '1px solid var(--border)' : 'none',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  cursor: 'pointer', transition: 'background 0.15s'
+                  cursor: 'pointer', transition: 'background 0.15s', gap: 12
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(240,157,81,0.04)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {entry.games?.title}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     📍 {entry.games?.fields?.name} · {entry.games?.area}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -287,7 +323,7 @@ export default function ProfilePage() {
                     </span>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', marginLeft: 12, flexShrink: 0 }}>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', fontFamily: "'Space Mono'", marginBottom: 4 }}>
                     {daysUntil(entry.games?.date)}
                   </div>
@@ -303,26 +339,26 @@ export default function ProfilePage() {
 
         {/* Past Games */}
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
             Past Games
           </div>
           {recentGames.length === 0 ? (
-            <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+            <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
               No past games yet.
             </div>
           ) : (
             recentGames.map((entry, i) => (
               <div key={entry.id} style={{
-                padding: '14px 20px',
+                padding: '12px 18px',
                 borderBottom: i < recentGames.length - 1 ? '1px solid var(--border)' : 'none',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 opacity: 0.65
               }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{entry.games?.title}</div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.games?.title}</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>📍 {entry.games?.area} · {entry.games?.date}</div>
                 </div>
-                <span style={{ background: 'rgba(240,157,81,0.1)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'" }}>
+                <span style={{ background: 'rgba(240,157,81,0.1)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", flexShrink: 0, marginLeft: 8 }}>
                   {entry.games?.format}
                 </span>
               </div>
