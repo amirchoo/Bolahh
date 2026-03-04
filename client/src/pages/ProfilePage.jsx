@@ -53,6 +53,7 @@ export default function ProfilePage() {
     }
     setLoading(false);
   };
+
   const fetchGames = async () => {
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await supabase
@@ -64,8 +65,9 @@ export default function ProfilePage() {
         fields ( name )
       )
     `)
-    .eq('user_id', user.id)
-    .order('joined_at', { ascending: false });
+    .eq('user_id', user.id);
+
+  console.log('games data:', data, 'error:', error);
 
   if (!error && data) {
     const valid = data.filter(e => e.games !== null);
