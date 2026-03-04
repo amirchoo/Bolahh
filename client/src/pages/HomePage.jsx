@@ -39,7 +39,7 @@ export default function HomePage() {
           <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 40, letterSpacing: 3, marginBottom: 4, color: 'var(--text)' }}>
             FIND A GAME
           </h1>
-          <p style={{ color: 'var(--muted)', fontSize: 14 }}>Browse available futsal matches and book your slot</p>
+          <p style={{ color: 'var(--text)', fontSize: 14 }}>Browse available futsal matches and book your slot</p>
         </div>
 
         <div className="fade-up-2" style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
@@ -53,12 +53,12 @@ export default function HomePage() {
           </select>
         </div>
 
-        <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 18, fontFamily: "'Space Mono'" }}>
+        <div style={{ color: 'var(--text)', fontSize: 13, marginBottom: 18, fontFamily: "'Space Mono'" }}>
           {loading ? 'Loading...' : `${filtered.length} game${filtered.length !== 1 ? 's' : ''} found`}
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text)' }}>
             <div style={{ fontSize: 32, marginBottom: 12, animation: 'pulse 1.5s infinite' }}>⚽</div>
             <p>Loading games...</p>
           </div>
@@ -66,7 +66,7 @@ export default function HomePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
             {filtered.map(game => <GameCard key={game.id} game={game} />)}
             {filtered.length === 0 && (
-              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>
+              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: 'var(--text)' }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>⚽</div>
                 <p>No games found. Try adjusting your filters.</p>
               </div>
@@ -108,7 +108,7 @@ function GameCard({ game }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2, color: 'var(--text)' }}>{game.title}</div>
-          <div style={{ color: 'var(--muted)', fontSize: 13 }}>{game.fields?.name}</div>
+          <div style={{ color: 'var(--text)', fontSize: 13 }}>{game.fields?.name}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <span style={{
@@ -125,14 +125,14 @@ function GameCard({ game }) {
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         {[`📍 ${game.area}`, `📅 ${game.date}`, `🕐 ${game.time}`].map(tag => (
           <span key={tag} style={{
-            background: 'var(--card2)', color: 'var(--muted)', border: '1px solid var(--border)',
+            background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)',
             borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'"
           }}>{tag}</span>
         ))}
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>
           <span>{playerCount}/{game.slots} players</span>
           <span style={{ color: full ? 'var(--red)' : 'var(--accent)', fontWeight: 600 }}>
             {full ? 'FULL' : `${open} slots open`}
@@ -147,7 +147,7 @@ function GameCard({ game }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingTop: 12, borderTop: '1px solid var(--border)'
       }}>
-        <span style={{ fontSize: 12, color: full ? 'var(--red)' : 'var(--muted)', fontWeight: full ? 600 : 400 }}>
+        <span style={{ fontSize: 12, color: full ? 'var(--red)' : 'var(--text)', fontWeight: full ? 600 : 400 }}>
           {full ? '🔴 Game Full' : `🟢 ${open} slot${open !== 1 ? 's' : ''} left`}
         </span>
         <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>

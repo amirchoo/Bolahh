@@ -80,7 +80,7 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="bg-hex" style={{ minHeight: '100vh' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div className="fade-up" style={{ ...cardStyle, textAlign: 'center', padding: '48px 36px' }}>
           <div style={{ fontSize: 56, marginBottom: 20 }}>📧</div>
           <h2 style={{
@@ -114,17 +114,12 @@ export default function SignupPage() {
     <div style={{
       minHeight: '100vh', display: 'flex',
       alignItems: 'center', justifyContent: 'center',
-      padding: 24, background: 'var(--bg)'
+      padding: 24
     }}>
       <div className="fade-up" style={cardStyle}>
 
         <div onClick={() => navigate('/')}
           style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 32, cursor: 'pointer' }}>
-          <div style={{
-            width: 32, height: 32, background: 'var(--accent)',
-            borderRadius: 8, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 16
-          }}>⚽</div>
           <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3, color: 'var(--accent)' }}>
             BOLAHH
           </span>
@@ -153,7 +148,7 @@ export default function SignupPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label style={labelStyle}>USERNAME</label>
-            <input placeholder="e.g. hazif77" value={form.username}
+            <input placeholder="e.g. RonaldoSiu7" value={form.username}
               onChange={e => setForm({ ...form, username: e.target.value })} />
           </div>
 
