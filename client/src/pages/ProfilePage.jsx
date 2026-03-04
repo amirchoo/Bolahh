@@ -53,22 +53,29 @@ export default function ProfilePage() {
     }
     setLoading(false);
   };
-
   const fetchGames = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('game_players')
-      .select('*, games(id, title, area, date, time, format, price, fields(name))')
-      .eq('user_id', user.id)
-      .order('joined_at', { ascending: false });
-    if (!error && data) {
-      setUpcomingGames(
-        data.filter(e => e.games?.date >= today)
-            .sort((a, b) => a.games.date.localeCompare(b.games.date))
-      );
-      setRecentGames(data.filter(e => e.games?.date < today).slice(0, 5));
-    }
-  };
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('game_players')
+    .select(`
+      *,
+      games (
+        id, title, area, date, time, format, price,
+        fields ( name )
+      )
+    `)
+    .eq('user_id', user.id)
+    .order('joined_at', { ascending: false });
+
+  if (!error && data) {
+    const valid = data.filter(e => e.games !== null);
+    setUpcomingGames(
+      valid.filter(e => e.games.date >= today)
+           .sort((a, b) => a.games.date.localeCompare(b.games.date))
+    );
+    setRecentGames(valid.filter(e => e.games.date < today).slice(0, 5));
+  }
+};
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
