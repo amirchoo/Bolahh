@@ -10,6 +10,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import GameDetailPage from './pages/GameDetailPage';
 import GameRatingPage from './pages/GameRatingPage';
 import ManagerPage from './pages/ManagerPage';
+import FriendsPage from './pages/FriendsPage';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -56,6 +57,11 @@ function App() {
           <AdminRoute>
             <ManagerPage />
           </AdminRoute>
+        } />
+        <Route path="/friends" element={
+          <PrivateRoute>
+            <FriendsPage />
+          </PrivateRoute>
         } />
       </Routes>
     </BrowserRouter>
