@@ -53,31 +53,39 @@ export default function ProfilePage() {
     }
     setLoading(false);
   };
-
   const fetchGames = async () => {
-  const today = new Date().toISOString().split('T')[0];
-  const { data, error } = await supabase
-    .from('game_players')
-    .select(`
-      *,
-      games (
-        id, title, area, date, time, format, price,
-        fields ( name )
-      )
-    `)
-    .eq('user_id', user.id);
+    const today = new Date().toISOString().split('T')[0];
 
-  console.log('games data:', data, 'error:', error);
+    // Step 1: get game_ids for this user
+    const { data: playerData, error: playerError } = await supabase
+      .from('game_players')
+      .select('id, game_id')
+      .eq('user_id', user.id);
 
-  if (!error && data) {
-    const valid = data.filter(e => e.games !== null);
+    if (playerError || !playerData || playerData.length === 0) return;
+
+    const gameIds = playerData.map(p => p.game_id);
+
+    // Step 2: fetch those games with field name
+    const { data: gamesData, error: gamesError } = await supabase
+      .from('games')
+      .select('id, title, area, date, time, format, price, fields(name)')
+      .in('id', gameIds);
+
+    if (gamesError || !gamesData) return;
+
+    // Step 3: merge and split upcoming vs past
+    const merged = playerData.map(p => ({
+      id: p.id,
+      games: gamesData.find(g => g.id === p.game_id) || null
+    })).filter(e => e.games !== null);
+
     setUpcomingGames(
-      valid.filter(e => e.games.date >= today)
-           .sort((a, b) => a.games.date.localeCompare(b.games.date))
+      merged.filter(e => e.games.date >= today)
+            .sort((a, b) => a.games.date.localeCompare(b.games.date))
     );
-    setRecentGames(valid.filter(e => e.games.date < today).slice(0, 5));
-  }
-};
+    setRecentGames(merged.filter(e => e.games.date < today).slice(0, 5));
+  };
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
