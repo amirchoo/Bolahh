@@ -259,6 +259,18 @@ export default function ProfilePage() {
             >
               {saving ? 'Saving...' : editing ? 'Save' : 'Edit'}
             </button>
+
+            <button
+              onClick={() => navigate('/friends')}
+              style={{
+                background: 'transparent', color: 'var(--muted)',
+                border: '1px solid var(--border)', borderRadius: 8,
+                padding: '8px 18px', fontSize: 13, fontWeight: 600,
+                flexShrink: 0
+              }}
+            >
+              👥 Friends
+            </button>
           </div>
 
           <div style={{ padding: '8px 20px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
