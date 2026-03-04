@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -47,6 +47,7 @@ export default function Navbar() {
           {[
             { path: '/home', label: 'Games', icon: '🏟️' },
             { path: '/profile', label: 'Profile', icon: '👤' },
+            ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon: '🎛️' }] : []),
           ].map(({ path, label, icon }) => (
             <button
               key={path}

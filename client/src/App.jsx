@@ -6,9 +6,10 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import GameDetailPage from './pages/GameDetailPage';
+import GameRatingPage from './pages/GameRatingPage';
+import ManagerPage from './pages/ManagerPage';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -46,12 +47,16 @@ function App() {
             <ProfilePage />
           </PrivateRoute>
         } />
-        <Route path="/admin" element={
+        <Route path="/game/:id/rate" element={
           <AdminRoute>
-            <AdminPage />
+            <GameRatingPage />
           </AdminRoute>
         } />
-        
+        <Route path="/manager" element={
+          <AdminRoute>
+            <ManagerPage />
+          </AdminRoute>
+        } />
       </Routes>
     </BrowserRouter>
   );

@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import { getRank, getRankColor } from '../lib/rankUtils';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -221,6 +222,27 @@ export default function ProfilePage() {
               {profile?.position
                 ? <span style={{ background: 'rgba(240,157,81,0.15)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.3)', borderRadius: 6, padding: '2px 12px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700 }}>{profile.position}</span>
                 : <span style={{ color: 'var(--text)', fontSize: 12 }}>No position set</span>}
+
+              {/* Rank Badge */}
+              {(() => {
+                const rank = getRank(profile?.total_points || 0, profile?.games_played || 0);
+                const color = getRankColor(rank);
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                    {/* Rank image placeholder — replace this div with <img src="your-rank-image.png" width={36} height={36} /> */}
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 8,
+                      background: 'var(--card2)', border: `2px solid ${color}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, color: color, fontWeight: 700, letterSpacing: 0.5
+                    }}>IMG</div>
+                    <div>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: color, lineHeight: 1 }}>{rank}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{profile?.games_played || 0} games · {profile?.total_points || 0} pts</div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <button

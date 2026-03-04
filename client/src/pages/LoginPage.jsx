@@ -41,7 +41,7 @@ export default function LoginPage() {
     }
     setForgotLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: 'https://bolahh.com/reset-password',
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) {
       setForgotError(error.message);
