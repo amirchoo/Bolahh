@@ -47,7 +47,7 @@ export default function GameDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <div style={{ minHeight: '100vh' }}>
         <Navbar />
         <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>⚽</div>
@@ -80,7 +80,7 @@ export default function GameDetailPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ minHeight: '100vh' }}>
       <Navbar />
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
 

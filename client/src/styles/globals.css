@@ -23,16 +23,16 @@
 
 body {
   background-color: var(--bg);
-  background-image:
-    linear-gradient(rgba(240,157,81,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(240,157,81,0.04) 1px, transparent 1px),
-    radial-gradient(ellipse at 20% 20%, rgba(240,157,81,0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, rgba(240,101,67,0.04) 0%, transparent 50%);
-  background-size: 48px 48px, 48px 48px, 100% 100%, 100% 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 0 L56 16 L56 50 L28 66 L0 50 L0 16 Z' fill='none' stroke='rgba(240%2C157%2C81%2C0.07)' stroke-width='1.5'/%3E%3Cpath d='M28 66 L56 50 L56 84 L28 100 L0 84 L0 50 Z' fill='none' stroke='rgba(240%2C157%2C81%2C0.07)' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-size: 56px 100px;
+  background-repeat: repeat;
+  background-attachment: fixed;
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
 }
+
+
 
 input, select, textarea {
   background: #1a1e20;

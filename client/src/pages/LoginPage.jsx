@@ -68,11 +68,7 @@ export default function LoginPage() {
 
   if (forgotMode) {
     return (
-      <div style={{
-        minHeight: '100vh', display: 'flex',
-        alignItems: 'center', justifyContent: 'center',
-        padding: 24, background: 'var(--bg)'
-      }}>
+      <div className="bg-hex" style={{ minHeight: '100vh' }}>
         <div className="fade-up" style={cardStyle}>
           {forgotSent ? (
             <div style={{ textAlign: 'center' }}>
