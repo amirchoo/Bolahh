@@ -25,7 +25,7 @@ export default function AdminPage() {
   });
 
   const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang'];
-  const SHOES = ['Futsal Shoes', 'Running Shoes', 'Both Allowed', 'No Metal Studs'];
+  const SHOES = ['IN(Indoor Futsal Boots)', 'TF(Turf Boots)', 'Sport Shoes', 'AG(Artificial Ground Boots)'];
 
   useEffect(() => {
     fetchFields();
@@ -430,7 +430,7 @@ export default function AdminPage() {
                 <div>
                   <label style={labelStyle}>FORMAT *</label>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    {['5v5', '6v6'].map(f => (
+                    {['5v5', '6v6', '7v7'].map(f => (
                       <button key={f} onClick={() => setGameForm({ ...gameForm, format: f })} style={{
                         background: gameForm.format === f ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
                         color: gameForm.format === f ? 'var(--accent)' : 'var(--muted)',

@@ -137,7 +137,7 @@ export default function ProfilePage() {
     return (
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
-        <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)' }}>
+        <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text)' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>⚽</div>
           <p>Loading profile...</p>
         </div>
@@ -215,12 +215,12 @@ export default function ProfilePage() {
               }}>
                 {profile?.name || 'No username set'}
               </div>
-              <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+              <div style={{ color: 'var(--text)', fontSize: 12, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                 {user?.email}
               </div>
               {profile?.position
                 ? <span style={{ background: 'rgba(240,157,81,0.15)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.3)', borderRadius: 6, padding: '2px 12px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700 }}>{profile.position}</span>
-                : <span style={{ color: 'var(--muted)', fontSize: 12 }}>No position set</span>}
+                : <span style={{ color: 'var(--text)', fontSize: 12 }}>No position set</span>}
             </div>
 
             <button
@@ -239,7 +239,7 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <div style={{ padding: '8px 20px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ padding: '8px 20px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
             📷 Click your avatar to change profile picture
           </div>
 
@@ -251,16 +251,16 @@ export default function ProfilePage() {
                 </div>
               )}
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>USERNAME / NICKNAME</label>
+                <label style={{ fontSize: 12, color: 'var(--text)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>USERNAME / NICKNAME</label>
                 <input placeholder="e.g. hazif77" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>PREFERRED POSITION</label>
+                <label style={{ fontSize: 12, color: 'var(--text)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>PREFERRED POSITION</label>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {POSITIONS.map(p => (
                     <button key={p} onClick={() => setForm({ ...form, position: form.position === p ? '' : p })} style={{
                       background: form.position === p ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                      color: form.position === p ? 'var(--accent)' : 'var(--muted)',
+                      color: form.position === p ? 'var(--accent)' : 'var(--text)',
                       border: `1px solid ${form.position === p ? 'var(--accent)' : 'var(--border)'}`,
                       borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500, transition: 'all 0.15s'
                     }}>{p}</button>
@@ -271,7 +271,7 @@ export default function ProfilePage() {
                 <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '' }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
+                <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '' }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
                   Cancel
                 </button>
               </div>
@@ -287,7 +287,7 @@ export default function ProfilePage() {
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px' }}>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--accent)', letterSpacing: 1 }}>{s.val}</div>
-              <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
+              <div style={{ color: 'var(--text)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -302,7 +302,7 @@ export default function ProfilePage() {
           </div>
 
           {upcomingGames.length === 0 ? (
-            <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+            <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>📅</div>
               No upcoming games.{' '}
               <span onClick={() => navigate('/home')} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
@@ -325,14 +325,14 @@ export default function ProfilePage() {
                   <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {entry.games?.title}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     📍 {entry.games?.fields?.name} · {entry.games?.area}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{ background: 'var(--card2)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'" }}>
+                    <span style={{ background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'" }}>
                       📅 {formatDate(entry.games?.date)}
                     </span>
-                    <span style={{ background: 'var(--card2)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'" }}>
+                    <span style={{ background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'" }}>
                       🕐 {entry.games?.time}
                     </span>
                     <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'", fontWeight: 700 }}>
@@ -347,7 +347,7 @@ export default function ProfilePage() {
                   <div style={{ fontSize: 12, color: 'var(--tomato)', fontFamily: "'Space Mono'", fontWeight: 700 }}>
                     RM {entry.games?.price}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>View →</div>
+                  <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>View →</div>
                 </div>
               </div>
             ))
@@ -360,7 +360,7 @@ export default function ProfilePage() {
             Past Games
           </div>
           {recentGames.length === 0 ? (
-            <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+            <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>
               No past games yet.
             </div>
           ) : (
@@ -373,7 +373,7 @@ export default function ProfilePage() {
               }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.games?.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>📍 {entry.games?.area} · {entry.games?.date}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text)' }}>📍 {entry.games?.area} · {entry.games?.date}</div>
                 </div>
                 <span style={{ background: 'rgba(240,157,81,0.1)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", flexShrink: 0, marginLeft: 8 }}>
                   {entry.games?.format}
