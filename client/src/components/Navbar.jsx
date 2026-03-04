@@ -36,11 +36,6 @@ export default function Navbar() {
           onClick={() => navigate('/home')}
           style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}
         >
-          <div style={{
-            width: 28, height: 28, background: 'var(--accent)',
-            borderRadius: 7, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 14
-          }}>⚽</div>
           <span style={{
             fontFamily: "'Bebas Neue'", fontSize: 20,
             letterSpacing: 3, color: 'var(--accent)'

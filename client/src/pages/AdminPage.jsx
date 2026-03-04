@@ -21,7 +21,7 @@ export default function AdminPage() {
   const [gameForm, setGameForm] = useState({
     title: '', field_id: '', area: '', format: '5v5',
     date: '', time: '', slots: 10, price: '',
-    description: '', game_rules: '', shoes_type: ''
+    description: '', game_rules: '', shoes_type: []
   });
 
   const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang'];
@@ -128,7 +128,7 @@ export default function AdminPage() {
       price: parseInt(gameForm.price),
       description: gameForm.description,
       game_rules: gameForm.game_rules,
-      shoes_type: gameForm.shoes_type,
+      shoes_type: gameForm.shoes_type.join(', '),
     });
     if (error) {
       showError(error.message);
@@ -137,7 +137,7 @@ export default function AdminPage() {
       setGameForm({
         title: '', field_id: '', area: '', format: '5v5',
         date: '', time: '', slots: 10, price: '',
-        description: '', game_rules: '', shoes_type: ''
+        description: '', game_rules: '', shoes_type: []
       });
       fetchGames();
     }
@@ -489,11 +489,17 @@ export default function AdminPage() {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {SHOES.map(s => (
                       <button key={s}
-                        onClick={() => setGameForm({ ...gameForm, shoes_type: gameForm.shoes_type === s ? '' : s })}
+                      onClick={() => {
+                        const current = gameForm.shoes_type;
+                        setGameForm({
+                        ...gameForm,
+                        shoes_type: current.includes(s) ? current.filter(x => x !== s) : [...current, s]
+                      });
+                    }}
                         style={{
-                          background: gameForm.shoes_type === s ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                          color: gameForm.shoes_type === s ? 'var(--accent)' : 'var(--muted)',
-                          border: `1px solid ${gameForm.shoes_type === s ? 'var(--accent)' : 'var(--border)'}`,
+                          background: gameForm.shoes_type.includes(s) ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                          color: gameForm.shoes_type.includes(s) ? 'var(--accent)' : 'var(--muted)',
+                          border: `1px solid ${gameForm.shoes_type.includes(s) ? 'var(--accent)' : 'var(--border)'}`,
                           borderRadius: 8, padding: '8px 16px',
                           fontSize: 13, fontWeight: 500, transition: 'all 0.15s'
                         }}
