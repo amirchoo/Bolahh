@@ -15,68 +15,78 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav style={{
-      position: 'sticky', top: 0, zIndex: 100,
-      background: 'rgba(30,33,35,0.92)', backdropFilter: 'blur(12px)',
-      borderBottom: '1px solid var(--border)',
-      padding: '0 24px', height: 60,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-    }}>
+    <>
+      <style>{`
+        @media (max-width: 480px) {
+          .nav-label { display: none; }
+          .nav-icon { display: inline !important; }
+        }
+      `}</style>
 
-      {/* Logo */}
-      <div
-        onClick={() => navigate('/home')}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-      >
-        <div style={{
-          width: 30, height: 30, background: 'var(--accent)',
-          borderRadius: 7, display: 'flex', alignItems: 'center',
-          justifyContent: 'center', fontSize: 16
-        }}>⚽</div>
-        <span style={{
-          fontFamily: "'Bebas Neue'", fontSize: 24,
-          letterSpacing: 3, color: 'var(--accent)'
-        }}>BOLAHH</span>
-      </div>
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(30,33,35,0.92)', backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid var(--border)',
+        padding: '0 16px', height: 56,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+      }}>
 
-      {/* Nav links */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {[
-          { path: '/home', label: 'Games' },
-          { path: '/profile', label: 'Profile' },
-        ].map(({ path, label }) => (
+        {/* Logo */}
+        <div
+          onClick={() => navigate('/home')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}
+        >
+          <div style={{
+            width: 28, height: 28, background: 'var(--accent)',
+            borderRadius: 7, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: 14
+          }}>⚽</div>
+          <span style={{
+            fontFamily: "'Bebas Neue'", fontSize: 20,
+            letterSpacing: 3, color: 'var(--accent)'
+          }}>BOLAHH</span>
+        </div>
+
+        {/* Nav links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {[
+            { path: '/home', label: 'Games', icon: '🏟️' },
+            { path: '/profile', label: 'Profile', icon: '👤' },
+          ].map(({ path, label, icon }) => (
+            <button
+              key={path}
+              onClick={() => navigate(path)}
+              style={{
+                background: isActive(path) ? 'rgba(240,157,81,0.12)' : 'transparent',
+                color: isActive(path) ? 'var(--accent)' : 'var(--muted)',
+                border: isActive(path) ? '1px solid rgba(240,157,81,0.25)' : '1px solid transparent',
+                borderRadius: 8, padding: '6px 12px',
+                fontSize: 13, fontWeight: 500,
+                transition: 'all 0.15s', whiteSpace: 'nowrap'
+              }}
+            >
+              <span className="nav-icon" style={{ display: 'none' }}>{icon}</span>
+              <span className="nav-label">{label}</span>
+            </button>
+          ))}
+
           <button
-            key={path}
-            onClick={() => navigate(path)}
+            onClick={handleLogout}
             style={{
-              background: isActive(path) ? 'rgba(240,157,81,0.12)' : 'transparent',
-              color: isActive(path) ? 'var(--accent)' : 'var(--muted)',
-              border: isActive(path) ? '1px solid rgba(240,157,81,0.25)' : '1px solid transparent',
-              borderRadius: 8, padding: '7px 16px',
+              background: 'transparent',
+              color: 'var(--muted)',
+              border: '1px solid var(--border)',
+              borderRadius: 8, padding: '6px 12px',
               fontSize: 13, fontWeight: 500,
-              transition: 'all 0.15s'
+              transition: 'all 0.15s', whiteSpace: 'nowrap'
             }}
           >
-            {label}
+            <span className="nav-icon" style={{ display: 'none' }}>🚪</span>
+            <span className="nav-label">Logout</span>
           </button>
-        ))}
+        </div>
 
-        <button
-          onClick={handleLogout}
-          style={{
-            background: 'transparent',
-            color: 'var(--muted)',
-            border: '1px solid var(--border)',
-            borderRadius: 8, padding: '7px 16px',
-            fontSize: 13, fontWeight: 500,
-            marginLeft: 4,
-            transition: 'all 0.15s'
-          }}
-        >
-          Logout
-        </button>
-      </div>
-
-    </nav>
+      </nav>
+    </>
   );
 }
