@@ -6,13 +6,13 @@ import { useAuth } from '../context/AuthContext';
 import { getRank } from '../lib/rankUtils';
 
 const STAT_FIELDS = [
-  { key: 'goals',              label: 'Goal',     points: 5,  emoji: '⚽' },
-  { key: 'assists',            label: 'Assist',   points: 3,  emoji: '🎯' },
-  { key: 'good_defending',     label: 'Defend',   points: 3,  emoji: '🛡️' },
-  { key: 'good_keeping',       label: 'Keep',     points: 3,  emoji: '🧤' },
-  { key: 'successful_dribble', label: 'Dribble',  points: 3,  emoji: '🪄' },
-  { key: 'good_chance',        label: 'Chance',   points: 3,  emoji: '🔥' },
-  { key: 'good_manner',        label: 'Manner',   points: 3,  emoji: '🤝' },
+  { key: 'goals',              label: 'Goal',     points: 3,  emoji: '⚽' },
+  { key: 'assists',            label: 'Assist',   points: 2,  emoji: '🎯' },
+  { key: 'good_defending',     label: 'Defend',   points: 2,  emoji: '🛡️' },
+  { key: 'good_keeping',       label: 'Keep',     points: 2,  emoji: '🧤' },
+  { key: 'successful_dribble', label: 'Dribble',  points: 2,  emoji: '🪄' },
+  { key: 'good_chance',        label: 'Chance',   points: 2,  emoji: '🔥' },
+  { key: 'good_manner',        label: 'Manner',   points: 2,  emoji: '🤝' },
 ];
 
 const defaultStats = () => ({
@@ -22,14 +22,14 @@ const defaultStats = () => ({
 });
 
 function calcTotal(stats) {
-  return 10
-    + (stats.goals || 0) * 5
-    + (stats.assists || 0) * 3
-    + (stats.good_defending || 0) * 3
-    + (stats.good_keeping || 0) * 3
-    + (stats.successful_dribble || 0) * 3
-    + (stats.good_chance || 0) * 3
-    + (stats.good_manner || 0) * 3
+  return 5
+    + (stats.goals || 0) * 3
+    + (stats.assists || 0) * 2
+    + (stats.good_defending || 0) * 2
+    + (stats.good_keeping || 0) * 2
+    + (stats.successful_dribble || 0) * 2
+    + (stats.good_chance || 0) * 2
+    + (stats.good_manner || 0) * 2
     + (stats.admin_bonus || 0);
 }
 
@@ -178,7 +178,7 @@ export default function GameRatingPage() {
   };
 
   const updateBonus = (uid, val) => {
-    const clamped = Math.max(-10, Math.min(10, parseInt(val) || 0));
+    const clamped = Math.max(-5, Math.min(5, parseInt(val) || 0));
     setRatings(prev => ({ ...prev, [uid]: { ...prev[uid], admin_bonus: clamped } }));
   };
 
@@ -200,7 +200,7 @@ export default function GameRatingPage() {
         if (insertError) throw new Error(insertError.message);
         const profile = profiles[uid];
         await supabase.from('profiles').update({
-          total_points: (profile?.total_points || 0) + total,
+          total_points: Math.min(594, (profile?.total_points || 0) + total),
           games_played: (profile?.games_played || 0) + 1,
         }).eq('id', uid);
       }
@@ -515,13 +515,13 @@ export default function GameRatingPage() {
                             {/* Bonus */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
                               <span style={{ fontSize: 11, color: 'var(--muted)', width: 56, flexShrink: 0 }}>🎖️ Bonus</span>
-                              <button type="button" onClick={() => updateBonus(uid, (stats.admin_bonus || 0) - 1)} disabled={(stats.admin_bonus || 0) <= -10}
-                                style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--card2)', color: 'var(--text)', fontSize: 13, opacity: (stats.admin_bonus || 0) > -10 ? 1 : 0.3 }}>−</button>
+                              <button type="button" onClick={() => updateBonus(uid, (stats.admin_bonus || 0) - 1)} disabled={(stats.admin_bonus || 0) <= -5}
+                                style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--card2)', color: 'var(--text)', fontSize: 13, opacity: (stats.admin_bonus || 0) > -5 ? 1 : 0.3 }}>−</button>
                               <span style={{ fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700, color: (stats.admin_bonus || 0) >= 0 ? 'var(--accent)' : 'var(--red)', minWidth: 24, textAlign: 'center' }}>
                                 {(stats.admin_bonus || 0) >= 0 ? '+' : ''}{stats.admin_bonus || 0}
                               </span>
-                              <button type="button" onClick={() => updateBonus(uid, (stats.admin_bonus || 0) + 1)} disabled={(stats.admin_bonus || 0) >= 10}
-                                style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--card2)', color: 'var(--text)', fontSize: 13, opacity: (stats.admin_bonus || 0) < 10 ? 1 : 0.3 }}>+</button>
+                              <button type="button" onClick={() => updateBonus(uid, (stats.admin_bonus || 0) + 1)} disabled={(stats.admin_bonus || 0) >= 5}
+                                style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--card2)', color: 'var(--text)', fontSize: 13, opacity: (stats.admin_bonus || 0) < 5 ? 1 : 0.3 }}>+</button>
                             </div>
                           </div>
                         </div>

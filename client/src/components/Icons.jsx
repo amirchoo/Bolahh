@@ -15,22 +15,7 @@ const base = {
 };
 
 // ── GAMES (football with pentagon pattern) ───
-export function IconGames({ size = 20, color = 'currentColor', style = {} }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...base} style={{ color, display: 'inline-block', verticalAlign: 'middle', ...style }}>
-      {/* Ball circle */}
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      {/* Center pentagon */}
-      <path d="M12 8.5 L14.2 10.1 L13.4 12.6 L10.6 12.6 L9.8 10.1 Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-      {/* Seam lines from pentagon corners to edge */}
-      <line x1="14.2" y1="10.1" x2="16.8" y2="9.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="13.4" y1="12.6" x2="15.2" y2="15.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="10.6" y1="12.6" x2="8.8" y2="15.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="9.8" y1="10.1" x2="7.2" y2="9.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="12" y1="8.5" x2="12" y2="5.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
+
 
 // ── PROFILE (player silhouette + ball at feet) ───
 export function IconProfile({ size = 20, color = 'currentColor', style = {} }) {
