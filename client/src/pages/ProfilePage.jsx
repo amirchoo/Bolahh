@@ -70,7 +70,7 @@ function calcOverall(stats) {
   return Math.round(sum / 6);
 }
 
-function FifaCard({ profile, cardStats, rank, size = 'normal' }) {
+function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick }) {
   const theme = getCardTheme(rank);
   const overall = calcOverall(cardStats);
   const color = getRankColor(rank);
@@ -117,22 +117,34 @@ function FifaCard({ profile, cardStats, rank, size = 'normal' }) {
       </div>
 
       {/* Avatar */}
-      <div style={{
-        position: 'absolute',
-        top: isSmall ? 28 : 44,
-        left: '50%', transform: 'translateX(-50%)',
-        width: isSmall ? 68 : 108, height: isSmall ? 68 : 108,
-        borderRadius: '50%', overflow: 'hidden',
-        border: `${isSmall ? 2 : 3}px solid ${theme.border}`,
-        background: theme.statBg, zIndex: 3,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
+      <div
+        onClick={!isSmall && onAvatarClick ? onAvatarClick : undefined}
+        style={{
+          position: 'absolute',
+          top: isSmall ? 28 : 44,
+          left: '50%', transform: 'translateX(-50%)',
+          width: isSmall ? 68 : 108, height: isSmall ? 68 : 108,
+          borderRadius: '50%', overflow: 'hidden',
+          border: `${isSmall ? 2 : 3}px solid ${theme.border}`,
+          background: theme.statBg, zIndex: 3,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: !isSmall && onAvatarClick ? 'pointer' : 'default',
+        }}
+      >
         {profile?.avatar_url
           ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <span style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 18 : 28, fontWeight: 700, color: theme.text }}>
               {(profile?.name?.[0] || '?').toUpperCase()}
             </span>
         }
+        {/* Camera overlay on hover — only on normal size */}
+        {!isSmall && onAvatarClick && (
+          <div className="avatar-hover-overlay" style={{
+            position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20, opacity: 0, transition: 'opacity 0.2s',
+          }}>📷</div>
+        )}
       </div>
 
       {/* Name */}
@@ -394,6 +406,8 @@ export default function ProfilePage() {
           .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .card-editor-grid { grid-template-columns: 1fr !important; }
         }
+        .avatar-hover-overlay { pointer-events: none; }
+        div:hover > .avatar-hover-overlay { opacity: 1 !important; }
       `}</style>
 
       {/* Card Editor Modal */}
@@ -431,30 +445,28 @@ export default function ProfilePage() {
             {/* Stat adjusters */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
               <style>{`
-                .stat-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 4px; outline: none; cursor: pointer; background: var(--border); }
-                .stat-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
-                .stat-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--bg); }
+                .stat-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 10px; border-radius: 5px; outline: none; cursor: pointer; background: var(--border); touch-action: none; }
+                .stat-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 10px; height: 28px; border-radius: 3px; background: var(--text); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+                .stat-slider::-moz-range-thumb { width: 10px; height: 28px; border-radius: 3px; background: var(--text); cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
                 .stat-slider:disabled { opacity: 0.35; cursor: not-allowed; }
               `}</style>
               {STATS.map(s => {
                 const val = draftStats[s.key] || 0;
                 const statColor = val >= 80 ? '#4ade80' : val >= 60 ? 'var(--accent)' : 'var(--tomato)';
-                const usedDraft = Object.values(draftStats).reduce((a, b) => a + b, 0);
-                const remainingDraft = Math.max(30, profile?.total_points || 0) - usedDraft;
-                const maxForSlider = Math.min(99, val + remainingDraft);
                 return (
                   <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700, color: 'var(--muted)', width: 32 }}>{s.label}</div>
                     <div style={{ flex: 1, position: 'relative' }}>
                       <input
-                        type="range" min={0} max={maxForSlider} value={val}
+                        type="range" min={0} max={99} value={val}
                         className="stat-slider"
                         style={{ background: `linear-gradient(to right, ${statColor} ${val}%, var(--border) ${val}%)` }}
                         onChange={e => {
                           const newVal = parseInt(e.target.value);
-                          const used = Object.values(draftStats).reduce((a, b) => a + b, 0) - (draftStats[s.key] || 0) + newVal;
-                          const budget = Math.max(30, profile?.total_points || 0);
-                          if (used <= budget) setDraftStats(prev => ({ ...prev, [s.key]: newVal }));
+                          const budget = Math.max(29, profile?.total_points || 0);
+                          const otherUsed = Object.values(draftStats).reduce((a, b) => a + b, 0) - val;
+                          const capped = Math.min(newVal, budget - otherUsed);
+                          setDraftStats(prev => ({ ...prev, [s.key]: Math.max(0, capped) }));
                         }}
                       />
                     </div>
@@ -494,7 +506,7 @@ export default function ProfilePage() {
           display: 'flex', justifyContent: 'center', alignItems: 'center',
           marginBottom: 20, position: 'relative'
         }}>
-          <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" />
+          <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" onAvatarClick={() => fileInputRef.current?.click()} />
           {/* Edit icon button — always shown */}
           <button type="button" onClick={() => { setDraftStats({...cardStats}); setShowCardEditor(true); }} style={{
             position: 'absolute', bottom: 8, right: 'calc(50% - 118px)',

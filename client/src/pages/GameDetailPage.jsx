@@ -233,7 +233,8 @@ export default function GameDetailPage() {
             <span style={{
               background: 'rgba(240,157,81,0.12)', color: 'var(--accent)',
               border: '1px solid rgba(240,157,81,0.25)',
-              borderRadius: 8, padding: '8px 18px', fontSize: 14, fontWeight: 600
+              borderRadius: 8, padding: '8px 18px', fontSize: 14, fontWeight: 600,
+              display: 'inline-block', maxWidth: '100%', wordBreak: 'break-word'
             }}>{game.shoes_type}</span>
           </div>
         )}
