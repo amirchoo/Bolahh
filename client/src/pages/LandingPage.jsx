@@ -36,7 +36,7 @@ export default function LandingPage() {
           lineHeight: 1, letterSpacing: 4, marginBottom: 20,
           color: 'var(--text)'
         }}>
-          FIND YOUR<br />
+          PLAY YOUR<br />
           <span style={{ color: 'var(--accent)' }}>NEXT GAME</span>
         </h1>
 
@@ -45,8 +45,9 @@ export default function LandingPage() {
           color: 'var(--text)', fontSize: 16,
           maxWidth: 480, lineHeight: 1.7, marginBottom: 40
         }}>
-          Join futsal matches near you. Book a slot, show up, and play.
-          Malaysia's fastest growing futsal community platform.
+          Everyone, Everywhere, Everytime
+          <br />
+          Join Malaysia's fastest growing football platform now
         </p>
 
         {/* CTA Buttons */}
@@ -76,8 +77,8 @@ export default function LandingPage() {
         <div style={{ display: 'flex', gap: 40, marginTop: 60, flexWrap: 'wrap', justifyContent: 'center' }}>
           {[
             ['200+', 'Active Players'],
-            ['15+', 'Fields'],
-            ['5v5,6v6,7v7', 'Formats'],
+            ['10+', 'Fields'],
+            ['5v5,6v6', 'Formats'],
           ].map(([val, label]) => (
             <div key={label} style={{ textAlign: 'center' }}>
               <div style={{
