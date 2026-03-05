@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getRank, getRankColor } from '../lib/rankUtils';
+import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 
 export default function FriendsPage() {
   const navigate = useNavigate();
@@ -221,7 +222,7 @@ export default function FriendsPage() {
         {activeTab === 'friends' && (
           <div>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)' }}>Loading...</div>
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)' }}><IconLoading size={16} />Loading...</div>
             ) : friends.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 0' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>👥</div>

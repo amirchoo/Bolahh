@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import {IconLoading } from '../components/Icons';
 
 export default function GameDetailPage() {
   const { id } = useParams();
@@ -52,7 +53,7 @@ export default function GameDetailPage() {
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
         <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⚽</div>
+          <div style={{ fontSize: 32, marginBottom: 12 }}><IconLoading size={16} /></div>
           <p>Loading game...</p>
         </div>
       </div>
