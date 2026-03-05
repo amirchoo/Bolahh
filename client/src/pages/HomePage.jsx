@@ -130,8 +130,8 @@ function GameCard({ game }) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2, color: 'var(--text)' }}>{game.title}</div>
-          <div style={{ color: 'var(--text)', fontSize: 13 }}>{game.fields?.name}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2, color: 'var(--text)' }}>{game.fields?.name}</div>
+          <div style={{ color: 'var(--text)', fontSize: 13, opacity: 0.6 }}>{game.title}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <span style={{

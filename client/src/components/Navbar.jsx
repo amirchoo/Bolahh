@@ -1,8 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { IconGames, IconProfile, IconManager, IconLoading } from '../components/Icons';
-import { LogOut as IconLogout } from 'lucide-react';
+import { IconLoading } from '../components/Icons';
+import { LogOut as IconLogout,ClipboardList as IconManager} from 'lucide-react';
+import { IoFootballOutline as IconBall} from 'react-icons/io5';
+import { AiOutlineUser as IconProfile } from 'react-icons/ai';
+import { GiSoccerKick as IconGames} from "react-icons/gi";
+
 
 
 export default function Navbar() {
@@ -48,9 +52,9 @@ export default function Navbar() {
         {/* Nav links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {[
-            { path: '/home', label: 'Games', icon :<IconGames size={16} /> },
-            { path: '/profile', label: 'Profile', icon: <IconProfile size={16} /> },
-            ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon:<IconManager size={16} />}] : []),
+            { path: '/home', label: 'Games', icon :<IconGames size={22} /> },
+            { path: '/profile', label: 'Profile', icon: <IconProfile size={20} /> },
+            ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon:<IconManager size={20} />}] : []),
           ].map(({ path, label, icon }) => (
             <button
               key={path}
@@ -80,7 +84,7 @@ export default function Navbar() {
               transition: 'all 0.15s', whiteSpace: 'nowrap'
             }}
           >
-            <span className="nav-icon" style={{ display: 'none' }}><IconLogout size={16}/></span>
+            <span className="nav-icon" style={{ display: 'none' }}><IconLogout size={20}/></span>
             <span className="nav-label">Logout</span>
           </button>
         </div>

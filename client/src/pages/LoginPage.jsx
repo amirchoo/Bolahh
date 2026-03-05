@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { AiFillEyeInvisible as IconEyeHide, AiFillEye as IconEyeShow } from 'react-icons/ai';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -201,7 +202,7 @@ export default function LoginPage() {
                 background: 'none', border: 'none',
                 color: 'var(--muted)', fontSize: 16, padding: 0
               }}>
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <IconEyeHide size={16}/> : <IconEyeShow size ={16}/>}
               </button>
             </div>
           </div>
