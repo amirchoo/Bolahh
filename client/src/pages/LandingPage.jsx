@@ -59,7 +59,7 @@ export default function LandingPage() {
               padding: '14px 36px', fontSize: 15, fontWeight: 700,
               letterSpacing: 0.3
             }}>
-            Get Started Free
+            Be a Player Now
           </button>
           <button
             onClick={() => navigate('/login')}

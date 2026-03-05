@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
+import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
+
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
 
@@ -85,7 +87,7 @@ export default function ProfilePage() {
       merged.filter(e => e.games.date >= today)
             .sort((a, b) => a.games.date.localeCompare(b.games.date))
     );
-    setRecentGames(merged.filter(e => e.games.date < today).slice(0, 5));
+    setRecentGames(merged.filter(e => e.games.date < today).sort((a, b) => b.games.date.localeCompare(a.games.date)));
   };
 
   const handleAvatarUpload = async (e) => {
@@ -139,7 +141,7 @@ export default function ProfilePage() {
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
         <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text)' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⚽</div>
+          <div style={{ fontSize: 32, marginBottom: 12 }}><IconLoading size={16} /></div>
           <p>Loading profile...</p>
         </div>
       </div>
@@ -201,7 +203,7 @@ export default function ProfilePage() {
                 }}
                   onMouseEnter={e => e.currentTarget.style.opacity = 1}
                   onMouseLeave={e => !uploadingAvatar && (e.currentTarget.style.opacity = 0)}>
-                  {uploadingAvatar ? '⏳' : '📷'}
+                  {uploadingAvatar ? IconLoading : '📷'}
                 </div>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
@@ -269,7 +271,7 @@ export default function ProfilePage() {
                 flexShrink: 0
               }}
             >
-              👥 Friends
+              <IconFriends size={16} /> Friends
             </button>
           </div>
 
@@ -337,7 +339,7 @@ export default function ProfilePage() {
 
           {upcomingGames.length === 0 ? (
             <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>📅</div>
+              <div style={{ fontSize: 28, marginBottom: 8 }}><IconUpcoming size={16}/></div>
               No upcoming games.{' '}
               <span onClick={() => navigate('/home')} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
                 Find one →
