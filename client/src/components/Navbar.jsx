@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { IconHome, IconProfile, IconManager, IconLogout, IconLoading } from '../components/Icons';
+import { IconGames, IconProfile, IconManager, IconLogout, IconLoading } from '../components/Icons';
 
 
 export default function Navbar() {
@@ -47,7 +47,7 @@ export default function Navbar() {
         {/* Nav links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {[
-            { path: '/home', label: 'Games', icon :<IconHome size={16} /> },
+            { path: '/home', label: 'Games', icon :<IconGames size={16} /> },
             { path: '/profile', label: 'Profile', icon: <IconProfile size={16} /> },
             ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon:<IconManager size={16} />}] : []),
           ].map(({ path, label, icon }) => (
