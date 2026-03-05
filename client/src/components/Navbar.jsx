@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { IconGames, IconProfile, IconManager, IconLoading } from '../components/Icons';
-import { LogOut as IconLogout, Home as IconHome, User as IconProfile } from 'lucide-react';
+import { LogOut as IconLogout } from 'lucide-react';
 
 
 export default function Navbar() {
