@@ -223,6 +223,8 @@ export function IconShoe({ size = 20, color = 'currentColor', style = {} }) {
   );
 }
 
+// 
+
 // ── STILL EMOJI — replace as you make more ──
 export const IconEmail    = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>📧</span>;
 export const IconCamera   = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>📷</span>;
