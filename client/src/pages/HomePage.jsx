@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
+import { IconLoading } from '../components/Icons';
 
 const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang'];
 const FORMATS = ['All Formats', '5v5', '6v6'];
@@ -17,8 +18,12 @@ export default function HomePage() {
 
   const fetchGames = async () => {
     setLoading(true);
+    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
-      .from('games').select('*, fields(name, area)').order('date', { ascending: true });
+      .from('games')
+      .select('*, fields(name, area)')
+      .gte('date', today)
+      .order('date', { ascending: true });
     if (!error) setGames(data);
     setLoading(false);
   };
@@ -59,7 +64,7 @@ export default function HomePage() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text)' }}>
-            <div style={{ fontSize: 32, marginBottom: 12, animation: 'pulse 1.5s infinite' }}>⚽</div>
+            <div style={{ fontSize: 32, marginBottom: 12, animation: 'pulse 1.5s infinite' }}><IconLoading size={16} /></div>
             <p>Loading games...</p>
           </div>
         ) : (
@@ -81,15 +86,30 @@ export default function HomePage() {
 function GameCard({ game }) {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState(0);
+  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     const fetchCount = async () => {
-      const { count } = await supabase
-        .from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', game.id);
-      setPlayerCount(count || 0);
+      const { count, data } = await supabase
+        .from('game_players')
+        .select('joined_at', { count: 'exact' })
+        .eq('game_id', game.id)
+        .order('joined_at', { ascending: false })
+        .limit(1);
+      const total = count || 0;
+      setPlayerCount(total);
+      // Hide card if full for more than 1 hour
+      if (total >= game.slots && data?.length > 0) {
+        const filledAt = new Date(data[0].joined_at);
+        if (new Date() > new Date(filledAt.getTime() + 60 * 60 * 1000)) {
+          setHidden(true);
+        }
+      }
     };
     fetchCount();
   }, [game.id]);
+
+  if (hidden) return null;
 
   const full = playerCount >= game.slots;
   const pct = Math.round((playerCount / game.slots) * 100);
@@ -99,10 +119,13 @@ function GameCard({ game }) {
     <div
       onClick={() => navigate(`/game/${game.id}`)}
       style={{
-        background: 'var(--card)', border: '1px solid var(--border)',
-        borderRadius: 16, padding: 20, transition: 'border-color 0.2s, transform 0.15s', cursor: 'pointer'
+        background: full ? 'var(--card2)' : 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16, padding: 20,
+        opacity: full ? 0.55 : 1,
+        transition: 'border-color 0.2s, transform 0.15s', cursor: 'pointer'
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+      onMouseEnter={e => { if (!full) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)'; }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>

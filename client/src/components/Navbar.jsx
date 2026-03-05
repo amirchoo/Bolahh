@@ -1,6 +1,8 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { IconHome, IconProfile, IconManager, IconLogout, IconLoading } from '../components/Icons';
+
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -31,7 +33,7 @@ export default function Navbar() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between'
       }}>
 
-        {/* Logo */}
+        {/* Tittle */}
         <div
           onClick={() => navigate('/home')}
           style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}
@@ -45,9 +47,9 @@ export default function Navbar() {
         {/* Nav links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {[
-            { path: '/home', label: 'Games', icon: '🏟️' },
-            { path: '/profile', label: 'Profile', icon: '👤' },
-            ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon: '🎛️' }] : []),
+            { path: '/home', label: 'Games', icon :<IconHome size={16} /> },
+            { path: '/profile', label: 'Profile', icon: <IconProfile size={16} /> },
+            ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon:<IconManager size={16} />}] : []),
           ].map(({ path, label, icon }) => (
             <button
               key={path}
@@ -77,7 +79,7 @@ export default function Navbar() {
               transition: 'all 0.15s', whiteSpace: 'nowrap'
             }}
           >
-            <span className="nav-icon" style={{ display: 'none' }}>🚪</span>
+            <span className="nav-icon" style={{ display: 'none' }}><IconLogout size={16}/></span>
             <span className="nav-label">Logout</span>
           </button>
         </div>
