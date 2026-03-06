@@ -60,6 +60,11 @@ export default function ManagerPage() {
     if (data) setGames(data);
   };
 
+  const fetchPlayers = async () => {
+    const { data } = await supabase.from('profiles').select('*').order('username');
+    if (data) setPlayers(data);
+  };
+
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
   const showError = (msg) => { setError(msg); setSuccess(''); };
 

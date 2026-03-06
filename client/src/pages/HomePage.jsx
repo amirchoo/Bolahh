@@ -90,24 +90,36 @@ function GameCard({ game }) {
 
   useEffect(() => {
     const fetchCount = async () => {
-      const { count, data } = await supabase
+      const { count } = await supabase
         .from('game_players')
-        .select('joined_at', { count: 'exact' })
-        .eq('game_id', game.id)
-        .order('joined_at', { ascending: false })
-        .limit(1);
-      const total = count || 0;
-      setPlayerCount(total);
-      // Hide card if full for more than 1 hour
-      if (total >= game.slots && data?.length > 0) {
-        const filledAt = new Date(data[0].joined_at);
-        if (new Date() > new Date(filledAt.getTime() + 60 * 60 * 1000)) {
-          setHidden(true);
-        }
-      }
+        .select('*', { count: 'exact', head: true })
+        .eq('game_id', game.id);
+      setPlayerCount(count || 0);
     };
     fetchCount();
   }, [game.id]);
+
+  useEffect(() => {
+    if (playerCount === 0 && game.slots > 0) return; // wait for count to load
+    const now = new Date();
+
+    // Parse game start time — date is YYYY-MM-DD, time is HH:MM (Malaysia UTC+8)
+    const [year, month, day] = game.date.split('-').map(Number);
+    const [hour, minute] = (game.time || '00:00').split(':').map(Number);
+    // Build UTC date from Malaysian local time (UTC+8 = subtract 8 hours)
+    const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+
+    const full = playerCount >= game.slots;
+
+    if (full) {
+      // Full game: hide 2 hours after start
+      const hideAt = new Date(gameStart.getTime() + 2 * 60 * 60 * 1000);
+      if (now >= hideAt) setHidden(true);
+    } else {
+      // Not full: hide as soon as game has started
+      if (now >= gameStart) setHidden(true);
+    }
+  }, [playerCount, game.date, game.time, game.slots]);
 
   if (hidden) return null;
 

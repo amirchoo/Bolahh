@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor, getCardBudget, MAX_POINTS } from '../lib/rankUtils';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
+import { RiTeamLine } from 'react-icons/ri';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
 const POSITION_ABBR = { 'Attacker': 'AT', 'Midfielder': 'MF', 'Defender': 'DF', 'Goalkeeper': 'GK' };
@@ -251,6 +252,7 @@ export default function ProfilePage() {
       if (newProfile) {
         setProfile(newProfile);
         setForm({ name: newProfile.name || '', position: newProfile.position || '' });
+        fetchCard(newProfile.total_points || 0);
       }
     } else {
       if (!data.name && user.user_metadata?.username) {
@@ -259,6 +261,7 @@ export default function ProfilePage() {
         await supabase.from('profiles').update({ name: username, position }).eq('id', user.id);
         setProfile({ ...data, name: username, position });
         setForm({ name: username, position });
+        fetchCard(data.total_points || 0);
       } else {
         setProfile(data);
         setForm({ name: data.name || '', position: data.position || '' });
@@ -273,7 +276,7 @@ export default function ProfilePage() {
       .from('player_cards')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
     if (data) {
       const loaded = { pac: data.pac, sho: data.sho, pas: data.pas, dri: data.dri, def: data.def, phy: data.phy };
       const budget = Math.max(30, pts || 0);
@@ -336,15 +339,34 @@ export default function ProfilePage() {
 
   const handleSaveCard = async () => {
     setSavingCard(true);
-    const budget = Math.max(30, profile?.total_points || 0);
+    const budget = Math.max(29, profile?.total_points || 0);
     const used = Object.values(draftStats).reduce((a, b) => a + b, 0);
     if (used > budget) { setSavingCard(false); return; }
-    await supabase.from('player_cards').upsert({
+
+    const payload = {
       user_id: user.id,
       pac: draftStats.pac, sho: draftStats.sho, pas: draftStats.pas,
       dri: draftStats.dri, def: draftStats.def, phy: draftStats.phy,
       overall: calcOverall(draftStats),
-    });
+    };
+
+    // Check if row exists — use update if yes, insert if no
+    const { data: existing } = await supabase
+      .from('player_cards').select('id').eq('user_id', user.id).maybeSingle();
+
+    let error;
+    if (existing) {
+      ({ error } = await supabase.from('player_cards').update(payload).eq('user_id', user.id));
+    } else {
+      ({ error } = await supabase.from('player_cards').insert(payload));
+    }
+
+    if (error) {
+      console.error('Card save error:', error.message, error.details);
+      setSavingCard(false);
+      return;
+    }
+
     setCardStats({...draftStats});
     setSavingCard(false);
     setShowCardEditor(false);
@@ -531,7 +553,7 @@ export default function ProfilePage() {
             border: '1.5px solid var(--accent)', borderRadius: 10,
             padding: '8px 24px', fontSize: 13, fontWeight: 600,
             display: 'flex', alignItems: 'center', gap: 6
-          }}><IconFriends size={14} /> Friends</button>
+          }}><RiTeamLine size={14} /> Friends</button>
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
 

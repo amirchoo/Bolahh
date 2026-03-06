@@ -35,7 +35,7 @@ export default function GameDetailPage() {
     setPlayerCount(count || 0);
 
     const { data: existing } = await supabase
-      .from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).single();
+      .from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle();
     setHasJoined(!!existing);
     setLoading(false);
   };
