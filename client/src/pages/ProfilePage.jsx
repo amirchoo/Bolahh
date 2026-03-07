@@ -309,8 +309,16 @@ export default function ProfilePage() {
       id: p.id,
       games: gamesData.find(g => g.id === p.game_id) || null
     })).filter(e => e.games !== null);
-    setUpcomingGames(merged.filter(e => e.games.date >= today).sort((a, b) => a.games.date.localeCompare(b.games.date)));
-    setRecentGames(merged.filter(e => e.games.date < today).sort((a, b) => b.games.date.localeCompare(a.games.date)));
+    const now = new Date();
+    const isUpcoming = (g) => {
+      const [year, month, day] = g.date.split('-').map(Number);
+      const [hour, minute] = (g.time || '00:00').split(':').map(Number);
+      // Malaysia UTC+8
+      const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+      return now < gameStart;
+    };
+    setUpcomingGames(merged.filter(e => isUpcoming(e.games)).sort((a, b) => a.games.date.localeCompare(b.games.date) || a.games.time.localeCompare(b.games.time)));
+    setRecentGames(merged.filter(e => !isUpcoming(e.games)).sort((a, b) => b.games.date.localeCompare(a.games.date) || b.games.time.localeCompare(a.games.time)));
   };
 
   const handleAvatarUpload = async (e) => {
@@ -389,10 +397,13 @@ export default function ProfilePage() {
     return date.toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
-  const daysUntil = (dateStr) => {
+  const daysUntil = (dateStr, timeStr) => {
+    const now = new Date();
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const game = new Date(dateStr + 'T00:00:00');
-    const diff = Math.round((game - today) / (1000 * 60 * 60 * 24));
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const [hour, minute] = (timeStr || '00:00').split(':').map(Number);
+    const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+    const diff = Math.round((gameStart - today) / (1000 * 60 * 60 * 24));
     if (diff === 0) return 'Today!';
     if (diff === 1) return 'Tomorrow';
     return `In ${diff} days`;
@@ -643,7 +654,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', fontFamily: "'Space Mono'", marginBottom: 4 }}>{daysUntil(entry.games?.date)}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', fontFamily: "'Space Mono'", marginBottom: 4 }}>{daysUntil(entry.games?.date, entry.games?.time)}</div>
                   <div style={{ fontSize: 12, color: 'var(--tomato)', fontFamily: "'Space Mono'", fontWeight: 700 }}>RM {entry.games?.price}</div>
                   <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>View →</div>
                 </div>

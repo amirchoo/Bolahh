@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
+import { GiSoccerBall } from 'react-icons/gi';
 
 const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang'];
 const FORMATS = ['All Formats', '5v5', '6v6'];
@@ -16,6 +17,18 @@ export default function HomePage() {
 
   useEffect(() => { fetchGames(); }, []);
 
+  const isGameVisible = (game, playerCount) => {
+    const now = new Date();
+    const [year, month, day] = game.date.split('-').map(Number);
+    const [hour, minute] = (game.time || '00:00').split(':').map(Number);
+    const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+    const full = playerCount >= game.slots;
+    if (full) {
+      return now < new Date(gameStart.getTime() + 2 * 60 * 60 * 1000);
+    }
+    return now < gameStart;
+  };
+
   const fetchGames = async () => {
     setLoading(true);
     const today = new Date().toISOString().split('T')[0];
@@ -24,7 +37,16 @@ export default function HomePage() {
       .select('*, fields(name, area)')
       .gte('date', today)
       .order('date', { ascending: true });
-    if (!error) setGames(data);
+    if (error || !data) { setLoading(false); return; }
+
+    // Fetch player counts for all games in parallel
+    const counts = await Promise.all(
+      data.map(g => supabase.from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', g.id))
+    );
+    const gamesWithCounts = data.map((g, i) => ({ ...g, _playerCount: counts[i].count || 0 }));
+
+    // Pre-filter expired games
+    setGames(gamesWithCounts.filter(g => isGameVisible(g, g._playerCount)));
     setLoading(false);
   };
 
@@ -42,13 +64,13 @@ export default function HomePage() {
 
         <div className="fade-up" style={{ marginBottom: 28 }}>
           <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 40, letterSpacing: 3, marginBottom: 4, color: 'var(--text)' }}>
-            FIND A GAME
+            FIND YOUR GAME
           </h1>
-          <p style={{ color: 'var(--text)', fontSize: 14 }}>Browse available futsal matches and book your slot</p>
+          <p style={{ color: 'var(--text)', fontSize: 14 }}>Browse available matches and book your slot</p>
         </div>
 
         <div className="fade-up-2" style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
-          <input placeholder="🔍  Search games..." value={search} onChange={e => setSearch(e.target.value)}
+          <input placeholder=" Search games..." value={search} onChange={e => setSearch(e.target.value)}
             style={{ flex: '1 1 220px', maxWidth: 320 }} />
           <select value={areaFilter} onChange={e => setAreaFilter(e.target.value)} style={{ flex: '0 0 180px' }}>
             {AREAS.map(a => <option key={a}>{a}</option>)}
@@ -72,7 +94,7 @@ export default function HomePage() {
             {filtered.map(game => <GameCard key={game.id} game={game} />)}
             {filtered.length === 0 && (
               <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: 'var(--text)' }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>⚽</div>
+                <div style={{ fontSize: 48, marginBottom: 12 }}><GiSoccerBall/></div>
                 <p>No games found. Try adjusting your filters.</p>
               </div>
             )}
@@ -85,44 +107,7 @@ export default function HomePage() {
 
 function GameCard({ game }) {
   const navigate = useNavigate();
-  const [playerCount, setPlayerCount] = useState(0);
-  const [hidden, setHidden] = useState(false);
-
-  useEffect(() => {
-    const fetchCount = async () => {
-      const { count } = await supabase
-        .from('game_players')
-        .select('*', { count: 'exact', head: true })
-        .eq('game_id', game.id);
-      setPlayerCount(count || 0);
-    };
-    fetchCount();
-  }, [game.id]);
-
-  useEffect(() => {
-    if (playerCount === 0 && game.slots > 0) return; // wait for count to load
-    const now = new Date();
-
-    // Parse game start time — date is YYYY-MM-DD, time is HH:MM (Malaysia UTC+8)
-    const [year, month, day] = game.date.split('-').map(Number);
-    const [hour, minute] = (game.time || '00:00').split(':').map(Number);
-    // Build UTC date from Malaysian local time (UTC+8 = subtract 8 hours)
-    const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
-
-    const full = playerCount >= game.slots;
-
-    if (full) {
-      // Full game: hide 2 hours after start
-      const hideAt = new Date(gameStart.getTime() + 2 * 60 * 60 * 1000);
-      if (now >= hideAt) setHidden(true);
-    } else {
-      // Not full: hide as soon as game has started
-      if (now >= gameStart) setHidden(true);
-    }
-  }, [playerCount, game.date, game.time, game.slots]);
-
-  if (hidden) return null;
-
+  const playerCount = game._playerCount ?? 0;
   const full = playerCount >= game.slots;
   const pct = Math.round((playerCount / game.slots) * 100);
   const open = game.slots - playerCount;
