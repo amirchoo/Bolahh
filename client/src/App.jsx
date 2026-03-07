@@ -11,6 +11,8 @@ import GameDetailPage from './pages/GameDetailPage';
 import GameRatingPage from './pages/GameRatingPage';
 import ManagerPage from './pages/ManagerPage';
 import FriendsPage from './pages/FriendsPage';
+import WalletTopupPage from './pages/WalletTopupPage';
+import GameCheckoutPage from './pages/GameCheckoutPage';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -33,6 +35,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/wallet/topup" element={<PrivateRoute><WalletTopupPage /></PrivateRoute>} />
+        <Route path="/game/:id/checkout" element={<PrivateRoute><GameCheckoutPage /></PrivateRoute>} />
         <Route path="/game/:id" element={
   <PrivateRoute>
     <GameDetailPage />
