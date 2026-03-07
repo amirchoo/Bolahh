@@ -4,6 +4,11 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getRank, getRankColor } from '../lib/rankUtils';
+import { GiRunningShoe, GiSoccerBall, GiSoccerField } from 'react-icons/gi';
+import { MdOutlineCalendarMonth, MdOutlineCalendarViewDay, MdOutlineStadium } from 'react-icons/md';
+import { FaPeopleGroup, FaSquareParking } from 'react-icons/fa6';
+import { LuMedal, LuToilet } from 'react-icons/lu';
+import { CiShop } from 'react-icons/ci';
 
 const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang'];
 const SHOES = ['IN (Indoor Futsal Boots)', 'TF (Turf Boots)', 'Sport Shoes', 'AG (Artificial Ground Boots)'];
@@ -372,9 +377,9 @@ export default function ManagerPage() {
   );
 
   const TABS = [
-    { key: 'overview', label: '📊 Overview' },
-    { key: 'games',    label: '⚽ Games'    },
-    { key: 'fields',   label: '🏟️ Fields'   },
+    { key: 'overview', label: 'Overview' },
+    { key: 'games',    label: 'Games'    },
+    { key: 'fields',   label: 'Fields'   },
   ];
 
   return (
@@ -390,11 +395,11 @@ export default function ManagerPage() {
             </h1>
             <p style={{ color: 'var(--muted)', fontSize: 14 }}>Manage fields, games and players</p>
           </div>
-          <button onClick={() => navigate('/profile')} style={{
-            background: 'transparent', color: 'var(--muted)',
-            border: '1px solid var(--border)', borderRadius: 8,
+          <button onClick={() => navigate('/home')} style={{
+            background: 'transparent', color: 'var(--text)',
+            border: '1px solid var(--muted)', borderRadius: 8,
             padding: '8px 16px', fontSize: 13
-          }}>← Back to Profile</button>
+          }}>← Back to Home</button>
         </div>
 
         {/* Messages */}
@@ -428,10 +433,10 @@ export default function ManagerPage() {
             {/* Stats grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
               {[
-                { label: 'Total Fields',    val: fields.length,         icon: '🏟️' },
-                { label: 'Total Games',     val: games.length,          icon: '⚽' },
-                { label: 'Upcoming Games',  val: upcomingGames.length,  icon: '📅' },
-                { label: 'Total Players',   val: players.length,        icon: '👥' },
+                { label: 'Total Fields',    val: fields.length,         icon: <MdOutlineStadium/> },
+                { label: 'Total Games',     val: games.length,          icon: <GiSoccerBall/> },
+                { label: 'Upcoming Games',  val: upcomingGames.length,  icon: <MdOutlineCalendarMonth/> },
+                { label: 'Total Players',   val: players.length,        icon: <FaPeopleGroup/> },
               ].map(s => (
                 <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -460,7 +465,7 @@ export default function ManagerPage() {
                       background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
                       border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
                       padding: '5px 12px', fontSize: 12, fontWeight: 600
-                    }}>🎖️ Rate</button>
+                    }}><LuMedal /> Rate</button>
                     <button onClick={() => navigate(`/game/${game.id}`)} style={{
                       background: 'var(--card2)', color: 'var(--muted)',
                       border: '1px solid var(--border)', borderRadius: 8,
@@ -551,7 +556,7 @@ export default function ManagerPage() {
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{field.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>📍 {field.area} · {field.address}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                      {field.has_toilet && '🚽 '}{field.has_parking && '🅿️ '}{field.has_shop && '🏪 '}{field.has_shoe_rent && '👟'}
+                      {field.has_toilet && <LuToilet/>}{field.has_parking && <FaSquareParking/>}{field.has_shop && <CiShop/>}{field.has_shoe_rent && <GiRunningShoe/>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
