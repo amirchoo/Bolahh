@@ -218,6 +218,7 @@ export default function ProfilePage() {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', position: '' });
@@ -241,7 +242,7 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('profiles').select('*').eq('id', user.id).single();
+      .from('profiles').select('*, wallet_balance').eq('id', user.id).single();
     if (error || !data) {
       const username = user.user_metadata?.username || '';
       const position = user.user_metadata?.position || '';
@@ -251,6 +252,7 @@ export default function ProfilePage() {
         .select().single();
       if (newProfile) {
         setProfile(newProfile);
+        setWalletBalance(newProfile?.wallet_balance || 0);
         setForm({ name: newProfile.name || '', position: newProfile.position || '' });
         fetchCard(newProfile.total_points || 0);
       }
@@ -260,10 +262,12 @@ export default function ProfilePage() {
         const position = user.user_metadata?.position || data.position || '';
         await supabase.from('profiles').update({ name: username, position }).eq('id', user.id);
         setProfile({ ...data, name: username, position });
+        setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: username, position });
         fetchCard(data.total_points || 0);
       } else {
         setProfile(data);
+        setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: data.name || '', position: data.position || '' });
         fetchCard(data.total_points || 0);
       }
@@ -606,7 +610,7 @@ export default function ProfilePage() {
         )}
 
         {/* Stats */}
-        <div className="fade-up-3 stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
+        <div className="fade-up-3 stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
           {[
             { label: 'Games Joined', val: upcomingGames.length + recentGames.length },
             { label: 'Member Since', val: new Date(user?.created_at).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' }) },
@@ -616,6 +620,38 @@ export default function ProfilePage() {
               <div style={{ color: 'var(--text)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* Wallet */}
+        <div className="fade-up-3" style={{
+          background: 'linear-gradient(135deg, #1c1e21, #27292d)',
+          border: '1px solid rgba(240,157,81,0.25)',
+          borderRadius: 16, padding: '18px 20px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          position: 'relative', overflow: 'hidden'
+        }}>
+          <div style={{ position: 'absolute', top: -28, right: -28, width: 110, height: 110, borderRadius: '50%', background: 'rgba(240,157,81,0.06)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: -18, right: 64, width: 64, height: 64, borderRadius: '50%', background: 'rgba(240,157,81,0.04)', pointerEvents: 'none' }} />
+          <div>
+            <div style={{ fontSize: 10, color: 'rgba(240,157,81,0.65)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 6 }}>
+              BOLAHH WALLET
+            </div>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 38, color: '#fff', letterSpacing: 2, lineHeight: 1 }}>
+              RM {walletBalance.toFixed(2)}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>Available balance</div>
+          </div>
+          <button onClick={() => navigate('/wallettopup')} style={{
+            background: 'var(--accent)', color: '#fff', border: 'none',
+            borderRadius: 10, padding: '10px 20px', fontWeight: 700,
+            fontSize: 13, cursor: 'pointer', fontFamily: "'Bebas Neue'",
+            letterSpacing: 1.5, flexShrink: 0, transition: 'opacity 0.15s'
+          }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >
+            + TOPUP
+          </button>
         </div>
 
         {/* Upcoming Games */}
