@@ -354,6 +354,7 @@ export default function ProfilePage() {
     const budget = Math.max(29, profile?.total_points || 0);
     const used = Object.values(draftStats).reduce((a, b) => a + b, 0);
     if (used > budget) { setSavingCard(false); return; }
+    if (used < budget) { setSavingCard(false); return; }  // must use ALL points
 
     const payload = {
       user_id: user.id,
@@ -513,15 +514,45 @@ export default function ProfilePage() {
               })}
             </div>
 
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16, textAlign: 'center' }}>
-              Max per stat: 99 · Your rank ({rank}) gives you {budget} max total points to distribute
-            </div>
+            {(() => {
+              const draftUsed = Object.values(draftStats).reduce((a,b)=>a+b,0);
+              const draftRemaining = budget - draftUsed;
+              const allUsed = draftRemaining === 0;
+              return (
+                <>
+                  {!allUsed && (
+                    <div style={{
+                      background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)',
+                      borderRadius: 10, padding: '10px 14px', marginBottom: 14,
+                      color: 'var(--tomato)', fontSize: 12, fontWeight: 600, textAlign: 'center'
+                    }}>
+                      ⚠️ You still have <span style={{ fontFamily: "'Space Mono'" }}>{draftRemaining}</span> pts unallocated — distribute all points to save
+                    </div>
+                  )}
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16, textAlign: 'center' }}>
+                    Max per stat: 99 · You must use all {budget} points before saving
+                  </div>
+                </>
+              );
+            })()}
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" onClick={handleSaveCard} disabled={savingCard} style={{
-                flex: 2, padding: '12px', background: 'var(--accent)', color: '#fff',
-                border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, opacity: savingCard ? 0.6 : 1
-              }}>{savingCard ? 'Saving...' : 'Save Card'}</button>
+              {(() => {
+                const draftUsed = Object.values(draftStats).reduce((a,b)=>a+b,0);
+                const allUsed = draftUsed === budget;
+                return (
+                  <button type="button" onClick={handleSaveCard} disabled={savingCard || !allUsed} style={{
+                    flex: 2, padding: '12px',
+                    background: allUsed ? 'var(--accent)' : 'var(--card2)',
+                    color: allUsed ? '#fff' : 'var(--muted)',
+                    border: allUsed ? 'none' : '1px solid var(--border)',
+                    borderRadius: 10, fontWeight: 700, fontSize: 14,
+                    opacity: savingCard ? 0.6 : 1,
+                    cursor: allUsed && !savingCard ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.2s'
+                  }}>{savingCard ? 'Saving...' : allUsed ? 'Save Card' : `Use ${budget - draftUsed} more pts to save`}</button>
+                );
+              })()}
               <button type="button" onClick={handleCancelCard} style={{
                 flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
                 border: '1px solid var(--border)', borderRadius: 10, fontSize: 14
