@@ -194,9 +194,15 @@ export default function ManagerPage() {
     showSuccess('Game deleted.'); fetchGames();
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const upcomingGames = games.filter(g => g.date >= today);
-  const pastGames = games.filter(g => g.date < today);
+  const isUpcoming = (g) => {
+    const now = new Date();
+    const [year, month, day] = g.date.split('-').map(Number);
+    const [hour, minute] = (g.time || '00:00').split(':').map(Number);
+    const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+    return now < gameStart;
+  };
+  const upcomingGames = games.filter(g => isUpcoming(g));
+  const pastGames = games.filter(g => !isUpcoming(g)).sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
   const filteredPlayers = players.filter(p =>
     p.name?.toLowerCase().includes(playerSearch.toLowerCase())
   );
@@ -470,6 +476,49 @@ export default function ManagerPage() {
                       background: 'var(--card2)', color: 'var(--muted)',
                       border: '1px solid var(--border)', borderRadius: 8,
                       padding: '5px 12px', fontSize: 12
+                    }}>View</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Past Games */}
+            <div style={{ ...sectionCard, marginTop: 16 }}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>
+                PAST GAMES
+                <span style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)', fontWeight: 400, letterSpacing: 1, marginLeft: 10 }}>
+                  {pastGames.length} game{pastGames.length !== 1 ? 's' : ''}
+                </span>
+              </h3>
+              {pastGames.length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: 14, textAlign: 'center', padding: '20px 0' }}>No past games yet.</div>
+              ) : pastGames.slice(0, 10).map((game, i) => (
+                <div key={game.id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '12px 0', borderBottom: i < Math.min(pastGames.length, 10) - 1 ? '1px solid var(--border)' : 'none',
+                  opacity: 0.7
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{game.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      📍 {game.fields?.name} · 📅 {game.date} · {game.time} · {game.format}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{
+                      background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                      border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6,
+                      padding: '3px 10px', fontSize: 11, fontFamily: "'Space Mono'", fontWeight: 700
+                    }}>ENDED</span>
+                    <button onClick={() => navigate(`/game/${game.id}/rate`)} style={{
+                      background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                      border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
+                      padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                    }}><LuMedal /> Rate</button>
+                    <button onClick={() => navigate(`/game/${game.id}`)} style={{
+                      background: 'var(--card2)', color: 'var(--muted)',
+                      border: '1px solid var(--border)', borderRadius: 8,
+                      padding: '5px 12px', fontSize: 12, cursor: 'pointer'
                     }}>View</button>
                   </div>
                 </div>
