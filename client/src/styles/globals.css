@@ -11,12 +11,12 @@
   --accent-dim: #e08a3a;
   --tomato: #F06543;
   --black: #1a1a1a;
-  --bg: #1e2123;
-  --card: #242829;
-  --card2: #1a1e20;
-  --border: #2c3033;
-  --muted: #55595c;
-  --text: #f0ede8;
+  --bg: #111213;        /* was #E8E9EB */
+  --card: #1a1b1d;      /* was #E0DFD5 */
+  --card2: #222426;     /* was #d8d7cc */
+  --border: #2e3032;    /* was #c8c7bc */
+  --muted: #6b6d6f;     /* was #888880 */
+  --text: #e8e9eb;      /* was #313638 */
   --gunmetal: #f0ede8;
   --red: #e03e1a;
 }
@@ -82,3 +82,19 @@ button {
 .fade-up { animation: fadeUp 0.45s ease both; }
 .fade-up-2 { animation: fadeUp 0.45s 0.1s ease both; }
 .fade-up-3 { animation: fadeUp 0.45s 0.2s ease both; }
+
+/* Add these input overrides */
+input, select, textarea {
+  background: #1e2023 !important;
+  color: #e8e9eb !important;
+  border: 1px solid #2e3032 !important;
+}
+
+input::placeholder {
+  color: #5a5c5e !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(240, 157, 81, 0.5) !important;
+  outline: none !important;
+}

@@ -402,13 +402,13 @@ export default function ProfilePage() {
     return date.toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
-  const daysUntil = (dateStr, timeStr) => {
-    const now = new Date();
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysUntil = (dateStr) => {
+    // Compare dates only in Malaysia time (UTC+8) to avoid timezone off-by-one
+    const nowMY = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const todayMY = new Date(Date.UTC(nowMY.getUTCFullYear(), nowMY.getUTCMonth(), nowMY.getUTCDate()));
     const [year, month, day] = dateStr.split('-').map(Number);
-    const [hour, minute] = (timeStr || '00:00').split(':').map(Number);
-    const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
-    const diff = Math.round((gameStart - today) / (1000 * 60 * 60 * 24));
+    const gameDateMY = new Date(Date.UTC(year, month - 1, day));
+    const diff = Math.round((gameDateMY - todayMY) / (1000 * 60 * 60 * 24));
     if (diff === 0) return 'Today!';
     if (diff === 1) return 'Tomorrow';
     return `In ${diff} days`;
@@ -721,7 +721,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', fontFamily: "'Space Mono'", marginBottom: 4 }}>{daysUntil(entry.games?.date, entry.games?.time)}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', fontFamily: "'Space Mono'", marginBottom: 4 }}>{daysUntil(entry.games?.date)}</div>
                   <div style={{ fontSize: 12, color: 'var(--tomato)', fontFamily: "'Space Mono'", fontWeight: 700 }}>RM {entry.games?.price}</div>
                   <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>View →</div>
                 </div>

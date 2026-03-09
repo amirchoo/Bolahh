@@ -32,7 +32,7 @@ export default function Navbar() {
 
       <nav style={{
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(30,33,35,0.92)', backdropFilter: 'blur(12px)',
+        background: '--bg', backdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--border)',
         padding: '0 16px', height: 56,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between'
