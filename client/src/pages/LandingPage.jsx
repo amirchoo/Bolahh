@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { FaUserFriends } from 'react-icons/fa';
+import { IoMdFootball } from 'react-icons/io';
+import { TbPlayCard7Filled } from 'react-icons/tb';
 import { useNavigate } from 'react-router-dom';
+import { IoWallet } from "react-icons/io5";
+import { FaRankingStar } from "react-icons/fa6";
+import { FaClipboardList } from "react-icons/fa";
+import { IoSearchCircleOutline } from "react-icons/io5";
 
 const RANKS = [
   { name: 'Novis',     color: '#888880', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '< 30'   },
@@ -17,18 +24,18 @@ const RANKS = [
 ];
 
 const STEPS = [
-  { num: '01', icon: '🔍', title: 'Find a Game', desc: 'Browse upcoming futsal sessions near you. Filter by area, format, and price.' },
-  { num: '02', icon: '💰', title: 'Top Up & Join', desc: 'Add funds to your Bolahh wallet and book your slot in one tap. No payment hassle every time.' },
-  { num: '03', icon: '🎖️', title: 'Play & Get Rated', desc: 'After the match, the organiser rates your performance. Earn points, climb the ranks.' },
+  { num: '01', icon: <IoSearchCircleOutline />, title: 'Find a Game', desc: 'Browse upcoming futsal sessions near you. Filter by area, format, and price.' },
+  { num: '02', icon: <IoWallet/>, title: 'Top Up & Join', desc: 'Add funds to your Bolahh wallet and book your slot in one tap. No payment hassle every time.' },
+  { num: '03', icon: <FaRankingStar />, title: 'Play & Get Rated', desc: 'After the match, the organiser rates your performance. Earn points, climb the ranks.' },
 ];
 
 const FEATURES = [
-  { icon: '⚽', title: 'Smart Booking',    desc: 'Browse, filter and join games in seconds. Real-time slot tracking.' },
-  { icon: '💳', title: 'Bolahh Wallet',    desc: 'Top up once, play anytime. Instant refunds to your wallet if a game is cancelled.' },
-  { icon: '🏆', title: '12-Tier Rank',     desc: 'From Novis to Emas I — your rank reflects your real performance on the pitch.' },
-  { icon: '🃏', title: 'FIFA-Style Card',  desc: 'Customise your PAC, SHO, PAS, DRI, DEF, PHY stats within your point budget.' },
-  { icon: '👥', title: 'Friends System',   desc: 'Add friends, view their cards, track their rank progress.' },
-  { icon: '📊', title: 'Manager Tools',    desc: 'Organisers get a full dashboard to manage venues, games and post-match ratings.' },
+  { icon: <IoMdFootball/>,      title: 'Smart Booking',    desc: 'Browse, filter and join games in seconds. Real-time slot tracking.' },
+  { icon: <IoWallet/>,          title: 'Bolahh Wallet',    desc: 'Top up once, play anytime. Instant refunds to your wallet if a game is cancelled.' },
+  { icon: <FaRankingStar />,    title: '12-Tier Rank',     desc: 'From Novis to Emas I — your rank reflects your real performance on the pitch.' },
+  { icon: <TbPlayCard7Filled/>, title: 'Bolahh Card',      desc: 'Customise your PAC, SHO, PAS, DRI, DEF, PHY stats within your point budget.' },
+  { icon: <FaUserFriends/>,     title: 'Friends System',   desc: 'Add friends, view their cards, track their rank progress.' },
+  { icon: <FaClipboardList/>,   title: 'Manager Tools',    desc: 'Organisers get a full dashboard to manage venues, games and post-match ratings.' },
 ];
 
 // Inline demo card (no external imports needed)
@@ -261,23 +268,23 @@ export default function LandingPage() {
               <span style={{ width:6, height:6, borderRadius:'50%', background:'#F09D51', display:'inline-block', position:'relative' }}>
                 <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#F09D51', animation:'pulse-ring 1.5s ease-out infinite' }} />
               </span>
-              MALAYSIA'S FUTSAL PLATFORM
+              MALAYSIA'S FIRST FOOTBALL PLATFORM
             </div>
 
             <h1 className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-1 hero-title`} style={{
               fontFamily: "'Bebas Neue'", fontSize: 88, lineHeight: 0.9,
               letterSpacing: 3, marginBottom: 24, color: '#e8e9eb'
             }}>
-              PLAY.<br />
-              <span className="shimmer-text">RANK UP.</span><br />
-              DOMINATE.
+              ANYWHERE.<br />
+              <span className="shimmer-text">ANYONE.</span><br />
+              ANYTIME.
             </h1>
 
             <p className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-2 hero-desc`} style={{
               fontSize: 17, color: 'rgba(232,233,235,0.6)', lineHeight: 1.7,
               maxWidth: 440, marginBottom: 36, fontFamily: "'DM Sans'"
             }}>
-              Book futsal games, build your FIFA-style player card, and climb through 12 rank tiers — from Novis all the way to Emas I.
+              Book futsal games, build your Bolahh card, and climb through 12 rank tiers — from Novis all the way to Emas I.
             </p>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 hero-btns`} style={{ display: 'flex', gap: 12 }}>
@@ -299,7 +306,7 @@ export default function LandingPage() {
             </div>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-4 hero-stats`} style={{ display: 'flex', gap: 32, marginTop: 40 }}>
-              {[['12', 'Rank Tiers'], ['6', 'Stats to Build'], ['3', 'Game Formats']].map(([num, label]) => (
+              {[['20+', 'Courts/Field'], ['100+', 'Active Players'], ['3', 'Game Formats']].map(([num, label]) => (
                 <div key={label}>
                   <div style={{ fontFamily: "'Bebas Neue'", fontSize: 36, color: '#F09D51', lineHeight: 1, letterSpacing: 1 }}>{num}</div>
                   <div style={{ fontSize: 12, color: 'rgba(232,233,235,0.5)', fontFamily: "'DM Sans'" }}>{label}</div>
@@ -323,14 +330,14 @@ export default function LandingPage() {
               borderRadius:12, padding:'8px 14px', fontSize:12,
               fontFamily:"'Space Mono'", color:'#ffd700', fontWeight:700,
               transform:`translateY(${floatOffset * 0.3}px)`
-            }}>🏆 EMAS I</div>
+            }}>EMAS I</div>
             <div style={{
               position:'absolute', bottom: 20, left: -40,
               background:'rgba(14,15,16,0.9)', border:'1px solid rgba(240,157,81,0.3)',
               borderRadius:12, padding:'8px 14px', fontSize:12,
               fontFamily:"'Space Mono'", color:'#F09D51', fontWeight:700,
               transform:`translateY(${floatOffset * -0.5}px)`
-            }}>⚽ 580 PTS</div>
+            }}>580 PTS</div>
           </div>
         </div>
       </section>
@@ -508,7 +515,7 @@ export default function LandingPage() {
           <div style={{ flex:1, minWidth:260 }}>
             <div className={`reveal ${cardVisible ? 'visible' : ''}`} style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>YOUR IDENTITY</div>
             <h2 className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-1`} style={{ fontFamily:"'Bebas Neue'", fontSize:48, letterSpacing:3, color:'#e8e9eb', lineHeight:1, marginBottom:20 }}>
-              YOUR FIFA-STYLE<br />PLAYER CARD
+              YOUR Bolahh<br />PLAYER CARD
             </h2>
             <p className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-2`} style={{ fontSize:15, color:'rgba(232,233,235,0.55)', lineHeight:1.8, fontFamily:"'DM Sans'", marginBottom:24 }}>
               Every player gets a card that reflects their rank tier. Distribute your earned points across PAC, SHO, PAS, DRI, DEF and PHY — your call how you build your identity on the pitch.

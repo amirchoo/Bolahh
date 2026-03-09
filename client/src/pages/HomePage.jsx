@@ -8,6 +8,22 @@ import { GiSoccerBall } from 'react-icons/gi';
 const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang'];
 const FORMATS = ['All Formats', '5v5', '6v6'];
 
+const formatDate = (dateStr) => {
+  const date = new Date(dateStr);
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+  const day = date.getDate();
+  const month = date.toLocaleDateString('en-US', { month: 'long' });
+  return `${weekday}, ${day} ${month}`;
+};
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return '';
+  const [h] = timeStr.split(':');
+  const hour = parseInt(h);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  return `${timeStr}${ampm}`;
+};
+
 export default function HomePage() {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +61,22 @@ export default function HomePage() {
     );
     const gamesWithCounts = data.map((g, i) => ({ ...g, _playerCount: counts[i].count || 0 }));
 
-    // Pre-filter expired games
-    setGames(gamesWithCounts.filter(g => isGameVisible(g, g._playerCount)));
+    // Auto-delete games past start time with fewer than 10 players
+    const now = new Date();
+    const gamesToDelete = gamesWithCounts.filter(g => {
+      const [year, month, day] = g.date.split('-').map(Number);
+      const [hour, minute] = (g.time || '00:00').split(':').map(Number);
+      const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+      const minPlayers = parseInt(g.format) * 2 || 10;
+      return now >= gameStart && g._playerCount < minPlayers;
+    });
+    if (gamesToDelete.length > 0) {
+      await Promise.all(gamesToDelete.map(g => supabase.from('games').delete().eq('id', g.id)));
+    }
+    const deletedIds = new Set(gamesToDelete.map(g => g.id));
+
+    // Pre-filter expired games and deleted games
+    setGames(gamesWithCounts.filter(g => !deletedIds.has(g.id) && isGameVisible(g, g._playerCount)));
     setLoading(false);
   };
 
@@ -114,13 +144,13 @@ function GameCard({ game }) {
 
   return (
     <div
-      onClick={() => navigate(`/game/${game.id}`)}
+      onClick={() => { if (!full) navigate(`/game/${game.id}`); }}
       style={{
         background: full ? 'var(--card2)' : 'var(--card)',
         border: '1px solid var(--border)',
         borderRadius: 16, padding: 20,
         opacity: full ? 0.55 : 1,
-        transition: 'border-color 0.2s, transform 0.15s', cursor: 'pointer'
+        transition: 'border-color 0.2s, transform 0.15s', cursor: full ? 'not-allowed' : 'pointer'
       }}
       onMouseEnter={e => { if (!full) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)'; }}
@@ -136,14 +166,14 @@ function GameCard({ game }) {
             border: '1px solid rgba(240,157,81,0.25)',
             borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700
           }}>{game.format}</span>
-          <div style={{ marginTop: 6, fontFamily: "'Space Mono'", fontSize: 13, color: 'var(--tomato)', fontWeight: 700 }}>
+          <div style={{ marginTop: 6, fontFamily: "'Space Mono'", fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>
             RM {game.price}
           </div>
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        {[`📍 ${game.area}`, `📅 ${game.date}`, `🕐 ${game.time}`].map(tag => (
+        {[`📍 ${game.area}`, `📅 ${formatDate(game.date)}`, `🕐 ${formatTime(game.time)}`].map(tag => (
           <span key={tag} style={{
             background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)',
             borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'"

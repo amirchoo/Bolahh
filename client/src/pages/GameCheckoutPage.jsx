@@ -4,6 +4,12 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
+import { LuRecycle } from "react-icons/lu";
+import { MdOutlineCancel } from "react-icons/md";
+import { IoWarningOutline } from "react-icons/io5";
+import { RiRefund2Line } from "react-icons/ri";
+
+
 
 export default function GameCheckoutPage() {
   const { id } = useParams();
@@ -87,6 +93,22 @@ export default function GameCheckoutPage() {
     setWalletBalance(newBalance);
     setSuccess(true);
     setConfirming(false);
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    return `${weekday}, ${day} ${month}`;
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const [h] = timeStr.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    return `${timeStr}${ampm}`;
   };
 
   if (loading) {
@@ -174,10 +196,10 @@ export default function GameCheckoutPage() {
           borderRadius: 16, padding: '20px', marginBottom: 16
         }}>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 12 }}>GAME DETAILS</div>
-          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>{game.title}</div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>📍 {field?.name} · {game.area}</div>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>{field?.name} . {game.area}</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}> {game.title}</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[`📅 ${game.date}`, `🕐 ${game.time}`, `⚽ ${game.format}`].map(t => (
+            {[`📅 ${formatDate(game.date)}`, `🕐 ${formatTime(game.time)}`, `⚽ ${game.format}`].map(t => (
               <span key={t} style={{
                 background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)',
                 borderRadius: 6, padding: '3px 10px', fontSize: 12, fontFamily: "'Space Mono'"
@@ -223,27 +245,27 @@ export default function GameCheckoutPage() {
 
           {[
             {
-              icon: '✅',
+              icon: <RiRefund2Line />,
               title: 'Full Refund — Game Cancelled by Organiser',
               desc: 'If the organiser cancels the game, 100% of the game fee will be refunded to your Bolahh wallet within 24 hours.',
             },
             {
-              icon: '✅',
+              icon: <RiRefund2Line />,
               title: 'Full Refund — Cancelled 24hrs Before',
               desc: 'You may cancel your booking up to 24 hours before the game start time for a full refund to your wallet.',
             },
             {
-              icon: '⚠️',
+              icon: <IoWarningOutline />,
               title: '50% Refund — Cancelled 2–24hrs Before',
               desc: 'Cancellations made between 2 and 24 hours before the game will receive a 50% refund to your wallet.',
             },
             {
-              icon: '❌',
+              icon: <MdOutlineCancel />,
               title: 'No Refund — Cancelled Under 2hrs / No-Show',
               desc: 'Cancellations within 2 hours of the game or no-shows are not eligible for a refund.',
             },
             {
-              icon: '🔄',
+              icon: <LuRecycle />,
               title: 'Wallet Refunds Only',
               desc: 'All refunds are credited to your Bolahh wallet. Refunds to bank accounts are not available.',
             },

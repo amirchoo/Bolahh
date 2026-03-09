@@ -4,6 +4,11 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
+import { FaRankingStar } from "react-icons/fa6";
+import { FaSquareParking } from 'react-icons/fa6';
+import { LuToilet } from 'react-icons/lu';
+import { CiShop } from 'react-icons/ci';
+import { FaLocationDot } from "react-icons/fa6";
 
 export default function GameDetailPage() {
   const { id } = useParams();
@@ -83,6 +88,22 @@ export default function GameDetailPage() {
     borderRadius: 10, padding: '10px 18px',
     display: 'flex', alignItems: 'center', gap: 8,
     fontSize: 14, color: 'var(--text)', fontWeight: 500
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    return `${weekday}, ${day} ${month}`;
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const [h] = timeStr.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    return `${timeStr}${ampm}`;
   };
 
   return (
@@ -204,18 +225,14 @@ export default function GameDetailPage() {
         <div className="fade-up" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 40, letterSpacing: 3, color: 'var(--text)', marginBottom: 4 }}>{game.title}</h1>
-              <p style={{ color: 'var(--text)', fontSize: 14, opacity: 0.75 }}>📍 {field?.name} · {game.area}</p>
+              <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 40, letterSpacing: 3, color: 'var(--text)', marginBottom: 4 }}><FaLocationDot size ={25}/> {field?.name} ,{game.area}</h1>
+              <p style={{ fontFamily:"Bebas Neue",color: 'var(--text)', fontSize: 30, opacity: 1 }}>{formatDate(game.date)} / {formatTime(game.time)}</p>
+              <p style={{ color: 'var(--text)', fontSize: 14, opacity: 0.75 }}>{game.title}</p>
             </div>
             <div style={{ textAlign: 'right' }}>
               <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 6, padding: '4px 14px', fontSize: 13, fontFamily: "'Space Mono'", fontWeight: 700 }}>{game.format}</span>
-              <div style={{ marginTop: 6, fontFamily: "'Space Mono'", fontSize: 16, color: 'var(--tomato)', fontWeight: 700 }}>RM {game.price}</div>
+              <div style={{ marginTop: 6, fontFamily: "'Space Mono'", fontSize: 16, color: 'var(--accent)', fontWeight: 700 }}>RM {game.price}</div>
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-            <span style={tagStyle}>📅 {game.date}</span>
-            <span style={tagStyle}>🕐 {game.time}</span>
-            {game.shoes_type && <span style={tagStyle}>👟 {game.shoes_type}</span>}
           </div>
         </div>
 
@@ -268,7 +285,7 @@ export default function GameDetailPage() {
             <button onClick={() => navigate(`/game/${id}/rate`)} style={{
               width: '100%', padding: '13px', background: 'transparent', color: 'var(--accent)',
               border: '1.5px solid var(--accent)', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer'
-            }}>🎖️ Rate Players for this Game</button>
+            }}><FaRankingStar /> Rate Players for this Game</button>
           </div>
         )}
 
@@ -281,33 +298,33 @@ export default function GameDetailPage() {
 
         {game.game_rules && (
           <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-            <div style={sectionTitle}>⚽ GAME RULES</div>
+            <div style={sectionTitle}>GAME RULES</div>
             <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-line', opacity: 0.8 }}>{game.game_rules}</p>
           </div>
         )}
 
         {field?.field_rules && (
           <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-            <div style={sectionTitle}>🏟️ FIELD RULES</div>
+            <div style={sectionTitle}>FIELD RULES</div>
             <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-line', opacity: 0.8 }}>{field.field_rules}</p>
           </div>
         )}
 
         {game.shoes_type && (
           <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-            <div style={sectionTitle}>👟 SHOES REQUIRED</div>
+            <div style={sectionTitle}>SHOES REQUIRED</div>
             <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8, padding: '8px 18px', fontSize: 14, fontWeight: 600, display: 'inline-block', maxWidth: '100%', wordBreak: 'break-word' }}>{game.shoes_type}</span>
           </div>
         )}
 
         {field && (field.has_toilet || field.has_parking || field.has_shop || field.has_shoe_rent) && (
           <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-            <div style={sectionTitle}>🏢 FACILITIES</div>
+            <div style={sectionTitle}>FACILITIES</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {field.has_toilet && <div style={facilityItem}>🚽 Toilet</div>}
-              {field.has_parking && <div style={facilityItem}>🅿️ Parking</div>}
-              {field.has_shop && <div style={facilityItem}>🏪 Shop / Canteen</div>}
-              {field.has_shoe_rent && <div style={facilityItem}>👟 Shoe Rent</div>}
+              {field.has_toilet && <div style={facilityItem}><LuToilet/> Toilet</div>}
+              {field.has_parking && <div style={facilityItem}><FaSquareParking/>Parking</div>}
+              {field.has_shop && <div style={facilityItem}><CiShop/>Shop / Canteen</div>}
+              {field.has_shoe_rent && <div style={facilityItem}> <GiRunningShoe/>Shoe Rent</div>}
             </div>
           </div>
         )}
