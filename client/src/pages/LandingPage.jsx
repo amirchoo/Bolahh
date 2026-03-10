@@ -522,10 +522,10 @@ export default function LandingPage() {
             </p>
             <div className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-3`} style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
-                ['🎨','Card theme upgrades with your rank — from grey to gold'],
-                ['🎯','Distribute points exactly how you want across 6 stats'],
-                ['📈','Auto-adjusts if you lose points after a bad game'],
-                ['👁️','Friends can view your card on your profile'],
+                ['Card theme upgrades with your rank — from grey to gold'],
+                ['Distribute points exactly how you want across 6 stats'],
+                ['Auto-adjusts if you lose points after a bad game'],
+                ['Friends can view your card on your profile'],
               ].map(([icon,text]) => (
                 <div key={text} style={{ display:'flex', alignItems:'flex-start', gap:12, fontSize:13, color:'rgba(232,233,235,0.6)', fontFamily:"'DM Sans'" }}>
                   <span style={{ fontSize:16, flexShrink:0 }}>{icon}</span>
