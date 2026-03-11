@@ -3,10 +3,13 @@ import { FaUserFriends } from 'react-icons/fa';
 import { IoMdFootball } from 'react-icons/io';
 import { TbPlayCard7Filled } from 'react-icons/tb';
 import { useNavigate } from 'react-router-dom';
-import { IoWallet } from "react-icons/io5";
+import { IoStatsChart, IoWallet } from "react-icons/io5";
 import { FaRankingStar } from "react-icons/fa6";
 import { FaClipboardList } from "react-icons/fa";
 import { IoSearchCircleOutline } from "react-icons/io5";
+import { GiUpgrade } from "react-icons/gi";
+import { MdOutlineAutoMode } from "react-icons/md";
+import { LiaUserFriendsSolid } from "react-icons/lia";
 
 const RANKS = [
   { name: 'Novis',     color: '#888880', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '< 30'   },
@@ -250,6 +253,7 @@ export default function LandingPage() {
         minHeight: '100vh', display: 'flex', alignItems: 'center',
         padding: '100px 32px 60px',
         position: 'relative', overflow: 'hidden',
+        background: `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('/images/hero-bg.jpg') center/cover no-repeat`,
       }}>
         {/* Background glow */}
         <div style={{ position:'absolute', top:'20%', left:'10%', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle, rgba(240,157,81,0.08) 0%, transparent 70%)', pointerEvents:'none' }} />
@@ -284,7 +288,7 @@ export default function LandingPage() {
               fontSize: 17, color: 'rgba(232,233,235,0.6)', lineHeight: 1.7,
               maxWidth: 440, marginBottom: 36, fontFamily: "'DM Sans'"
             }}>
-              Book futsal games, build your Bolahh card, and climb through 12 rank tiers — from Novis all the way to Emas I.
+              Find and join football game near you! no matter whether you are playing alone or with friends!
             </p>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 hero-btns`} style={{ display: 'flex', gap: 12 }}>
@@ -343,7 +347,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" style={{ padding: '100px 32px', background: '#111213' }}>
+      <section id="how-it-works" style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url('/images/howitworks-bg.jpg') center/cover no-repeat` }}>
         <div ref={stepsRef} style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div className={`reveal ${stepsVisible ? 'visible' : ''}`} style={{ textAlign: 'center', marginBottom: 60 }}>
             <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>THE PROCESS</div>
@@ -383,7 +387,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── RANK SYSTEM ── */}
-      <section id="ranks" style={{ padding: '100px 32px', background: '#0e0f10', position:'relative', overflow:'hidden' }}>
+      <section id="ranks" style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), url('/images/rank-bg.jpg') center/cover no-repeat`, position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:600, height:600, borderRadius:'50%', background:'radial-gradient(circle, rgba(255,215,0,0.04) 0%, transparent 70%)', pointerEvents:'none' }} />
 
         <div ref={rankRef} style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -502,7 +506,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FIFA CARD ── */}
-      <section style={{ padding: '100px 32px', background: 'linear-gradient(180deg, #111213 0%, #0e0f10 100%)' }}>
+      <section style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url('/images/card-bg.jpg') center/cover no-repeat` }}>
         <div ref={cardRef} style={{ maxWidth: 1000, margin: '0 auto', display:'flex', gap:64, alignItems:'center', flexWrap:'wrap' }}>
 
           {/* Left — card */}
@@ -522,10 +526,10 @@ export default function LandingPage() {
             </p>
             <div className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-3`} style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
-                ['Card theme upgrades with your rank — from grey to gold'],
-                ['Distribute points exactly how you want across 6 stats'],
-                ['Auto-adjusts if you lose points after a bad game'],
-                ['Friends can view your card on your profile'],
+                [<GiUpgrade />,'Card theme upgrades with your rank from Novis to Emas'],
+                [<IoStatsChart />,'Distribute points exactly how you want across 6 stats'],
+                [<MdOutlineAutoMode />,'Auto-adjusts if you lose points after a bad game'],
+                [<LiaUserFriendsSolid />,'Friends can view your card on your profile'],
               ].map(([icon,text]) => (
                 <div key={text} style={{ display:'flex', alignItems:'flex-start', gap:12, fontSize:13, color:'rgba(232,233,235,0.6)', fontFamily:"'DM Sans'" }}>
                   <span style={{ fontSize:16, flexShrink:0 }}>{icon}</span>
@@ -538,7 +542,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section id="features" style={{ padding: '100px 32px', background: '#0e0f10' }}>
+      <section id="features" style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), url('/images/features-bg.jpg') center/cover no-repeat` }}>
         <div ref={featRef} style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div className={`reveal ${featVisible ? 'visible' : ''}`} style={{ textAlign:'center', marginBottom:60 }}>
             <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>EVERYTHING YOU NEED</div>
@@ -562,7 +566,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section style={{ padding: '100px 32px', background:'#111213', position:'relative', overflow:'hidden' }}>
+      <section style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url('/images/readytoplay.jpg') center/cover no-repeat`, position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:700, height:400, background:'radial-gradient(ellipse, rgba(240,157,81,0.07) 0%, transparent 70%)', pointerEvents:'none' }} />
         <div ref={ctaRef} className={`reveal ${ctaVisible ? 'visible' : ''}`} style={{ maxWidth:600, margin:'0 auto', textAlign:'center' }}>
           <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:16 }}>READY TO PLAY?</div>
