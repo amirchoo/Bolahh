@@ -253,13 +253,15 @@ export default function LandingPage() {
         minHeight: '100vh', display: 'flex', alignItems: 'center',
         padding: '100px 32px 60px',
         position: 'relative', overflow: 'hidden',
-        background: `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('/images/hero-bg.jpg') center/cover no-repeat`,
+        background: '#0e0f10',
       }}>
+        <div style={{ position:'absolute', inset:0, zIndex:0, backgroundImage:`url('/images/hero-bg.jpg')`, backgroundSize:'cover', backgroundPosition:'center', opacity: heroVisible ? 0.4 : 0, transition:'opacity 1.4s ease', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.5)', pointerEvents:'none' }} />
         {/* Background glow */}
-        <div style={{ position:'absolute', top:'20%', left:'10%', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle, rgba(240,157,81,0.08) 0%, transparent 70%)', pointerEvents:'none' }} />
-        <div style={{ position:'absolute', bottom:'10%', right:'5%', width:300, height:300, borderRadius:'50%', background:'radial-gradient(circle, rgba(240,101,67,0.06) 0%, transparent 70%)', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', top:'20%', left:'10%', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle, rgba(240,157,81,0.08) 0%, transparent 70%)', pointerEvents:'none', zIndex:1 }} />
+        <div style={{ position:'absolute', bottom:'10%', right:'5%', width:300, height:300, borderRadius:'50%', background:'radial-gradient(circle, rgba(240,101,67,0.06) 0%, transparent 70%)', pointerEvents:'none', zIndex:1 }} />
 
-        <div ref={heroRef} className="hero-grid" style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 64, width: '100%' }}>
+        <div ref={heroRef} className="hero-grid" style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 64, width: '100%', position:'relative', zIndex:2 }}>
 
           {/* Left — text */}
           <div style={{ flex: 1 }}>
@@ -288,7 +290,7 @@ export default function LandingPage() {
               fontSize: 17, color: 'rgba(232,233,235,0.6)', lineHeight: 1.7,
               maxWidth: 440, marginBottom: 36, fontFamily: "'DM Sans'"
             }}>
-              Find and join football game near you! no matter whether you are playing alone or with friends!
+              Book futsal games, build your Bolahh card, and climb through 12 rank tiers — from Novis all the way to Emas I.
             </p>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 hero-btns`} style={{ display: 'flex', gap: 12 }}>
@@ -347,8 +349,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url('/images/howitworks-bg.jpg') center/cover no-repeat` }}>
-        <div ref={stepsRef} style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <section id="how-it-works" style={{ padding: '100px 32px', background: '#0e0f10', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', inset:0, zIndex:0, backgroundImage:`url('/images/howitworks-bg.jpg')`, backgroundSize:'cover', backgroundPosition:'center', opacity: stepsVisible ? 0.4 : 0, transition:'opacity 1.4s ease', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.55)', pointerEvents:'none' }} />
+        <div ref={stepsRef} style={{ maxWidth: 1000, margin: '0 auto', position:'relative', zIndex:2 }}>
           <div className={`reveal ${stepsVisible ? 'visible' : ''}`} style={{ textAlign: 'center', marginBottom: 60 }}>
             <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>THE PROCESS</div>
             <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb' }}>HOW IT WORKS</h2>
@@ -387,10 +391,12 @@ export default function LandingPage() {
       </section>
 
       {/* ── RANK SYSTEM ── */}
-      <section id="ranks" style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), url('/images/rank-bg.jpg') center/cover no-repeat`, position:'relative', overflow:'hidden' }}>
-        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:600, height:600, borderRadius:'50%', background:'radial-gradient(circle, rgba(255,215,0,0.04) 0%, transparent 70%)', pointerEvents:'none' }} />
+      <section id="ranks" style={{ padding: '100px 32px', background: '#0e0f10', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', inset:0, zIndex:0, backgroundImage:`url('/images/rank-bg.jpg')`, backgroundSize:'cover', backgroundPosition:'center', opacity: rankVisible ? 0.4 : 0, transition:'opacity 1.4s ease', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.55)', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:600, height:600, borderRadius:'50%', background:'radial-gradient(circle, rgba(255,215,0,0.04) 0%, transparent 70%)', pointerEvents:'none', zIndex:1 }} />
 
-        <div ref={rankRef} style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <div ref={rankRef} style={{ maxWidth: 1000, margin: '0 auto', position:'relative', zIndex:2 }}>
           <div className={`reveal ${rankVisible ? 'visible' : ''}`} style={{ textAlign:'center', marginBottom:60 }}>
             <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>PROGRESSION</div>
             <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb', marginBottom:12 }}>THE RANK SYSTEM</h2>
@@ -506,8 +512,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── FIFA CARD ── */}
-      <section style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url('/images/card-bg.jpg') center/cover no-repeat` }}>
-        <div ref={cardRef} style={{ maxWidth: 1000, margin: '0 auto', display:'flex', gap:64, alignItems:'center', flexWrap:'wrap' }}>
+      <section style={{ padding: '100px 32px', background: '#0e0f10', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', inset:0, zIndex:0, backgroundImage:`url('/images/card-bg.jpg')`, backgroundSize:'cover', backgroundPosition:'center', opacity: cardVisible ? 0.4 : 0, transition:'opacity 1.4s ease', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.5)', pointerEvents:'none' }} />
+        <div ref={cardRef} style={{ maxWidth: 1000, margin: '0 auto', display:'flex', gap:64, alignItems:'center', flexWrap:'wrap', position:'relative', zIndex:2 }}>
 
           {/* Left — card */}
           <div className={`reveal ${cardVisible ? 'visible' : ''}`} style={{ flexShrink:0, position:'relative', margin:'0 auto' }}>
@@ -542,8 +550,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section id="features" style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.75)), url('/images/features-bg.jpg') center/cover no-repeat` }}>
-        <div ref={featRef} style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <section id="features" style={{ padding: '100px 32px', background: '#0e0f10', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', inset:0, zIndex:0, backgroundImage:`url('/images/features-bg.jpg')`, backgroundSize:'cover', backgroundPosition:'center', opacity: featVisible ? 0.4 : 0, transition:'opacity 1.4s ease', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.55)', pointerEvents:'none' }} />
+        <div ref={featRef} style={{ maxWidth: 1000, margin: '0 auto', position:'relative', zIndex:2 }}>
           <div className={`reveal ${featVisible ? 'visible' : ''}`} style={{ textAlign:'center', marginBottom:60 }}>
             <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>EVERYTHING YOU NEED</div>
             <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb' }}>FEATURES</h2>
@@ -566,9 +576,11 @@ export default function LandingPage() {
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section style={{ padding: '100px 32px', background: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url('/images/readytoplay.jpg') center/cover no-repeat`, position:'relative', overflow:'hidden' }}>
-        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:700, height:400, background:'radial-gradient(ellipse, rgba(240,157,81,0.07) 0%, transparent 70%)', pointerEvents:'none' }} />
-        <div ref={ctaRef} className={`reveal ${ctaVisible ? 'visible' : ''}`} style={{ maxWidth:600, margin:'0 auto', textAlign:'center' }}>
+      <section style={{ padding: '100px 32px', background: '#0e0f10', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', inset:0, zIndex:0, backgroundImage:`url('/images/readytoplay-bg.jpg')`, backgroundSize:'cover', backgroundPosition:'center', opacity: ctaVisible ? 0.4 : 0, transition:'opacity 1.4s ease', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.5)', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:700, height:400, background:'radial-gradient(ellipse, rgba(240,157,81,0.07) 0%, transparent 70%)', pointerEvents:'none', zIndex:1 }} />
+        <div ref={ctaRef} className={`reveal ${ctaVisible ? 'visible' : ''}`} style={{ maxWidth:600, margin:'0 auto', textAlign:'center', position:'relative', zIndex:2 }}>
           <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:16 }}>READY TO PLAY?</div>
           <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:64, letterSpacing:3, color:'#e8e9eb', lineHeight:0.95, marginBottom:20 }}>
             START YOUR<br /><span className="shimmer-text">JOURNEY</span><br />TODAY
