@@ -9,6 +9,10 @@ import { MdOutlineCalendarMonth, MdOutlineCalendarViewDay, MdOutlineStadium } fr
 import { FaPeopleGroup, FaSquareParking } from 'react-icons/fa6';
 import { LuMedal, LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
+import { IoCheckmarkDoneCircleSharp } from "react-icons/io5";
+import { MdError } from "react-icons/md";
+
+
 
 const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang'];
 const SHOES = ['IN (Indoor Futsal Boots)', 'TF (Turf Boots)', 'Sport Shoes', 'AG (Artificial Ground Boots)'];
@@ -355,8 +359,8 @@ export default function ManagerPage() {
       <div>
         <label style={labelStyle}>FACILITIES</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[{ key: 'has_toilet', label: '🚽 Toilet' }, { key: 'has_parking', label: '🅿️ Parking' },
-            { key: 'has_shop', label: '🏪 Shop / Canteen' }, { key: 'has_shoe_rent', label: '👟 Shoe Rent' }
+          {[{ key: 'has_toilet', label: 'Toilet' }, { key: 'has_parking', label: 'Parking' },
+            { key: 'has_shop', label: 'Shop / Canteen' }, { key: 'has_shoe_rent', label: 'Shoe Rent' }
           ].map(({ key, label }) => (
             <label key={key} style={checkboxLabel}>
               <input type="checkbox" checked={fieldForm[key] || false}
@@ -371,7 +375,7 @@ export default function ManagerPage() {
         <button onClick={isEdit ? handleUpdateField : handleAddField} style={{
           flex: 1, padding: '12px', background: 'var(--accent)', color: '#fff',
           border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14
-        }}>{isEdit ? '💾 Save Changes' : '+ Add Field'}</button>
+        }}>{isEdit ? 'Save Changes' : '+ Add Field'}</button>
         {isEdit && (
           <button onClick={() => { setEditingField(null); resetFieldForm(); }} style={{
             flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
@@ -411,12 +415,12 @@ export default function ManagerPage() {
         {/* Messages */}
         {success && (
           <div style={{ background: 'rgba(240,157,81,0.12)', border: '1px solid rgba(240,157,81,0.3)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>
-            ✅ {success}
+            <IoCheckmarkDoneCircleSharp />{success}
           </div>
         )}
         {error && (
           <div style={{ background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, color: 'var(--red)', fontSize: 13 }}>
-            ❌ {error}
+            <MdError /> {error}
           </div>
         )}
 
