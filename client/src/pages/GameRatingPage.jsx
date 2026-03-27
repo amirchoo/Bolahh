@@ -228,32 +228,58 @@ export default function GameRatingPage() {
   };
 
   const handleSubmit = async () => {
-    setSaving(true); setError('');
-    try {
-      for (const uid of players) {
-        const stats = ratings[uid] || defaultStats();
-        const total = calcTotal(stats);
-        const { error: insertError } = await supabase.from('game_ratings').insert({
-          game_id: id, user_id: uid,
-          rated_by: (await supabase.auth.getUser()).data.user.id,
-          goals: stats.goals, assists: stats.assists,
-          good_defending: stats.good_defending, good_keeping: stats.good_keeping,
-          successful_dribble: stats.successful_dribble, good_chance: stats.good_chance,
-          good_manner: stats.good_manner, admin_bonus: stats.admin_bonus,
-          total_points: total,
-        });
-        if (insertError) throw new Error(insertError.message);
-        const profile = profiles[uid];
-        await supabase.from('profiles').update({
-          total_points: Math.min(594, (profile?.total_points || 0) + total),
-          games_played: (profile?.games_played || 0) + 1,
-        }).eq('id', uid);
-      }
-      setSuccess('Ratings submitted!'); setAlreadyRated(true); setStep('setup');
-    } catch (e) { setError(e.message); }
-    setSaving(false);
-  };
+  setSaving(true); setError('');
+  try {
+    for (const uid of players) {
+      const stats = ratings[uid] || defaultStats();
+      const total = calcTotal(stats);
 
+      const { error: insertError } = await supabase.from('game_ratings').insert({
+        game_id: id,
+        user_id: uid,
+        rated_by: (await supabase.auth.getUser()).data.user.id,
+        goals: stats.goals,
+        assists: stats.assists,
+        good_defending: stats.good_defending,
+        good_keeping: stats.good_keeping,
+        successful_dribble: stats.successful_dribble,
+        good_chance: stats.good_chance,
+        good_manner: stats.good_manner,
+        admin_bonus: stats.admin_bonus,
+        total_points: total,
+      });
+      if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
+
+      const profile = profiles[uid];
+      const newPoints = Math.min(594, (profile?.total_points || 0) + total);
+      const newGamesPlayed = (profile?.games_played || 0) + 1;
+
+      const { data: updateData, error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          total_points: newPoints,
+          games_played: newGamesPlayed,
+        })
+        .eq('id', uid)
+        .select();
+
+      if (updateError) {
+        console.error('Profile update failed for', uid, updateError);
+        throw new Error('Profile update failed: ' + updateError.message);
+      }
+      if (!updateData || updateData.length === 0) {
+        console.error('Profile update matched no rows for', uid);
+        throw new Error('Profile update matched no rows for ' + uid);
+      }
+    }
+    setSuccess('Ratings submitted!');
+    setAlreadyRated(true);
+    setStep('setup');
+  } catch (e) {
+    setError(e.message);
+  }
+  setSaving(false);
+};
   // ── STYLES ──
   const cardStyle = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, marginBottom: 12 };
 
