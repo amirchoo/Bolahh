@@ -5,7 +5,7 @@ import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
 import { GiSoccerBall } from 'react-icons/gi';
 
-const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang'];
+const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang','Ansan'];
 const FORMATS = ['All Formats', '5v5', '6v6'];
 
 const formatDate = (dateStr) => {
