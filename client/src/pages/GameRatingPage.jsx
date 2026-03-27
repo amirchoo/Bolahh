@@ -33,17 +33,18 @@ function calcTotal(stats) {
     + (stats.admin_bonus || 0);
 }
 
-// Schedule rotation: 9 matches, every team plays every other 3 times
-const MATCH_ROTATION = [
+// Base 3-team rotation (1 round)
+const BASE_ROTATION = [
   { home: 'A', away: 'B', rest: 'C' },
   { home: 'B', away: 'C', rest: 'A' },
   { home: 'A', away: 'C', rest: 'B' },
-  { home: 'A', away: 'B', rest: 'C' },
-  { home: 'B', away: 'C', rest: 'A' },
-  { home: 'A', away: 'C', rest: 'B' },
-  { home: 'A', away: 'B', rest: 'C' },
-  { home: 'B', away: 'C', rest: 'A' },
-  { home: 'A', away: 'C', rest: 'B' },
+];
+
+// Duration options
+const DURATION_OPTIONS = [
+  { label: '1 Hour',     value: 60  },
+  { label: '1.5 Hours',  value: 90  },
+  { label: '2 Hours',    value: 120 },
 ];
 
 function addMinutes(timeStr, mins) {
@@ -82,9 +83,13 @@ export default function GameRatingPage() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  // Step: 'setup' | 'schedule' | 'rating'
-  const [step, setStep] = useState('setup');
+  // Step: 'config' | 'setup' | 'schedule' | 'rating'
+  const [step, setStep] = useState('config');
   const [currentMatch, setCurrentMatch] = useState(0);
+
+  // NEW: duration (minutes) and team mode (2 or 3), auto-suggested after load
+  const [duration, setDuration] = useState(120);
+  const [teamMode, setTeamMode] = useState(null);
 
   // Team assignments: { userId: 'A' | 'B' | 'C' }
   const [teamAssign, setTeamAssign] = useState({});
@@ -123,6 +128,10 @@ export default function GameRatingPage() {
     userIds.forEach(uid => { initRatings[uid] = defaultStats(); });
     setRatings(initRatings);
 
+    // Auto-suggest team mode: if players fit within 2 teams → suggest 2, else 3
+    const formatNum = parseInt(gameData?.format) || 5;
+    setTeamMode(userIds.length <= formatNum * 2 ? 2 : 3);
+
     // Check already rated
     const { data: existing } = await supabase
       .from('game_ratings').select('user_id').eq('game_id', id).limit(1);
@@ -131,14 +140,10 @@ export default function GameRatingPage() {
     setLoading(false);
   };
 
-  // Parse format to get players per team
-  const playersPerTeam = () => {
-    if (!game?.format) return 5;
-    const n = parseInt(game.format);
-    return isNaN(n) ? 5 : n;
-  };
+  // Active teams based on mode
+  const activeTeams = teamMode === 2 ? ['A', 'B'] : ['A', 'B', 'C'];
 
-  // Get team members sorted by bib
+  // Get team members
   const teamPlayers = (team) =>
     players.filter(uid => teamAssign[uid] === team);
 
@@ -160,14 +165,54 @@ export default function GameRatingPage() {
     return idx + 1;
   };
 
-  // Build schedule with times
+  // Build schedule based on teamMode and duration
   const buildSchedule = () => {
-    if (!game?.time) return MATCH_ROTATION.map((m, i) => ({ ...m, time: '', index: i }));
-    return MATCH_ROTATION.map((m, i) => ({
-      ...m,
-      time: addMinutes(game.time, i * 13),
-      index: i,
-    }));
+    if (teamMode === 2) {
+      // 2-team: A vs B, 15 min matches, 7 min breaks
+      const matchMin = 15;
+      const breakMin = 7;
+      const numMatches = Math.floor((duration + breakMin) / (matchMin + breakMin));
+      return Array.from({ length: numMatches }, (_, i) => ({
+        home: 'A',
+        away: 'B',
+        rest: null,
+        time: game?.time ? addMinutes(game.time, i * (matchMin + breakMin)) : '',
+        index: i,
+      }));
+    } else {
+      // 3-team rotation — match length and rotations scale with duration
+      let matchMin, numRotations;
+      if (duration === 60)       { matchMin = 20; numRotations = 1; }
+      else if (duration === 90)  { matchMin = 15; numRotations = 2; }
+      else                       { matchMin = 13; numRotations = 3; }
+
+      const allMatches = [];
+      for (let r = 0; r < numRotations; r++) {
+        BASE_ROTATION.forEach(m => allMatches.push(m));
+      }
+      return allMatches.map((m, i) => ({
+        ...m,
+        time: game?.time ? addMinutes(game.time, i * matchMin) : '',
+        index: i,
+      }));
+    }
+  };
+
+  // Human-readable schedule summary
+  const getScheduleInfo = () => {
+    if (teamMode === 2) {
+      const matchMin = 15;
+      const breakMin = 7;
+      const numMatches = Math.floor((duration + breakMin) / (matchMin + breakMin));
+      const totalMins = numMatches * matchMin + Math.max(0, numMatches - 1) * breakMin;
+      return `15 min per match · 7 min breaks · ${numMatches} matches · ~${totalMins} min total`;
+    } else {
+      let matchMin, numMatches;
+      if (duration === 60)      { matchMin = 20; numMatches = 3; }
+      else if (duration === 90) { matchMin = 15; numMatches = 6; }
+      else                      { matchMin = 13; numMatches = 9; }
+      return `${matchMin} min per match · ${numMatches} matches · ~${duration} min total`;
+    }
   };
 
   const updateStat = (uid, key, delta) => {
@@ -234,7 +279,7 @@ export default function GameRatingPage() {
   );
 
   const schedule = buildSchedule();
-  const match = schedule[currentMatch];
+  const match = schedule[currentMatch] || schedule[0];
   const homePlayers = teamPlayers(match?.home);
   const awayPlayers = teamPlayers(match?.away);
 
@@ -256,7 +301,7 @@ export default function GameRatingPage() {
           <p style={{ color: 'var(--muted)', fontSize: 14 }}>{game?.title} · {game?.fields?.name} · {game?.format}</p>
         </div>
 
-        {/* Already rated banner */}
+        {/* Banners */}
         {alreadyRated && !success && (
           <div style={{ background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>
             ✅ This game has already been rated.
@@ -273,12 +318,13 @@ export default function GameRatingPage() {
           </div>
         )}
 
-        {/* Step indicator */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+        {/* Step indicator — now 4 steps */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
           {[
-            { key: 'setup', label: '1. Assign Teams' },
-            { key: 'schedule', label: '2. Schedule' },
-            { key: 'rating', label: '3. Rate Players' },
+            { key: 'config',   label: '1. Setup'        },
+            { key: 'setup',    label: '2. Assign Teams'  },
+            { key: 'schedule', label: '3. Schedule'      },
+            { key: 'rating',   label: '4. Rate Players'  },
           ].map(s => (
             <div key={s.key} style={{
               padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
@@ -288,6 +334,82 @@ export default function GameRatingPage() {
             }}>{s.label}</div>
           ))}
         </div>
+
+        {/* ── STEP 0: CONFIG ── */}
+        {step === 'config' && (
+          <div>
+            {/* Duration picker */}
+            <div style={{ ...cardStyle, marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>SESSION DURATION</div>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>How long is this game session?</p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {DURATION_OPTIONS.map(opt => (
+                  <button key={opt.value} type="button" onClick={() => setDuration(opt.value)} style={{
+                    flex: 1, padding: '12px 8px', borderRadius: 10, fontWeight: 700, fontSize: 13,
+                    background: duration === opt.value ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: duration === opt.value ? 'var(--accent)' : 'var(--muted)',
+                    border: `1px solid ${duration === opt.value ? 'var(--accent)' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                  }}>{opt.label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Team mode */}
+            <div style={{ ...cardStyle, marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>TEAM FORMAT</div>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 8 }}>
+                {players.length} player{players.length !== 1 ? 's' : ''} joined · {game?.format} format
+              </p>
+              {teamMode !== null && (
+                <div style={{
+                  display: 'inline-block', marginBottom: 16,
+                  background: 'rgba(100,160,255,0.1)', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#64a0ff', fontWeight: 600
+                }}>
+                  💡 {teamMode} teams suggested based on player count
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                {[2, 3].map(n => (
+                  <button key={n} type="button" onClick={() => setTeamMode(n)} style={{
+                    flex: 1, padding: '16px 8px', borderRadius: 10, fontWeight: 700,
+                    background: teamMode === n ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: teamMode === n ? 'var(--accent)' : 'var(--muted)',
+                    border: `2px solid ${teamMode === n ? 'var(--accent)' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                  }}>
+                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 1 }}>{n} TEAMS</div>
+                    <div style={{ fontSize: 11, marginTop: 4, fontWeight: 500 }}>
+                      {n === 2 ? 'A vs B · rotates all session' : 'A, B, C · round-robin rotation'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Schedule preview */}
+            {teamMode !== null && (
+              <div style={{
+                background: 'var(--card2)', border: '1px solid var(--border)',
+                borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+                fontSize: 13, color: 'var(--muted)'
+              }}>
+                📅 <strong style={{ color: 'var(--text)' }}>Preview:</strong> {getScheduleInfo()}
+              </div>
+            )}
+
+            <button type="button" onClick={() => setStep('setup')} disabled={!teamMode} style={{
+              width: '100%', padding: '13px',
+              background: teamMode ? 'var(--accent)' : 'var(--card2)',
+              color: teamMode ? '#fff' : 'var(--muted)',
+              border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15,
+              opacity: teamMode ? 1 : 0.5, cursor: teamMode ? 'pointer' : 'default',
+            }}>
+              Assign Teams →
+            </button>
+          </div>
+        )}
 
         {/* ── STEP 1: TEAM SETUP ── */}
         {step === 'setup' && (
@@ -313,8 +435,9 @@ export default function GameRatingPage() {
                           {p?.avatar_url ? <img src={p.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p?.name?.[0] || '?').toUpperCase()}
                         </div>
                         <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{p?.name}</span>
+                        {/* Only show active teams (A+B or A+B+C) */}
                         <div style={{ display: 'flex', gap: 4 }}>
-                          {['A', 'B', 'C'].map(team => (
+                          {activeTeams.map(team => (
                             <button key={team} type="button" onClick={() => assignPlayer(uid, team)} style={{
                               width: 26, height: 26, borderRadius: 6, fontSize: 11, fontWeight: 700,
                               background: TEAM_COLORS[team].bg, color: TEAM_COLORS[team].text,
@@ -329,9 +452,9 @@ export default function GameRatingPage() {
               </div>
             )}
 
-            {/* Team columns */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-              {['A', 'B', 'C'].map(team => {
+            {/* Team columns — grid adapts to 2 or 3 teams */}
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${activeTeams.length}, 1fr)`, gap: 12, marginBottom: 24 }}>
+              {activeTeams.map(team => {
                 const tc = TEAM_COLORS[team];
                 const members = teamPlayers(team);
                 return (
@@ -372,14 +495,21 @@ export default function GameRatingPage() {
               })}
             </div>
 
-            <button type="button" onClick={() => setStep('schedule')} disabled={!allAssigned()}
-              style={{
-                width: '100%', padding: '13px', background: allAssigned() ? 'var(--accent)' : 'var(--card2)',
-                color: allAssigned() ? '#fff' : 'var(--muted)', border: 'none', borderRadius: 10,
-                fontWeight: 700, fontSize: 15, opacity: allAssigned() ? 1 : 0.5
-              }}>
-              {allAssigned() ? 'View Schedule →' : `Assign all players first (${players.filter(u => !teamAssign[u]).length} remaining)`}
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setStep('config')} style={{
+                flex: 1, padding: '13px', background: 'transparent', color: 'var(--muted)',
+                border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer',
+              }}>← Back</button>
+              <button type="button" onClick={() => setStep('schedule')} disabled={!allAssigned()}
+                style={{
+                  flex: 2, padding: '13px', background: allAssigned() ? 'var(--accent)' : 'var(--card2)',
+                  color: allAssigned() ? '#fff' : 'var(--muted)', border: 'none', borderRadius: 10,
+                  fontWeight: 700, fontSize: 15, opacity: allAssigned() ? 1 : 0.5,
+                  cursor: allAssigned() ? 'pointer' : 'default',
+                }}>
+                {allAssigned() ? 'View Schedule →' : `Assign all players first (${players.filter(u => !teamAssign[u]).length} remaining)`}
+              </button>
+            </div>
           </div>
         )}
 
@@ -390,7 +520,7 @@ export default function GameRatingPage() {
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>
                 MATCH SCHEDULE · {game?.time ? formatTime(game.time) : ''} START
               </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>13 minutes per match · 9 matches · ~2 hours total</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>{getScheduleInfo()}</div>
 
               {schedule.map((s, i) => (
                 <div key={i} style={{
@@ -414,11 +544,22 @@ export default function GameRatingPage() {
                       borderRadius: 6, padding: '3px 12px', fontWeight: 700, fontSize: 13
                     }}>Team {s.away}</span>
                   </div>
-                  <div style={{
-                    background: 'rgba(136,136,128,0.1)', color: 'var(--muted)',
-                    border: '1px solid var(--border)', borderRadius: 6,
-                    padding: '3px 10px', fontSize: 11, fontWeight: 600
-                  }}>💤 Team {s.rest} rests</div>
+                  {/* 3-team: show rest badge */}
+                  {s.rest && (
+                    <div style={{
+                      background: 'rgba(136,136,128,0.1)', color: 'var(--muted)',
+                      border: '1px solid var(--border)', borderRadius: 6,
+                      padding: '3px 10px', fontSize: 11, fontWeight: 600
+                    }}>💤 Team {s.rest} rests</div>
+                  )}
+                  {/* 2-team: show break badge (except last match) */}
+                  {!s.rest && i < schedule.length - 1 && (
+                    <div style={{
+                      background: 'rgba(100,160,255,0.08)', color: '#64a0ff',
+                      border: '1px solid rgba(100,160,255,0.2)', borderRadius: 6,
+                      padding: '3px 10px', fontSize: 11, fontWeight: 600
+                    }}>☕ 7 min break</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -426,11 +567,11 @@ export default function GameRatingPage() {
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" onClick={() => setStep('setup')} style={{
                 flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
-                border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, fontSize: 14
+                border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer',
               }}>← Edit Teams</button>
               <button type="button" onClick={() => { setCurrentMatch(0); setStep('rating'); }} style={{
                 flex: 2, padding: '12px', background: 'var(--accent)', color: '#fff',
-                border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14
+                border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer',
               }}>Start Rating →</button>
             </div>
           </div>
@@ -447,6 +588,7 @@ export default function GameRatingPage() {
                   background: currentMatch === i ? 'var(--accent)' : 'var(--card)',
                   color: currentMatch === i ? '#fff' : 'var(--muted)',
                   border: `1px solid ${currentMatch === i ? 'var(--accent)' : 'var(--border)'}`,
+                  cursor: 'pointer',
                 }}>M{i + 1}</button>
               ))}
             </div>
@@ -459,7 +601,10 @@ export default function GameRatingPage() {
                 <span style={{ background: TEAM_COLORS[match.away].bg, color: TEAM_COLORS[match.away].text, border: `1px solid ${TEAM_COLORS[match.away].border}`, borderRadius: 8, padding: '4px 16px', fontWeight: 700, fontSize: 15 }}>Team {match.away}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>💤 Team {match.rest} rests</div>
+                {/* Only show rest badge for 3-team games */}
+                {match.rest && (
+                  <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>💤 Team {match.rest} rests</div>
+                )}
                 {match.time && <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)' }}>{formatTime(match.time)}</div>}
               </div>
             </div>
@@ -553,7 +698,7 @@ export default function GameRatingPage() {
 
             <button type="button" onClick={() => setStep('schedule')} style={{
               width: '100%', padding: '10px', background: 'transparent', color: 'var(--muted)',
-              border: '1px solid var(--border)', borderRadius: 10, fontSize: 13
+              border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, cursor: 'pointer',
             }}>📅 View Schedule</button>
           </div>
         )}
