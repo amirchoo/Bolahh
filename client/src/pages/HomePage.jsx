@@ -4,6 +4,11 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
 import { GiSoccerBall } from 'react-icons/gi';
+import { FaLocationDot } from "react-icons/fa6";
+import { MdDateRange } from "react-icons/md";
+import { MdAccessTime } from "react-icons/md";
+
+
 
 const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang','Ansan'];
 const FORMATS = ['All Formats', '5v5', '6v6'];
@@ -279,11 +284,16 @@ function GameCard({ game }) {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        {[`📍 ${game.area}`, `📅 ${formatDate(game.date)}`, `🕐 ${formatTime(game.time)}`].map(tag => (
-          <span key={tag} style={{
+        {[
+          { icon: <FaLocationDot />, label: game.area },
+          { icon: <MdDateRange />, label: formatDate(game.date) },
+          { icon: <MdAccessTime />, label: formatTime(game.time) },
+        ].map(({ icon, label }) => (
+          <span key={label} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
             background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)',
             borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'"
-          }}>{tag}</span>
+          }}>{icon}{label}</span>
         ))}
       </div>
 
