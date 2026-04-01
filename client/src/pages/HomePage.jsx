@@ -154,8 +154,9 @@ export default function HomePage() {
               {/* ALL pill */}
               <button
                 onClick={() => setDateFilter(null)}
+                className="date-pill"
                 style={{
-                  flex: '0 0 calc((100% - 48px) / 7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   padding: '2px 0', borderRadius: 7, border: '1px solid',
                   borderColor: dateFilter === null ? 'var(--accent)' : 'var(--border)',
                   background: dateFilter === null ? 'rgba(240,157,81,0.15)' : 'var(--card)',
@@ -181,11 +182,12 @@ export default function HomePage() {
                   <button
                     key={ds}
                     onClick={() => setDateFilter(isSelected ? null : ds)}
+                    className="date-pill"
                     style={{
-                      flex: '0 0 calc((100% - 48px) / 7)', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center',
                       padding: '2px 0 5px', borderRadius: 7, border: '1px solid',
-                      borderColor: isSelected ? 'var(--accent)' : isToday ? 'rgba(240,157,81,0.35)' : 'var(--border)',
-                      background: isSelected ? 'rgba(240,157,81,0.13)' : 'var(--card)',
+                      borderColor: isSelected ? 'var(--accent)' : isToday ? 'rgba(240,157,81,0.5)' : 'var(--border)',
+                      background: isSelected ? 'rgba(240,157,81,0.13)' : isToday ? 'rgba(240,157,81,0.06)' : 'var(--card)',
                       color: isSelected ? 'var(--accent)' : 'var(--text)',
                       cursor: 'pointer', transition: 'all 0.15s', gap: 0, position: 'relative',
                       scrollSnapAlign: 'start'
@@ -193,7 +195,7 @@ export default function HomePage() {
                   >
                     <span style={{ fontFamily: "'Space Mono'", fontSize: 9, opacity: 0.45, letterSpacing: 0.5 }}>{dayName}</span>
                     <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 1, lineHeight: 1.05 }}>{dayNum}</span>
-                    <span style={{ fontFamily: "'Space Mono'", fontSize: 9, opacity: 0.45, letterSpacing: 0.5 }}>{monthName}</span>
+                    <span style={{ fontFamily: "'Space Mono'", fontSize: 9, opacity: isToday ? 0.8 : 0.45, letterSpacing: 0.5, color: isToday && !isSelected ? 'var(--accent)' : 'inherit' }}>{isToday ? 'TODAY' : monthName}</span>
                     {hasGames && (
                       <span style={{
                         position: 'absolute', bottom: 4, width: 4, height: 4, borderRadius: '50%',
