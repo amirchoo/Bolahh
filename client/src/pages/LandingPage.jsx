@@ -290,7 +290,7 @@ export default function LandingPage() {
               fontSize: 17, color: 'rgba(232,233,235,0.6)', lineHeight: 1.7,
               maxWidth: 440, marginBottom: 36, fontFamily: "'DM Sans'"
             }}>
-              Book futsal games, build your Bolahh card, and climb through 12 rank tiers — from Novis all the way to Emas I.
+              Book futsal games, build your Bolahh card, and compete! from Novis all the way to Emas I.
             </p>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 hero-btns`} style={{ display: 'flex', gap: 12 }}>
