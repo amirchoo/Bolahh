@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
@@ -24,12 +24,35 @@ const formatTime = (timeStr) => {
   return `${timeStr}${ampm}`;
 };
 
+const get14Days = () => {
+  const days = [];
+  const today = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    days.push(d);
+  }
+  return days;
+};
+
+const toDateStr = (d) => d.toISOString().split('T')[0];
+
 export default function HomePage() {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [areaFilter, setAreaFilter] = useState('All Areas');
   const [formatFilter, setFormatFilter] = useState('All Formats');
   const [search, setSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState(null);
+  const days14 = get14Days();
+  const dateScrollRef = useRef(null);
+  const scrollDates = (dir) => {
+    const el = dateScrollRef.current;
+    if (!el) return;
+    const firstPill = el.children[0];
+    const pillW = firstPill ? firstPill.offsetWidth + 8 : 76;
+    el.scrollBy({ left: dir * pillW, behavior: 'smooth' });
+  };
 
   useEffect(() => { fetchGames(); }, []);
 
@@ -84,8 +107,11 @@ export default function HomePage() {
     if (areaFilter !== 'All Areas' && g.area !== areaFilter) return false;
     if (formatFilter !== 'All Formats' && g.format !== formatFilter) return false;
     if (search && !g.title?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (dateFilter && g.date !== dateFilter) return false;
     return true;
   });
+
+  const gameDates = new Set(games.map(g => g.date));
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -108,6 +134,84 @@ export default function HomePage() {
           <select value={formatFilter} onChange={e => setFormatFilter(e.target.value)} style={{ flex: '0 0 150px' }}>
             {FORMATS.map(f => <option key={f}>{f}</option>)}
           </select>
+        </div>
+
+        {/* Date Scroll Bar — snaps 1 pill at a time */}
+        <div className="fade-up-2" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+          <button onClick={() => scrollDates(-1)} style={{
+            flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border)',
+            background: 'var(--card)', color: 'var(--accent)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700,
+            transition: 'border-color 0.15s'
+          }}>‹</button>
+
+          {/* Scrollable strip: fills remaining width */}
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <div ref={dateScrollRef} className="hide-scrollbar" style={{
+              display: 'flex', gap: 8, overflowX: 'auto', padding: '4px 0',
+              scrollSnapType: 'x mandatory'
+            }}>
+              {/* ALL pill */}
+              <button
+                onClick={() => setDateFilter(null)}
+                style={{
+                  flex: '0 0 calc((100% - 48px) / 7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  padding: '2px 0', borderRadius: 7, border: '1px solid',
+                  borderColor: dateFilter === null ? 'var(--accent)' : 'var(--border)',
+                  background: dateFilter === null ? 'rgba(240,157,81,0.15)' : 'var(--card)',
+                  color: dateFilter === null ? 'var(--accent)' : 'var(--text)',
+                  cursor: 'pointer', transition: 'all 0.15s', gap: 0,
+                  scrollSnapAlign: 'start'
+                }}
+              >
+                <span style={{ fontFamily: "'Space Mono'", fontSize: 9, opacity: 0.5 }}>SHOW</span>
+                <span style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, lineHeight: 1.1 }}>ALL</span>
+              </button>
+
+              {days14.map((d, i) => {
+                const ds = toDateStr(d);
+                const isSelected = dateFilter === ds;
+                const isToday = i === 0;
+                const hasGames = gameDates.has(ds);
+                const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+                const dayNum = d.getDate();
+                const monthName = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+
+                return (
+                  <button
+                    key={ds}
+                    onClick={() => setDateFilter(isSelected ? null : ds)}
+                    style={{
+                      flex: '0 0 calc((100% - 48px) / 7)', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                      padding: '2px 0 5px', borderRadius: 7, border: '1px solid',
+                      borderColor: isSelected ? 'var(--accent)' : isToday ? 'rgba(240,157,81,0.35)' : 'var(--border)',
+                      background: isSelected ? 'rgba(240,157,81,0.13)' : 'var(--card)',
+                      color: isSelected ? 'var(--accent)' : 'var(--text)',
+                      cursor: 'pointer', transition: 'all 0.15s', gap: 0, position: 'relative',
+                      scrollSnapAlign: 'start'
+                    }}
+                  >
+                    <span style={{ fontFamily: "'Space Mono'", fontSize: 9, opacity: 0.45, letterSpacing: 0.5 }}>{dayName}</span>
+                    <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 1, lineHeight: 1.05 }}>{dayNum}</span>
+                    <span style={{ fontFamily: "'Space Mono'", fontSize: 9, opacity: 0.45, letterSpacing: 0.5 }}>{monthName}</span>
+                    {hasGames && (
+                      <span style={{
+                        position: 'absolute', bottom: 4, width: 4, height: 4, borderRadius: '50%',
+                        background: isSelected ? 'var(--accent)' : 'rgba(240,157,81,0.55)'
+                      }} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button onClick={() => scrollDates(1)} style={{
+            flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border)',
+            background: 'var(--card)', color: 'var(--accent)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700,
+            transition: 'border-color 0.15s'
+          }}>›</button>
         </div>
 
         <div style={{ color: 'var(--text)', fontSize: 13, marginBottom: 18, fontFamily: "'Space Mono'" }}>
