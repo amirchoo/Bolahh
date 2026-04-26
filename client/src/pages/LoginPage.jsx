@@ -5,7 +5,7 @@ import { AiFillEyeInvisible as IconEyeHide, AiFillEye as IconEyeShow } from 'rea
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ identifier: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -17,14 +17,32 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setError('');
+    const identifier = form.identifier.trim();
+    if (!identifier || !form.password) {
+      setError('Please fill in all fields.');
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: form.email,
-      password: form.password,
-    });
+
+    let email = identifier;
+    if (!identifier.includes('@')) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .ilike('name', identifier)
+        .single();
+      if (!profile) {
+        setError('No account found with that username.');
+        setLoading(false);
+        return;
+      }
+      email = profile.email;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password: form.password });
     if (error) {
       if (error.message.toLowerCase().includes('invalid')) {
-        setError('Incorrect email or password. Please try again.');
+        setError('Incorrect email/username or password. Please try again.');
       } else {
         setError(error.message);
       }
@@ -174,9 +192,9 @@ export default function LoginPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={labelStyle}>EMAIL</label>
-            <input type="email" placeholder="player@email.com" value={form.email}
-              onChange={e => setForm({ ...form, email: e.target.value })} />
+            <label style={labelStyle}>EMAIL OR USERNAME</label>
+            <input placeholder="player@email.com or username" value={form.identifier}
+              onChange={e => setForm({ ...form, identifier: e.target.value })} />
           </div>
 
           <div>

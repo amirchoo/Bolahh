@@ -34,9 +34,9 @@ export default function SignupPage() {
     setLoading(true);
 
     const { data: existingUser } = await supabase
-      .from('profiles').select('name').eq('name', form.username.trim()).single();
+      .from('profiles').select('name').ilike('name', form.username.trim()).single();
     if (existingUser) {
-      setError('This username is already taken. Please choose another one.');
+      setError('Username has been used.');
       setLoading(false);
       return;
     }

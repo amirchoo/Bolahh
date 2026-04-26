@@ -40,7 +40,12 @@ const get14Days = () => {
   return days;
 };
 
-const toDateStr = (d) => d.toISOString().split('T')[0];
+const toDateStr = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 export default function HomePage() {
   const [games, setGames] = useState([]);
@@ -75,7 +80,7 @@ export default function HomePage() {
 
   const fetchGames = async () => {
     setLoading(true);
-    const today = new Date().toISOString().split('T')[0];
+    const today = toDateStr(new Date());
     const { data, error } = await supabase
       .from('games')
       .select('*, fields(name, area)')
@@ -298,11 +303,8 @@ function GameCard({ game }) {
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>
+        <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>
           <span>{playerCount}/{game.slots} players</span>
-          <span style={{ color: full ? 'var(--red)' : 'var(--accent)', fontWeight: 600 }}>
-            {full ? 'FULL' : `${open} slots open`}
-          </span>
         </div>
         <div style={{ height: 4, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${pct}%`, background: full ? 'var(--red)' : 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
@@ -313,8 +315,14 @@ function GameCard({ game }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingTop: 12, borderTop: '1px solid var(--border)'
       }}>
-        <span style={{ fontSize: 12, color: full ? 'var(--red)' : 'var(--text)', fontWeight: full ? 600 : 400 }}>
-          {full ? '🔴 Game Full' : `🟢 ${open} slot${open !== 1 ? 's' : ''} left`}
+        <span style={{ fontSize: 12, fontWeight: full ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6,
+          color: full ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : 'var(--text)'
+        }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+            background: full ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : '#ffffff'
+          }} />
+          {full ? 'Game Full' : `${open} slot${open !== 1 ? 's' : ''} left`}
         </span>
         <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
           View Details →
