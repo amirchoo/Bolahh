@@ -10,6 +10,7 @@ import { IoSearchCircleOutline } from "react-icons/io5";
 import { GiUpgrade } from "react-icons/gi";
 import { MdOutlineAutoMode } from "react-icons/md";
 import { LiaUserFriendsSolid } from "react-icons/lia";
+import { supabase } from '../lib/supabaseClient';
 
 const RANKS = [
   { name: 'Novis',     color: '#888880', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '< 30'   },
@@ -125,6 +126,22 @@ export default function LandingPage() {
     const onScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const [heroStats, setHeroStats] = useState({ courts: null, players: null, games: null });
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('fields').select('*', { count: 'exact', head: true }),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('games').select('*', { count: 'exact', head: true }),
+    ]).then(([fields, profiles, games]) => {
+      setHeroStats({
+        courts: fields.count ?? 0,
+        players: profiles.count ?? 0,
+        games: games.count ?? 0,
+      });
+    });
   }, []);
 
   const [heroRef, heroVisible] = useScrollReveal();
@@ -290,7 +307,7 @@ export default function LandingPage() {
               fontSize: 17, color: 'rgba(232,233,235,0.6)', lineHeight: 1.7,
               maxWidth: 440, marginBottom: 36, fontFamily: "'DM Sans'"
             }}>
-              Book futsal games, build your Bolahh card, and climb through 12 rank tiers — from Novis all the way to Emas I.
+              Book futsal games, build your Bolahh card, and compete! from Novis all the way to Emas I.
             </p>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 hero-btns`} style={{ display: 'flex', gap: 12 }}>
@@ -312,7 +329,11 @@ export default function LandingPage() {
             </div>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-4 hero-stats`} style={{ display: 'flex', gap: 32, marginTop: 40 }}>
-              {[['20+', 'Courts/Field'], ['100+', 'Active Players'], ['3', 'Game Formats']].map(([num, label]) => (
+              {[
+                [heroStats.courts === null ? '—' : heroStats.courts, 'Courts'],
+                [heroStats.players === null ? '—' : heroStats.players, 'Active Players'],
+                [heroStats.games === null ? '—' : heroStats.games, 'Games Organised'],
+              ].map(([num, label]) => (
                 <div key={label}>
                   <div style={{ fontFamily: "'Bebas Neue'", fontSize: 36, color: '#F09D51', lineHeight: 1, letterSpacing: 1 }}>{num}</div>
                   <div style={{ fontSize: 12, color: 'rgba(232,233,235,0.5)', fontFamily: "'DM Sans'" }}>{label}</div>
