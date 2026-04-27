@@ -159,11 +159,7 @@ export default function LandingPage() {
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .hex-bg {
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V18L28 2l28 16v32z' fill='none' stroke='rgba(240,157,81,0.06)' stroke-width='1'/%3E%3Cpath d='M28 100L0 84V52l28-16 28 16v32z' fill='none' stroke='rgba(240,157,81,0.06)' stroke-width='1'/%3E%3C/svg%3E");
-        }
-
-        .reveal { opacity: 0; transform: translateY(32px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal { opacity: 0; transform: translateY(32px); transition: opacity 0.7s ease, transform 0.7s ease; }
         .reveal.visible { opacity: 1; transform: translateY(0); }
         .reveal-delay-1 { transition-delay: 0.1s; }
         .reveal-delay-2 { transition-delay: 0.2s; }
@@ -266,7 +262,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ── */}
-      <section className="hex-bg" style={{
+      <section style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center',
         padding: '100px 32px 60px',
         position: 'relative', overflow: 'hidden',
