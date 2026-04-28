@@ -14,58 +14,93 @@ export default function WalletTopupPage() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
   const returnStatus   = searchParams.get('status');
   const returnBillCode = searchParams.get('billcode');
-  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     if (user) fetchBalance();
   }, [user]);
 
+  // Handle return from ToyyibPay
   useEffect(() => {
     if (!user || !returnStatus) return;
-
     if (returnStatus === '1' && returnBillCode) {
-      verifyPayment(returnBillCode);
+      creditWallet(returnBillCode);
     } else if (returnStatus !== '1') {
       setError('Payment was not completed. Please try again.');
     }
   }, [returnStatus, returnBillCode, user]);
 
-  const verifyPayment = async (billCode) => {
-    setVerifying(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-toyyibpay-payment`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ billCode, userId: user.id }),
-        }
-      );
-      const { newBalance, error: fnError } = await res.json();
-      if (fnError) { setError(fnError); return; }
-      setBalance(newBalance);
-      setSuccess(true);
-    } catch (err) {
-      setError('Could not verify payment. Please contact support.');
-    } finally {
-      setVerifying(false);
-    }
-  };
-
   const fetchBalance = async () => {
     const { data } = await supabase
       .from('profiles').select('wallet_balance').eq('id', user.id).single();
-    setBalance(data?.wallet_balance || 0);
+    setBalance(data?.wallet_balance ?? 0);
     setLoading(false);
+  };
+
+  const creditWallet = async (billCode) => {
+    setVerifying(true);
+    try {
+      // Read the amount we saved before redirecting to ToyyibPay
+      const stored = JSON.parse(localStorage.getItem('bolahh_topup') || '{}');
+
+      if (stored.billCode !== billCode) {
+        setError('Payment reference mismatch. Please contact support.');
+        return;
+      }
+
+      const amount = stored.amount;
+
+      // Idempotency — skip if this bill was already credited
+      const { data: existing } = await supabase
+        .from('wallet_transactions')
+        .select('id, balance_after')
+        .eq('user_id', user.id)
+        .eq('type', 'topup')
+        .ilike('description', `%[${billCode}]%`)
+        .maybeSingle();
+
+      if (existing) {
+        // Already credited (e.g. callback ran first) — just refresh balance
+        await fetchBalance();
+        setSuccess(true);
+        localStorage.removeItem('bolahh_topup');
+        return;
+      }
+
+      // Fetch latest balance in case it changed
+      const { data: profile } = await supabase
+        .from('profiles').select('wallet_balance').eq('id', user.id).single();
+
+      const newBalance = (profile?.wallet_balance ?? 0) + amount;
+
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({ wallet_balance: newBalance })
+        .eq('id', user.id);
+
+      if (updateErr) { setError('Failed to update balance: ' + updateErr.message); return; }
+
+      await supabase.from('wallet_transactions').insert({
+        user_id:      user.id,
+        type:         'topup',
+        amount,
+        description:  `Wallet topup RM${amount} [${billCode}]`,
+        balance_after: newBalance,
+      });
+
+      setBalance(newBalance);
+      setSuccess(true);
+      localStorage.removeItem('bolahh_topup');
+    } catch (err) {
+      setError('Something went wrong verifying your payment. Please contact support.');
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const handleTopup = async () => {
@@ -97,6 +132,9 @@ export default function WalletTopupPage() {
 
       const { billCode, error: fnError } = await res.json();
       if (fnError || !billCode) throw new Error(fnError || 'Could not create payment bill.');
+
+      // Save amount + billCode so we can credit on return
+      localStorage.setItem('bolahh_topup', JSON.stringify({ billCode, amount: selected }));
 
       const toyyibBase = import.meta.env.VITE_TOYYIBPAY_BASE_URL ?? 'https://toyyibpay.com';
       window.location.href = `${toyyibBase}/${billCode}`;
@@ -138,8 +176,13 @@ export default function WalletTopupPage() {
             CURRENT BALANCE
           </div>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 52, color: '#fff', lineHeight: 1, letterSpacing: 2 }}>
-            RM {loading ? '—' : balance.toFixed(2)}
+            RM {loading || verifying ? '—' : balance.toFixed(2)}
           </div>
+          {verifying && (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
+              Confirming payment...
+            </div>
+          )}
         </div>
 
         {/* Success message */}
@@ -149,29 +192,9 @@ export default function WalletTopupPage() {
             borderRadius: 12, padding: '12px 16px', marginBottom: 20,
             color: '#4ade80', fontSize: 14, fontWeight: 600, textAlign: 'center'
           }}>
-            ✓ Topup successful! Balance updated.
+            ✓ Topup successful! Your balance has been updated.
           </div>
         )}
-
-        {/* Amount Selection */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1.5, marginBottom: 14, fontWeight: 700, fontFamily: "'Space Mono'" }}>
-            SELECT AMOUNT
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-            {TOPUP_OPTIONS.map(amt => (
-              <button key={amt} onClick={() => setSelected(amt)} style={{
-                background: selected === amt ? 'rgba(240,157,81,0.15)' : 'var(--card)',
-                border: `2px solid ${selected === amt ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 12, padding: '16px 8px', cursor: 'pointer',
-                transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2
-              }}>
-                <span style={{ fontFamily: "'Space Mono'", fontSize: 10, color: selected === amt ? 'var(--accent)' : 'var(--muted)', fontWeight: 700 }}>RM</span>
-                <span style={{ fontFamily: "'Bebas Neue'", fontSize: 34, letterSpacing: 1, color: selected === amt ? 'var(--accent)' : 'var(--text)', lineHeight: 1 }}>{amt}</span>
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Error message */}
         {error && (
@@ -184,38 +207,74 @@ export default function WalletTopupPage() {
           </div>
         )}
 
-        {/* ToyyibPay notice */}
-        <div style={{
-          background: 'var(--card)', border: '1px solid var(--border)',
-          borderRadius: 12, padding: '14px 16px', marginBottom: 24,
-          display: 'flex', alignItems: 'flex-start', gap: 10
-        }}>
-          <span style={{ fontSize: 18, flexShrink: 0 }}>🔒</span>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Secure Payment via ToyyibPay</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-              FPX online banking &amp; credit card accepted. You will be redirected to ToyyibPay to complete payment.
+        {/* Amount Selection */}
+        {!success && (
+          <>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1.5, marginBottom: 14, fontWeight: 700, fontFamily: "'Space Mono'" }}>
+                SELECT AMOUNT
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                {TOPUP_OPTIONS.map(amt => (
+                  <button key={amt} onClick={() => setSelected(amt)} style={{
+                    background: selected === amt ? 'rgba(240,157,81,0.15)' : 'var(--card)',
+                    border: `2px solid ${selected === amt ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 12, padding: '16px 8px', cursor: 'pointer',
+                    transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2
+                  }}>
+                    <span style={{ fontFamily: "'Space Mono'", fontSize: 10, color: selected === amt ? 'var(--accent)' : 'var(--muted)', fontWeight: 700 }}>RM</span>
+                    <span style={{ fontFamily: "'Bebas Neue'", fontSize: 34, letterSpacing: 1, color: selected === amt ? 'var(--accent)' : 'var(--text)', lineHeight: 1 }}>{amt}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Topup Button */}
-        <button onClick={handleTopup} disabled={!selected || processing} style={{
-          width: '100%', padding: '15px',
-          background: selected ? 'var(--accent)' : 'var(--card)',
-          color: selected ? '#fff' : 'var(--muted)',
-          border: selected ? 'none' : '1px solid var(--border)',
-          borderRadius: 12, fontWeight: 700, fontSize: 16, letterSpacing: 2,
-          cursor: selected ? 'pointer' : 'not-allowed',
-          opacity: processing ? 0.6 : 1, transition: 'all 0.2s',
-          fontFamily: "'Bebas Neue'"
-        }}>
-          {verifying ? 'VERIFYING PAYMENT...' : processing ? 'PROCESSING...' : selected ? `TOPUP RM${selected}` : 'SELECT AN AMOUNT'}
-        </button>
+            {/* ToyyibPay notice */}
+            <div style={{
+              background: 'var(--card)', border: '1px solid var(--border)',
+              borderRadius: 12, padding: '14px 16px', marginBottom: 24,
+              display: 'flex', alignItems: 'flex-start', gap: 10
+            }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>🔒</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Secure Payment via ToyyibPay</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                  FPX online banking &amp; credit card accepted. You will be redirected to ToyyibPay to complete payment.
+                </div>
+              </div>
+            </div>
 
-        <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginTop: 16, lineHeight: 1.6 }}>
-          Wallet balance is non-refundable to bank accounts. Cancelled game refunds will be credited to your wallet.
-        </p>
+            {/* Topup Button */}
+            <button onClick={handleTopup} disabled={!selected || processing || verifying} style={{
+              width: '100%', padding: '15px',
+              background: selected ? 'var(--accent)' : 'var(--card)',
+              color: selected ? '#fff' : 'var(--muted)',
+              border: selected ? 'none' : '1px solid var(--border)',
+              borderRadius: 12, fontWeight: 700, fontSize: 16, letterSpacing: 2,
+              cursor: selected ? 'pointer' : 'not-allowed',
+              opacity: processing || verifying ? 0.6 : 1, transition: 'all 0.2s',
+              fontFamily: "'Bebas Neue'"
+            }}>
+              {processing ? 'PROCESSING...' : selected ? `TOPUP RM${selected}` : 'SELECT AN AMOUNT'}
+            </button>
+
+            <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginTop: 16, lineHeight: 1.6 }}>
+              Wallet balance is non-refundable to bank accounts. Cancelled game refunds will be credited to your wallet.
+            </p>
+          </>
+        )}
+
+        {success && (
+          <button onClick={() => navigate('/profile')} style={{
+            width: '100%', padding: '14px',
+            background: 'var(--accent)', color: '#fff',
+            border: 'none', borderRadius: 12, fontWeight: 700,
+            fontSize: 15, letterSpacing: 1.5, cursor: 'pointer',
+            fontFamily: "'Bebas Neue'"
+          }}>
+            BACK TO PROFILE
+          </button>
+        )}
 
       </div>
     </div>
