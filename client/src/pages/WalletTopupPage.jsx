@@ -45,19 +45,22 @@ export default function WalletTopupPage() {
   const creditWallet = async (billCode) => {
     setVerifying(true);
     try {
-      // ToyyibPay sends back the order_id we set: bolahh_{userId}_{amount}_{timestamp}
-      const orderId = searchParams.get('order_id') ?? '';
-      const parts   = orderId.split('_');
-      // parts: ['bolahh', '<uuid>', '<amount>', '<timestamp>']
+      // ToyyibPay sends back order_id = bolahh_{userId}_{amount}_{timestamp}
+      const orderId   = searchParams.get('order_id') ?? '';
+      const parts     = orderId.split('_');
       const refUserId = parts[1];
       const amount    = parseFloat(parts[2]);
 
-      if (parts[0] !== 'bolahh' || refUserId !== user.id || isNaN(amount) || amount <= 0) {
-        setError('Payment reference invalid. Please contact support if money was deducted.');
+      if (parts[0] !== 'bolahh' || !refUserId || isNaN(amount) || amount <= 0) {
+        setError(`Could not parse payment reference. order_id="${orderId}". Contact support.`);
+        return;
+      }
+      if (refUserId !== user.id) {
+        setError(`User mismatch. Contact support. (ref: ${refUserId.slice(0,8)}… you: ${user.id.slice(0,8)}…)`);
         return;
       }
 
-      // Idempotency — skip if this bill was already credited
+      // Idempotency — skip if already credited
       const { data: existing } = await supabase
         .from('wallet_transactions')
         .select('id')
@@ -72,9 +75,14 @@ export default function WalletTopupPage() {
         return;
       }
 
-      // Fetch latest balance right before crediting
-      const { data: profile } = await supabase
+      // Fetch latest balance
+      const { data: profile, error: profileErr } = await supabase
         .from('profiles').select('wallet_balance').eq('id', user.id).single();
+
+      if (profileErr) {
+        setError('Could not fetch profile: ' + profileErr.message);
+        return;
+      }
 
       const newBalance = (profile?.wallet_balance ?? 0) + amount;
 
@@ -84,11 +92,11 @@ export default function WalletTopupPage() {
         .eq('id', user.id);
 
       if (updateErr) {
-        setError('Failed to update balance: ' + updateErr.message);
+        setError('Balance update failed: ' + updateErr.message + ' — contact support, your payment was received.');
         return;
       }
 
-      await supabase.from('wallet_transactions').insert({
+      const { error: txErr } = await supabase.from('wallet_transactions').insert({
         user_id:       user.id,
         type:          'topup',
         amount,
@@ -96,10 +104,12 @@ export default function WalletTopupPage() {
         balance_after: newBalance,
       });
 
+      if (txErr) console.warn('Transaction log failed (balance was updated):', txErr.message);
+
       setBalance(newBalance);
       setSuccess(true);
     } catch (err) {
-      setError('Something went wrong. Please contact support if money was deducted.');
+      setError('Unexpected error: ' + String(err) + ' — contact support if money was deducted.');
     } finally {
       setVerifying(false);
     }
@@ -128,6 +138,7 @@ export default function WalletTopupPage() {
             userId: user.id,
             userEmail: user.email,
             userName: profile?.username || user.email,
+            returnUrl: window.location.origin + '/wallet/topup',
           }),
         }
       );
