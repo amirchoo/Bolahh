@@ -45,34 +45,34 @@ export default function WalletTopupPage() {
   const creditWallet = async (billCode) => {
     setVerifying(true);
     try {
-      // Read the amount we saved before redirecting to ToyyibPay
-      const stored = JSON.parse(localStorage.getItem('bolahh_topup') || '{}');
+      // ToyyibPay sends back the order_id we set: bolahh_{userId}_{amount}_{timestamp}
+      const orderId = searchParams.get('order_id') ?? '';
+      const parts   = orderId.split('_');
+      // parts: ['bolahh', '<uuid>', '<amount>', '<timestamp>']
+      const refUserId = parts[1];
+      const amount    = parseFloat(parts[2]);
 
-      if (stored.billCode !== billCode) {
-        setError('Payment reference mismatch. Please contact support.');
+      if (parts[0] !== 'bolahh' || refUserId !== user.id || isNaN(amount) || amount <= 0) {
+        setError('Payment reference invalid. Please contact support if money was deducted.');
         return;
       }
-
-      const amount = stored.amount;
 
       // Idempotency — skip if this bill was already credited
       const { data: existing } = await supabase
         .from('wallet_transactions')
-        .select('id, balance_after')
+        .select('id')
         .eq('user_id', user.id)
         .eq('type', 'topup')
         .ilike('description', `%[${billCode}]%`)
         .maybeSingle();
 
       if (existing) {
-        // Already credited (e.g. callback ran first) — just refresh balance
         await fetchBalance();
         setSuccess(true);
-        localStorage.removeItem('bolahh_topup');
         return;
       }
 
-      // Fetch latest balance in case it changed
+      // Fetch latest balance right before crediting
       const { data: profile } = await supabase
         .from('profiles').select('wallet_balance').eq('id', user.id).single();
 
@@ -83,21 +83,23 @@ export default function WalletTopupPage() {
         .update({ wallet_balance: newBalance })
         .eq('id', user.id);
 
-      if (updateErr) { setError('Failed to update balance: ' + updateErr.message); return; }
+      if (updateErr) {
+        setError('Failed to update balance: ' + updateErr.message);
+        return;
+      }
 
       await supabase.from('wallet_transactions').insert({
-        user_id:      user.id,
-        type:         'topup',
+        user_id:       user.id,
+        type:          'topup',
         amount,
-        description:  `Wallet topup RM${amount} [${billCode}]`,
+        description:   `Wallet topup RM${amount} [${billCode}]`,
         balance_after: newBalance,
       });
 
       setBalance(newBalance);
       setSuccess(true);
-      localStorage.removeItem('bolahh_topup');
     } catch (err) {
-      setError('Something went wrong verifying your payment. Please contact support.');
+      setError('Something went wrong. Please contact support if money was deducted.');
     } finally {
       setVerifying(false);
     }
@@ -132,9 +134,6 @@ export default function WalletTopupPage() {
 
       const { billCode, error: fnError } = await res.json();
       if (fnError || !billCode) throw new Error(fnError || 'Could not create payment bill.');
-
-      // Save amount + billCode so we can credit on return
-      localStorage.setItem('bolahh_topup', JSON.stringify({ billCode, amount: selected }));
 
       const toyyibBase = import.meta.env.VITE_TOYYIBPAY_BASE_URL ?? 'https://toyyibpay.com';
       window.location.href = `${toyyibBase}/${billCode}`;
