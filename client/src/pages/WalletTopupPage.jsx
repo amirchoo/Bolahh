@@ -48,12 +48,20 @@ export default function WalletTopupPage() {
 
     if (returnStatus === '1') {
       if (data) {
-        // Payment confirmed — verify with ToyyibPay and credit wallet
+        // Payment confirmed and pending record exists — verify and credit
         await completePendingTopup(data);
       } else {
-        // No pending record — callback already ran and credited the wallet
-        await fetchBalance();
-        setSuccess(true);
+        // No pending DB record — either callback already ran, or the record was cleaned up.
+        // Try sessionStorage for the billCode saved just before redirect.
+        const savedBillCode = sessionStorage.getItem('toyyibpay_billCode');
+        const savedAmount   = parseFloat(sessionStorage.getItem('toyyibpay_amount') ?? '0');
+        if (savedBillCode && savedAmount > 0) {
+          await completePendingTopup({ description: savedBillCode, amount: savedAmount, id: null });
+        } else {
+          // Nothing we can do — callback must have already credited the wallet
+          await fetchBalance();
+          setSuccess(true);
+        }
       }
     } else if (data) {
       // User navigated back manually without completing payment — show Verify button
@@ -79,6 +87,7 @@ export default function WalletTopupPage() {
             billCode:    pending.description, // billCode stored here by create-toyyibpay-bill
             userId:      user.id,
             pendingTxId: pending.id,          // so the function can clean up the pending record
+            amount:      pending.amount,      // our stored RM value — more reliable than ToyyibPay's billpaymentAmount
           }),
         }
       );
@@ -86,6 +95,8 @@ export default function WalletTopupPage() {
       const result = await res.json();
       if (result.error) { setError(result.error); return; }
 
+      sessionStorage.removeItem('toyyibpay_billCode');
+      sessionStorage.removeItem('toyyibpay_amount');
       setBalance(result.newBalance);
       setSuccess(true);
       setPendingTopup(null);
@@ -125,6 +136,10 @@ export default function WalletTopupPage() {
 
       const { billCode, error: fnError } = await res.json();
       if (fnError || !billCode) throw new Error(fnError || 'Could not create payment bill.');
+
+      // Store in sessionStorage so we can recover even if the DB pending record is gone
+      sessionStorage.setItem('toyyibpay_billCode', billCode);
+      sessionStorage.setItem('toyyibpay_amount', String(selected));
 
       const toyyibBase = import.meta.env.VITE_TOYYIBPAY_BASE_URL ?? 'https://toyyibpay.com';
       window.location.href = `${toyyibBase}/${billCode}`;
