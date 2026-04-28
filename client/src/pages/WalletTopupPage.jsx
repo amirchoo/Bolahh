@@ -20,7 +20,7 @@ export default function WalletTopupPage() {
   const [error,        setError]        = useState('');
   const [pendingTopup, setPendingTopup] = useState(null); // pending DB record
 
-  const returnStatus = searchParams.get('status'); // '1' = paid
+  const returnStatus = searchParams.get('status_id'); // ToyyibPay redirects with status_id, not status
 
   useEffect(() => {
     if (!user) return;
@@ -46,13 +46,17 @@ export default function WalletTopupPage() {
       .limit(1)
       .maybeSingle();
 
-    if (!data) return;
-
     if (returnStatus === '1') {
-      // ToyyibPay confirmed payment — auto-credit immediately
-      await completePendingTopup(data);
-    } else {
-      // No URL param yet — show a "Verify" button so the user can still claim it
+      if (data) {
+        // Payment confirmed — verify with ToyyibPay and credit wallet
+        await completePendingTopup(data);
+      } else {
+        // No pending record — callback already ran and credited the wallet
+        await fetchBalance();
+        setSuccess(true);
+      }
+    } else if (data) {
+      // User navigated back manually without completing payment — show Verify button
       setPendingTopup(data);
     }
   };
@@ -61,33 +65,28 @@ export default function WalletTopupPage() {
     setVerifying(true);
     setError('');
     try {
-      const amount = pending.amount;
+      const { data: { session } } = await supabase.auth.getSession();
 
-      // Get the very latest balance
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles').select('wallet_balance').eq('id', user.id).single();
-      if (profileErr) { setError('Profile fetch failed: ' + profileErr.message); return; }
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-toyyibpay-payment`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            billCode:    pending.description, // billCode stored here by create-toyyibpay-bill
+            userId:      user.id,
+            pendingTxId: pending.id,          // so the function can clean up the pending record
+          }),
+        }
+      );
 
-      const newBalance = (profile?.wallet_balance ?? 0) + amount;
+      const result = await res.json();
+      if (result.error) { setError(result.error); return; }
 
-      const { error: updateErr } = await supabase
-        .from('profiles')
-        .update({ wallet_balance: newBalance })
-        .eq('id', user.id);
-
-      if (updateErr) { setError('Balance update failed: ' + updateErr.message); return; }
-
-      // Replace pending record with completed one
-      await supabase.from('wallet_transactions').delete().eq('id', pending.id);
-      await supabase.from('wallet_transactions').insert({
-        user_id:       user.id,
-        type:          'topup',
-        amount,
-        description:   `Wallet topup RM${amount} [${pending.description}]`,
-        balance_after: newBalance,
-      });
-
-      setBalance(newBalance);
+      setBalance(result.newBalance);
       setSuccess(true);
       setPendingTopup(null);
     } catch (err) {
