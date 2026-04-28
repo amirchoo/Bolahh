@@ -10,30 +10,23 @@ export default function WalletTopupPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const [balance, setBalance] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
 
-  const returnStatus   = searchParams.get('status');
-  const returnBillCode = searchParams.get('billcode');
+  const [balance,      setBalance]      = useState(0);
+  const [selected,     setSelected]     = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [processing,   setProcessing]   = useState(false);
+  const [verifying,    setVerifying]    = useState(false);
+  const [success,      setSuccess]      = useState(false);
+  const [error,        setError]        = useState('');
+  const [pendingTopup, setPendingTopup] = useState(null); // pending DB record
+
+  const returnStatus = searchParams.get('status'); // '1' = paid
 
   useEffect(() => {
-    if (user) fetchBalance();
+    if (!user) return;
+    fetchBalance();
+    checkPendingTopup();
   }, [user]);
-
-  // Handle return from ToyyibPay
-  useEffect(() => {
-    if (!user || !returnStatus) return;
-    if (returnStatus === '1' && returnBillCode) {
-      creditWallet(returnBillCode);
-    } else if (returnStatus !== '1') {
-      setError('Payment was not completed. Please try again.');
-    }
-  }, [returnStatus, returnBillCode, user]);
 
   const fetchBalance = async () => {
     const { data } = await supabase
@@ -42,47 +35,38 @@ export default function WalletTopupPage() {
     setLoading(false);
   };
 
-  const creditWallet = async (billCode) => {
+  // Look up any pending topup stored before the ToyyibPay redirect
+  const checkPendingTopup = async () => {
+    const { data } = await supabase
+      .from('wallet_transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('type', 'topup_pending')
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!data) return;
+
+    if (returnStatus === '1') {
+      // ToyyibPay confirmed payment — auto-credit immediately
+      await completePendingTopup(data);
+    } else {
+      // No URL param yet — show a "Verify" button so the user can still claim it
+      setPendingTopup(data);
+    }
+  };
+
+  const completePendingTopup = async (pending) => {
     setVerifying(true);
+    setError('');
     try {
-      // ToyyibPay sends back order_id = bolahh_{userId}_{amount}_{timestamp}
-      const orderId   = searchParams.get('order_id') ?? '';
-      const parts     = orderId.split('_');
-      const refUserId = parts[1];
-      const amount    = parseFloat(parts[2]);
+      const amount = pending.amount;
 
-      if (parts[0] !== 'bolahh' || !refUserId || isNaN(amount) || amount <= 0) {
-        setError(`Could not parse payment reference. order_id="${orderId}". Contact support.`);
-        return;
-      }
-      if (refUserId !== user.id) {
-        setError(`User mismatch. Contact support. (ref: ${refUserId.slice(0,8)}… you: ${user.id.slice(0,8)}…)`);
-        return;
-      }
-
-      // Idempotency — skip if already credited
-      const { data: existing } = await supabase
-        .from('wallet_transactions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('type', 'topup')
-        .ilike('description', `%[${billCode}]%`)
-        .maybeSingle();
-
-      if (existing) {
-        await fetchBalance();
-        setSuccess(true);
-        return;
-      }
-
-      // Fetch latest balance
+      // Get the very latest balance
       const { data: profile, error: profileErr } = await supabase
         .from('profiles').select('wallet_balance').eq('id', user.id).single();
-
-      if (profileErr) {
-        setError('Could not fetch profile: ' + profileErr.message);
-        return;
-      }
+      if (profileErr) { setError('Profile fetch failed: ' + profileErr.message); return; }
 
       const newBalance = (profile?.wallet_balance ?? 0) + amount;
 
@@ -91,25 +75,23 @@ export default function WalletTopupPage() {
         .update({ wallet_balance: newBalance })
         .eq('id', user.id);
 
-      if (updateErr) {
-        setError('Balance update failed: ' + updateErr.message + ' — contact support, your payment was received.');
-        return;
-      }
+      if (updateErr) { setError('Balance update failed: ' + updateErr.message); return; }
 
-      const { error: txErr } = await supabase.from('wallet_transactions').insert({
+      // Replace pending record with completed one
+      await supabase.from('wallet_transactions').delete().eq('id', pending.id);
+      await supabase.from('wallet_transactions').insert({
         user_id:       user.id,
         type:          'topup',
         amount,
-        description:   `Wallet topup RM${amount} [${billCode}]`,
+        description:   `Wallet topup RM${amount} [${pending.description}]`,
         balance_after: newBalance,
       });
 
-      if (txErr) console.warn('Transaction log failed (balance was updated):', txErr.message);
-
       setBalance(newBalance);
       setSuccess(true);
+      setPendingTopup(null);
     } catch (err) {
-      setError('Unexpected error: ' + String(err) + ' — contact support if money was deducted.');
+      setError('Unexpected error: ' + String(err));
     } finally {
       setVerifying(false);
     }
@@ -119,10 +101,9 @@ export default function WalletTopupPage() {
     if (!selected) return;
     setProcessing(true);
     setError('');
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const { data: profile } = await supabase
+      const { data: profile }     = await supabase
         .from('profiles').select('username').eq('id', user.id).single();
 
       const res = await fetch(
@@ -134,10 +115,10 @@ export default function WalletTopupPage() {
             'Authorization': `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
-            amount: selected,
-            userId: user.id,
+            amount:    selected,
+            userId:    user.id,
             userEmail: user.email,
-            userName: profile?.username || user.email,
+            userName:  profile?.username || user.email,
             returnUrl: window.location.origin + '/wallet/topup',
           }),
         }
@@ -173,12 +154,11 @@ export default function WalletTopupPage() {
           Add funds to your Bolahh wallet
         </p>
 
-        {/* Current Balance Card */}
+        {/* Balance Card */}
         <div style={{
           background: 'linear-gradient(135deg, var(--accent), var(--accent-dim))',
           borderRadius: 20, padding: '28px 24px', marginBottom: 28,
-          boxShadow: '0 8px 32px rgba(240,157,81,0.25)',
-          position: 'relative', overflow: 'hidden'
+          boxShadow: '0 8px 32px rgba(240,157,81,0.25)', position: 'relative', overflow: 'hidden'
         }}>
           <div style={{ position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
           <div style={{ position: 'absolute', bottom: -30, right: 40, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
@@ -188,14 +168,10 @@ export default function WalletTopupPage() {
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 52, color: '#fff', lineHeight: 1, letterSpacing: 2 }}>
             RM {loading || verifying ? '—' : balance.toFixed(2)}
           </div>
-          {verifying && (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
-              Confirming payment...
-            </div>
-          )}
+          {verifying && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>Confirming payment…</div>}
         </div>
 
-        {/* Success message */}
+        {/* Success */}
         {success && (
           <div style={{
             background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)',
@@ -206,7 +182,7 @@ export default function WalletTopupPage() {
           </div>
         )}
 
-        {/* Error message */}
+        {/* Error */}
         {error && (
           <div style={{
             background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)',
@@ -217,9 +193,42 @@ export default function WalletTopupPage() {
           </div>
         )}
 
-        {/* Amount Selection */}
-        {!success && (
+        {/* Pending payment banner — shown if user navigated back manually */}
+        {pendingTopup && !success && !verifying && (
+          <div style={{
+            background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.3)',
+            borderRadius: 12, padding: '14px 16px', marginBottom: 20,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
+          }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 2 }}>
+                Pending topup: RM {pendingTopup.amount}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                Already paid? Click to credit your wallet.
+              </div>
+            </div>
+            <button onClick={() => completePendingTopup(pendingTopup)} style={{
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              borderRadius: 8, padding: '8px 16px', fontSize: 13,
+              fontWeight: 700, cursor: 'pointer', flexShrink: 0
+            }}>
+              Verify
+            </button>
+          </div>
+        )}
+
+        {success ? (
+          <button onClick={() => navigate('/profile')} style={{
+            width: '100%', padding: '14px', background: 'var(--accent)', color: '#fff',
+            border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15,
+            letterSpacing: 1.5, cursor: 'pointer', fontFamily: "'Bebas Neue'"
+          }}>
+            BACK TO PROFILE
+          </button>
+        ) : (
           <>
+            {/* Amount Selection */}
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1.5, marginBottom: 14, fontWeight: 700, fontFamily: "'Space Mono'" }}>
                 SELECT AMOUNT
@@ -254,7 +263,6 @@ export default function WalletTopupPage() {
               </div>
             </div>
 
-            {/* Topup Button */}
             <button onClick={handleTopup} disabled={!selected || processing || verifying} style={{
               width: '100%', padding: '15px',
               background: selected ? 'var(--accent)' : 'var(--card)',
@@ -272,18 +280,6 @@ export default function WalletTopupPage() {
               Wallet balance is non-refundable to bank accounts. Cancelled game refunds will be credited to your wallet.
             </p>
           </>
-        )}
-
-        {success && (
-          <button onClick={() => navigate('/profile')} style={{
-            width: '100%', padding: '14px',
-            background: 'var(--accent)', color: '#fff',
-            border: 'none', borderRadius: 12, fontWeight: 700,
-            fontSize: 15, letterSpacing: 1.5, cursor: 'pointer',
-            fontFamily: "'Bebas Neue'"
-          }}>
-            BACK TO PROFILE
-          </button>
         )}
 
       </div>
