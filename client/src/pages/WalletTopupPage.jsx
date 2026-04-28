@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
@@ -9,15 +9,57 @@ const TOPUP_OPTIONS = [5, 10, 20, 30, 50, 100];
 export default function WalletTopupPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [balance, setBalance] = useState(0);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  const returnStatus   = searchParams.get('status');
+  const returnBillCode = searchParams.get('billcode');
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     if (user) fetchBalance();
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !returnStatus) return;
+
+    if (returnStatus === '1' && returnBillCode) {
+      verifyPayment(returnBillCode);
+    } else if (returnStatus !== '1') {
+      setError('Payment was not completed. Please try again.');
+    }
+  }, [returnStatus, returnBillCode, user]);
+
+  const verifyPayment = async (billCode) => {
+    setVerifying(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-toyyibpay-payment`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ billCode, userId: user.id }),
+        }
+      );
+      const { newBalance, error: fnError } = await res.json();
+      if (fnError) { setError(fnError); return; }
+      setBalance(newBalance);
+      setSuccess(true);
+    } catch (err) {
+      setError('Could not verify payment. Please contact support.');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const fetchBalance = async () => {
     const { data } = await supabase
@@ -29,54 +71,38 @@ export default function WalletTopupPage() {
   const handleTopup = async () => {
     if (!selected) return;
     setProcessing(true);
+    setError('');
 
-    // ── BILLPLZ INTEGRATION PLACEHOLDER ──────────────────────────
-    // TODO: Replace this block with actual Billplz API call once authorized
-    //
-    // 1. Create a Billplz bill via your backend/edge function:
-    //    POST https://www.billplz.com/api/v3/bills
-    //    Body: { collection_id, email, name, amount (in cents), description,
-    //            redirect_url, callback_url }
-    //
-    // 2. Redirect user to bill.url for payment:
-    //    window.location.href = billResponse.url;
-    //
-    // 3. On Billplz callback (webhook), verify X-Signature and call confirmTopup()
-    //
-    // Example edge function call:
-    // const res = await fetch('/api/create-bill', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ amount: selected, userId: user.id })
-    // });
-    // const { url } = await res.json();
-    // window.location.href = url;
-    // ─────────────────────────────────────────────────────────────
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: profile } = await supabase
+        .from('profiles').select('username').eq('id', user.id).single();
 
-    // TEMP: Simulate successful topup directly (remove when Billplz is live)
-    await confirmTopup(selected);
-    setProcessing(false);
-  };
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-toyyibpay-bill`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            amount: selected,
+            userId: user.id,
+            userEmail: user.email,
+            userName: profile?.username || user.email,
+          }),
+        }
+      );
 
-  const confirmTopup = async (amount) => {
-    const newBalance = balance + amount;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ wallet_balance: newBalance })
-      .eq('id', user.id);
+      const { billCode, error: fnError } = await res.json();
+      if (fnError || !billCode) throw new Error(fnError || 'Could not create payment bill.');
 
-    if (!error) {
-      await supabase.from('wallet_transactions').insert({
-        user_id: user.id,
-        type: 'topup',
-        amount,
-        description: `Wallet topup RM${amount}`,
-        balance_after: newBalance,
-      });
-      setBalance(newBalance);
-      setSuccess(true);
-      setSelected(null);
-      setTimeout(() => setSuccess(false), 3000);
+      const toyyibBase = import.meta.env.VITE_TOYYIBPAY_BASE_URL ?? 'https://toyyibpay.com';
+      window.location.href = `${toyyibBase}/${billCode}`;
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+      setProcessing(false);
     }
   };
 
@@ -147,7 +173,18 @@ export default function WalletTopupPage() {
           </div>
         </div>
 
-        {/* Billplz notice */}
+        {/* Error message */}
+        {error && (
+          <div style={{
+            background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)',
+            borderRadius: 12, padding: '12px 16px', marginBottom: 20,
+            color: 'var(--red)', fontSize: 14, fontWeight: 600
+          }}>
+            ✕ {error}
+          </div>
+        )}
+
+        {/* ToyyibPay notice */}
         <div style={{
           background: 'var(--card)', border: '1px solid var(--border)',
           borderRadius: 12, padding: '14px 16px', marginBottom: 24,
@@ -155,9 +192,9 @@ export default function WalletTopupPage() {
         }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>🔒</span>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Secure Payment via Billplz</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Secure Payment via ToyyibPay</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-              Payment gateway coming soon. Topup is currently simulated for testing.
+              FPX online banking &amp; credit card accepted. You will be redirected to ToyyibPay to complete payment.
             </div>
           </div>
         </div>
@@ -173,7 +210,7 @@ export default function WalletTopupPage() {
           opacity: processing ? 0.6 : 1, transition: 'all 0.2s',
           fontFamily: "'Bebas Neue'"
         }}>
-          {processing ? 'PROCESSING...' : selected ? `TOPUP RM${selected}` : 'SELECT AN AMOUNT'}
+          {verifying ? 'VERIFYING PAYMENT...' : processing ? 'PROCESSING...' : selected ? `TOPUP RM${selected}` : 'SELECT AN AMOUNT'}
         </button>
 
         <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginTop: 16, lineHeight: 1.6 }}>

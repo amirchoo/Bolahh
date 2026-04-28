@@ -672,7 +672,7 @@ export default function ProfilePage() {
             </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>Available balance</div>
           </div>
-          <button onClick={() => navigate('/home')} style={{
+          <button onClick={() => navigate('/wallet/topup')} style={{
             background: 'var(--accent)', color: '#fff', border: 'none',
             borderRadius: 10, padding: '10px 20px', fontWeight: 700,
             fontSize: 13, cursor: 'pointer', fontFamily: "'Bebas Neue'",
