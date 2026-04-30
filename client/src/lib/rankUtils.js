@@ -15,17 +15,17 @@
 
 export const RANKS = [
   { name: 'Novis',      minPoints: 0,   maxPoints: 30  },
-  { name: 'Gangsa III', minPoints: 31,  maxPoints: 89,       minGames: 2  },
-  { name: 'Gangsa II',  minPoints: 90,  maxPoints: 149,      minGames: 2  },
-  { name: 'Gangsa I',   minPoints: 150, maxPoints: 209,      minGames: 2  },
-  { name: 'Perak V',    minPoints: 210, maxPoints: 269,      minGames: 2  },
-  { name: 'Perak IV',   minPoints: 270, maxPoints: 329,      minGames: 2  },
-  { name: 'Perak III',  minPoints: 330, maxPoints: 389,      minGames: 2  },
-  { name: 'Perak II',   minPoints: 390, maxPoints: 449,      minGames: 2  },
-  { name: 'Perak I',    minPoints: 450, maxPoints: 509,      minGames: 2  },
-  { name: 'Emas III',   minPoints: 510, maxPoints: 539,      minGames: 2  },
-  { name: 'Emas II',    minPoints: 540, maxPoints: 569,      minGames: 2  },
-  { name: 'Emas I',     minPoints: 570, maxPoints: Infinity, minGames: 2  },
+  { name: 'Gangsa III', minPoints: 31,  maxPoints: 90,       minGames: 2  },
+  { name: 'Gangsa II',  minPoints: 91,  maxPoints: 150,      minGames: 2  },
+  { name: 'Gangsa I',   minPoints: 151, maxPoints: 210,      minGames: 2  },
+  { name: 'Perak V',    minPoints: 211, maxPoints: 270,      minGames: 2  },
+  { name: 'Perak IV',   minPoints: 271, maxPoints: 330,      minGames: 2  },
+  { name: 'Perak III',  minPoints: 331, maxPoints: 390,      minGames: 2  },
+  { name: 'Perak II',   minPoints: 391, maxPoints: 450,      minGames: 2  },
+  { name: 'Perak I',    minPoints: 451, maxPoints: 510,      minGames: 2  },
+  { name: 'Emas III',   minPoints: 511, maxPoints: 540,      minGames: 2  },
+  { name: 'Emas II',    minPoints: 541, maxPoints: 570,      minGames: 2  },
+  { name: 'Emas I',     minPoints: 571, maxPoints: Infinity, minGames: 2  },
 ];
 
 // Hard cap on total_points
