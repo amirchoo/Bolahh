@@ -164,10 +164,39 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl }) {
 
   // ── Player name ───────────────────────────────────────
   const nameY = cy + 56 + avR * 2 + 22;
+  const playerName = (profile?.name || 'PLAYER').toUpperCase();
+  const isSubscribed = !!(profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date());
+
   ctx.fillStyle = t.text;
   ctx.font = `700 24px 'Bebas Neue', sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.fillText((profile?.name || 'PLAYER').toUpperCase(), cx + cw / 2, nameY);
+  ctx.textBaseline = 'alphabetic';
+
+  if (isSubscribed) {
+    const tickR = 8;
+    const tickGap = 5;
+    const nameWidth = ctx.measureText(playerName).width;
+    const totalW = nameWidth + tickGap + tickR * 2;
+    const startX = cx + cw / 2 - totalW / 2;
+
+    ctx.textAlign = 'left';
+    ctx.fillText(playerName, startX, nameY);
+
+    const tickCX = startX + nameWidth + tickGap + tickR;
+    const tickCY = nameY - 10;
+
+    ctx.beginPath();
+    ctx.arc(tickCX, tickCY, tickR, 0, Math.PI * 2);
+    ctx.fillStyle = '#4a9eff';
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = `700 9px 'Space Mono', monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✓', tickCX, tickCY);
+  } else {
+    ctx.textAlign = 'center';
+    ctx.fillText(playerName, cx + cw / 2, nameY);
+  }
 
   // ── Divider ───────────────────────────────────────────
   const divY = nameY + 14;
