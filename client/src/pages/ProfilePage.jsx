@@ -278,7 +278,7 @@ export default function ProfilePage() {
         setProfile(newProfile);
         setWalletBalance(newProfile?.wallet_balance || 0);
         setForm({ name: newProfile.name || '', position: newProfile.position || '' });
-        fetchCard();
+        fetchCard(newProfile?.total_points || 0);
       }
     } else {
       if (!data.name && user.user_metadata?.username) {
@@ -288,24 +288,24 @@ export default function ProfilePage() {
         setProfile({ ...data, name: username, position });
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: username, position });
-        fetchCard();
+        fetchCard(data?.total_points || 0);
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: data.name || '', position: data.position || '' });
-        fetchCard();
+        fetchCard(data?.total_points || 0);
       }
     }
     setLoading(false);
   };
 
-  const fetchCard = async () => {
+  const fetchCard = async (totalPoints = 0) => {
     const { data: gameRatings } = await supabase
       .from('game_ratings')
       .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
       .eq('user_id', user.id);
 
-    const stats = calculateCardStats(gameRatings || []);
+    const stats = calculateCardStats(gameRatings || [], totalPoints);
     setCardStats(stats);
 
     await supabase.from('player_cards').upsert({
