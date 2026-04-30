@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getRank, getRankColor } from '../lib/rankUtils';
+import { calculateCardStats } from '../lib/cardUtils';
 import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 
 
@@ -20,9 +21,6 @@ function getCardTheme(rank) {
   return { bg: 'linear-gradient(145deg, #2a2d30, #3d4144, #2a2d30)', border: '#555', text: '#e8e9eb', muted: '#aaa', statBg: 'rgba(255,255,255,0.1)' };
 }
 
-function calcOverall(stats) {
-  return Math.round(STATS.map(s => stats[s.key] || 0).reduce((a, b) => a + b, 0) / 6);
-}
 
 function FifaCard({ profile, cardStats, rank }) {
   const theme = getCardTheme(rank);
@@ -31,7 +29,7 @@ function FifaCard({ profile, cardStats, rank }) {
     <div style={{ width: 220, height: 330, borderRadius: 16, background: theme.bg, border: `2px solid ${theme.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)', position: 'relative', overflow: 'hidden', flexShrink: 0, fontFamily: "'DM Sans'" }}>
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%)', pointerEvents: 'none', zIndex: 2 }} />
       <div style={{ position: 'absolute', top: 12, left: 14, zIndex: 3 }}>
-        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 44, color: theme.text, lineHeight: 1 }}>{calcOverall(cardStats)}</div>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 44, color: theme.text, lineHeight: 1 }}>{cardStats.overall || 30}</div>
         <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: theme.text, fontWeight: 700, letterSpacing: 1, marginTop: 2 }}>{POSITION_ABBR[profile?.position] || 'POS'}</div>
       </div>
       <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 3, fontFamily: "'Bebas Neue'", fontSize: 10, color: theme.muted, letterSpacing: 1, textAlign: 'right' }}>{rank}</div>
@@ -202,11 +200,11 @@ export default function FriendsPage() {
   };
 
   const openPlayerCard = async (profile) => {
-    const { data } = await supabase
-      .from('player_cards').select('*').eq('user_id', profile.id).maybeSingle();
-    const cardStats = data
-      ? { pac: data.pac, sho: data.sho, pas: data.pas, dri: data.dri, def: data.def, phy: data.phy }
-      : { pac: 0, sho: 0, pas: 0, dri: 0, def: 0, phy: 0 };
+    const { data: gameRatings } = await supabase
+      .from('game_ratings')
+      .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
+      .eq('user_id', profile.id);
+    const cardStats = calculateCardStats(gameRatings || []);
     setViewingPlayer({ profile, cardStats });
   };
 

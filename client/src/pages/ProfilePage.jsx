@@ -121,9 +121,17 @@ function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick }) 
         {!isSmall && onAvatarClick && (
           <div className="avatar-hover-overlay" style={{
             position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 20, opacity: 0, transition: 'opacity 0.2s',
-          }}>📷</div>
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+            opacity: 0, transition: 'opacity 0.2s',
+          }}>
+            <span style={{ fontSize: 20 }}>📷</span>
+            {isSubscribed && (
+              <span style={{
+                fontSize: 8, fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 1,
+                background: '#4a9eff', color: '#fff', borderRadius: 3, padding: '2px 5px',
+              }}>GIF</span>
+            )}
+          </div>
         )}
       </div>
 
@@ -344,8 +352,12 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      setSaveMsg('Only JPG and PNG images are allowed.');
+    const subscribed = !!(profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date());
+    const allowed = subscribed ? ['image/jpeg', 'image/png', 'image/gif'] : ['image/jpeg', 'image/png'];
+    if (!allowed.includes(file.type)) {
+      setSaveMsg(file.type === 'image/gif'
+        ? '✨ GIF avatars are exclusive to verified users.'
+        : 'Only JPG and PNG images are allowed.');
       e.target.value = '';
       return;
     }
@@ -592,7 +604,7 @@ export default function ProfilePage() {
             display: 'flex', alignItems: 'center', gap: 6
           }}><RiTeamLine size={14} /> Friends</button>
         </div>
-        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" style={{ display: 'none' }} onChange={handleAvatarUpload} />
+        <input ref={fileInputRef} type="file" accept={isSubscribed ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png'} style={{ display: 'none' }} onChange={handleAvatarUpload} />
 
         {/* Edit form */}
         {editing && (

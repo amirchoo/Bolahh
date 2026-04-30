@@ -8,6 +8,7 @@ const SUBSCRIPTION_COST = 10;
 
 const BENEFITS = [
   'Verified tick badge on your Bolahh card',
+  'Upload GIF as your avatar, animated profile photo',
   'Stand out in friend lists and search',
   'Show your commitment to the Bolahh community',
 ];
