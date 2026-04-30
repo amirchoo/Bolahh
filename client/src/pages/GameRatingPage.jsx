@@ -55,8 +55,6 @@ const TEAM_COLORS = {
 };
 
 // ── PREVIEW / DEV MODE ────────────────────────────────────────────────────────
-// Visit /game/any-id/rate?preview=1 to see the full UI with mock data.
-// Submit is disabled in preview mode — no DB writes happen.
 const MOCK_GAME = {
   id: 'preview', title: 'Preview Game', format: '5v5', time: '20:00',
   fields: { name: 'Futsal Arena KL' }, created_by: 'preview-admin',
@@ -73,6 +71,18 @@ const MOCK_PROFILES = {
   p8:  { id:'p8',  name:'Haris Fikri',  avatar_url: null, total_points: 56, games_played: 16 },
   p9:  { id:'p9',  name:'Izzat Kamil',  avatar_url: null, total_points: 31, games_played: 2  },
   p10: { id:'p10', name:'Zulhilmi',     avatar_url: null, total_points: 71, games_played: 24 },
+};
+const MOCK_BASE_TAPS = {
+  p1:  { goals: 22, assists: 14, good_defending: 8,  good_keeping: 5,  successful_dribble: 17, good_chance: 12 },
+  p2:  { goals: 14, assists: 18, good_defending: 6,  good_keeping: 3,  successful_dribble: 9,  good_chance: 10 },
+  p3:  { goals: 11, assists: 10, good_defending: 12, good_keeping: 4,  successful_dribble: 7,  good_chance: 8  },
+  p4:  { goals: 33, assists: 22, good_defending: 15, good_keeping: 9,  successful_dribble: 24, good_chance: 20 },
+  p5:  { goals: 3,  assists: 4,  good_defending: 2,  good_keeping: 1,  successful_dribble: 4,  good_chance: 3  },
+  p6:  { goals: 18, assists: 12, good_defending: 9,  good_keeping: 6,  successful_dribble: 13, good_chance: 11 },
+  p7:  { goals: 7,  assists: 9,  good_defending: 4,  good_keeping: 2,  successful_dribble: 6,  good_chance: 5  },
+  p8:  { goals: 26, assists: 16, good_defending: 11, good_keeping: 7,  successful_dribble: 19, good_chance: 14 },
+  p9:  { goals: 1,  assists: 2,  good_defending: 1,  good_keeping: 0,  successful_dribble: 2,  good_chance: 1  },
+  p10: { goals: 41, assists: 28, good_defending: 18, good_keeping: 12, successful_dribble: 31, good_chance: 25 },
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -97,14 +107,15 @@ export default function GameRatingPage() {
   const [step, setStep] = useState('config');
   const [currentMatch, setCurrentMatch] = useState(0);
 
-  // NEW: duration (minutes) and team mode (2 or 3), auto-suggested after load
   const [duration, setDuration] = useState(120);
   const [teamMode, setTeamMode] = useState(null);
 
   // Team assignments: { userId: 'A' | 'B' | 'C' }
   const [teamAssign, setTeamAssign] = useState({});
-  // Ratings: { userId: { goals, assists, ... } }
+  // Ratings: { userId: { goals, assists, ... } } — tracks TOTAL lifetime taps (adjusted this session)
   const [ratings, setRatings] = useState({});
+  // Base taps before this game — used to compute the per-game delta on submit
+  const [baseRatings, setBaseRatings] = useState({});
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -115,10 +126,11 @@ export default function GameRatingPage() {
       setGame(MOCK_GAME);
       setProfiles(MOCK_PROFILES);
       setPlayers(MOCK_PLAYER_IDS);
+      setBaseRatings(MOCK_BASE_TAPS);
       const initRatings = {};
-      MOCK_PLAYER_IDS.forEach(uid => { initRatings[uid] = defaultStats(); });
+      MOCK_PLAYER_IDS.forEach(uid => { initRatings[uid] = { ...(MOCK_BASE_TAPS[uid] || defaultStats()) }; });
       setRatings(initRatings);
-      setTeamMode(3); // 10 players → 3 teams suggested
+      setTeamMode(3);
       setLoading(false);
       return;
     }
@@ -146,12 +158,32 @@ export default function GameRatingPage() {
     setProfiles(profileMap);
     setPlayers(userIds);
 
-    // Init ratings
+    // Fetch lifetime game_ratings to compute each player's current base taps
+    const { data: lifetimeData } = await supabase
+      .from('game_ratings')
+      .select('user_id, goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
+      .in('user_id', userIds);
+
+    const baseMap = {};
+    userIds.forEach(uid => { baseMap[uid] = defaultStats(); });
+    lifetimeData?.forEach(r => {
+      if (baseMap[r.user_id]) {
+        baseMap[r.user_id].goals              += r.goals              || 0;
+        baseMap[r.user_id].assists            += r.assists            || 0;
+        baseMap[r.user_id].good_defending     += r.good_defending     || 0;
+        baseMap[r.user_id].good_keeping       += r.good_keeping       || 0;
+        baseMap[r.user_id].successful_dribble += r.successful_dribble || 0;
+        baseMap[r.user_id].good_chance        += r.good_chance        || 0;
+      }
+    });
+    setBaseRatings(baseMap);
+
+    // Init ratings to current base — manager adjusts from here
     const initRatings = {};
-    userIds.forEach(uid => { initRatings[uid] = defaultStats(); });
+    userIds.forEach(uid => { initRatings[uid] = { ...baseMap[uid] }; });
     setRatings(initRatings);
 
-    // Auto-suggest team mode: if players fit within 2 teams → suggest 2, else 3
+    // Auto-suggest team mode
     const formatNum = parseInt(gameData?.format) || 5;
     setTeamMode(userIds.length <= formatNum * 2 ? 2 : 3);
 
@@ -163,10 +195,8 @@ export default function GameRatingPage() {
     setLoading(false);
   };
 
-  // Active teams based on mode
   const activeTeams = teamMode === 2 ? ['A', 'B'] : ['A', 'B', 'C'];
 
-  // Get team members
   const teamPlayers = (team) =>
     players.filter(uid => teamAssign[uid] === team);
 
@@ -188,22 +218,17 @@ export default function GameRatingPage() {
     return idx + 1;
   };
 
-  // Build schedule based on teamMode and duration
   const buildSchedule = () => {
     if (teamMode === 2) {
-      // 2-team: A vs B, 15 min matches, 7 min breaks
       const matchMin = 15;
       const breakMin = 7;
       const numMatches = Math.floor((duration + breakMin) / (matchMin + breakMin));
       return Array.from({ length: numMatches }, (_, i) => ({
-        home: 'A',
-        away: 'B',
-        rest: null,
+        home: 'A', away: 'B', rest: null,
         time: game?.time ? addMinutes(game.time, i * (matchMin + breakMin)) : '',
         index: i,
       }));
     } else {
-      // 3-team rotation — match length and rotations scale with duration
       let matchMin, numRotations;
       if (duration === 60)       { matchMin = 20; numRotations = 1; }
       else if (duration === 90)  { matchMin = 15; numRotations = 2; }
@@ -221,7 +246,6 @@ export default function GameRatingPage() {
     }
   };
 
-  // Human-readable schedule summary
   const getScheduleInfo = () => {
     if (teamMode === 2) {
       const matchMin = 15;
@@ -251,19 +275,20 @@ export default function GameRatingPage() {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      // Insert per-game stat taps
+      // Store the per-game delta (new total taps minus pre-game base)
       for (const uid of players) {
         const stats = ratings[uid] || defaultStats();
+        const base  = baseRatings[uid] || defaultStats();
         const { error: insertError } = await supabase.from('game_ratings').insert({
           game_id: id,
           user_id: uid,
           rated_by: currentUser.id,
-          goals: stats.goals,
-          assists: stats.assists,
-          good_defending: stats.good_defending,
-          good_keeping: stats.good_keeping,
-          successful_dribble: stats.successful_dribble,
-          good_chance: stats.good_chance,
+          goals:              (stats.goals              || 0) - (base.goals              || 0),
+          assists:            (stats.assists            || 0) - (base.assists            || 0),
+          good_defending:     (stats.good_defending     || 0) - (base.good_defending     || 0),
+          good_keeping:       (stats.good_keeping       || 0) - (base.good_keeping       || 0),
+          successful_dribble: (stats.successful_dribble || 0) - (base.successful_dribble || 0),
+          good_chance:        (stats.good_chance        || 0) - (base.good_chance        || 0),
           good_manner: 0,
           admin_bonus: 0,
           total_points: 0,
@@ -271,7 +296,7 @@ export default function GameRatingPage() {
         if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
       }
 
-      // Recalculate OVR from lifetime stats and store in profiles.total_points
+      // Recalculate OVR from lifetime stats
       for (const uid of players) {
         const { data: allRatings } = await supabase
           .from('game_ratings')
@@ -300,7 +325,7 @@ export default function GameRatingPage() {
     }
     setSaving(false);
   };
-  // ── STYLES ──
+
   const cardStyle = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, marginBottom: 12 };
 
   if (loading) return (
@@ -376,7 +401,7 @@ export default function GameRatingPage() {
           </div>
         )}
 
-        {/* Step indicator — now 4 steps */}
+        {/* Step indicator */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
           {[
             { key: 'config',   label: '1. Setup'        },
@@ -396,7 +421,6 @@ export default function GameRatingPage() {
         {/* ── STEP 0: CONFIG ── */}
         {step === 'config' && (
           <div>
-            {/* Duration picker */}
             <div style={{ ...cardStyle, marginBottom: 20 }}>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>SESSION DURATION</div>
               <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>How long is this game session?</p>
@@ -413,7 +437,6 @@ export default function GameRatingPage() {
               </div>
             </div>
 
-            {/* Team mode */}
             <div style={{ ...cardStyle, marginBottom: 20 }}>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>TEAM FORMAT</div>
               <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 8 }}>
@@ -446,7 +469,6 @@ export default function GameRatingPage() {
               </div>
             </div>
 
-            {/* Schedule preview */}
             {teamMode !== null && (
               <div style={{
                 background: 'var(--card2)', border: '1px solid var(--border)',
@@ -476,7 +498,6 @@ export default function GameRatingPage() {
               Click a player to assign them to a team. Click their team badge to unassign.
             </p>
 
-            {/* Unassigned players */}
             {players.some(uid => !teamAssign[uid]) && (
               <div style={{ ...cardStyle, marginBottom: 20 }}>
                 <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 12, fontWeight: 600 }}>UNASSIGNED PLAYERS</div>
@@ -493,7 +514,6 @@ export default function GameRatingPage() {
                           {p?.avatar_url ? <img src={p.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p?.name?.[0] || '?').toUpperCase()}
                         </div>
                         <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{p?.name}</span>
-                        {/* Only show active teams (A+B or A+B+C) */}
                         <div style={{ display: 'flex', gap: 4 }}>
                           {activeTeams.map(team => (
                             <button key={team} type="button" onClick={() => assignPlayer(uid, team)} style={{
@@ -510,7 +530,6 @@ export default function GameRatingPage() {
               </div>
             )}
 
-            {/* Team columns — grid adapts to 2 or 3 teams */}
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${activeTeams.length}, 1fr)`, gap: 12, marginBottom: 24 }}>
               {activeTeams.map(team => {
                 const tc = TEAM_COLORS[team];
@@ -602,7 +621,6 @@ export default function GameRatingPage() {
                       borderRadius: 6, padding: '3px 12px', fontWeight: 700, fontSize: 13
                     }}>Team {s.away}</span>
                   </div>
-                  {/* 3-team: show rest badge */}
                   {s.rest && (
                     <div style={{
                       background: 'rgba(136,136,128,0.1)', color: 'var(--muted)',
@@ -610,7 +628,6 @@ export default function GameRatingPage() {
                       padding: '3px 10px', fontSize: 11, fontWeight: 600
                     }}>💤 Team {s.rest} rests</div>
                   )}
-                  {/* 2-team: show break badge (except last match) */}
                   {!s.rest && i < schedule.length - 1 && (
                     <div style={{
                       background: 'rgba(100,160,255,0.08)', color: '#64a0ff',
@@ -659,12 +676,20 @@ export default function GameRatingPage() {
                 <span style={{ background: TEAM_COLORS[match.away].bg, color: TEAM_COLORS[match.away].text, border: `1px solid ${TEAM_COLORS[match.away].border}`, borderRadius: 8, padding: '4px 16px', fontWeight: 700, fontSize: 15 }}>Team {match.away}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {/* Only show rest badge for 3-team games */}
                 {match.rest && (
                   <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>💤 Team {match.rest} rests</div>
                 )}
                 {match.time && <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)' }}>{formatTime(match.time)}</div>}
               </div>
+            </div>
+
+            {/* Hint */}
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ opacity: 0.6 }}>Stats show each player's current card rating — adjust with</span>
+              <span style={{ fontFamily: "'Space Mono'", color: '#f87171', fontWeight: 700 }}>−</span>
+              <span style={{ opacity: 0.6 }}>and</span>
+              <span style={{ fontFamily: "'Space Mono'", color: '#4ade80', fontWeight: 700 }}>+</span>
+              <span style={{ opacity: 0.6 }}>to record this game's events.</span>
             </div>
 
             {/* Two team columns */}
@@ -677,11 +702,17 @@ export default function GameRatingPage() {
                     {teamUids.map((uid) => {
                       const p = profiles[uid];
                       const stats = ratings[uid] || defaultStats();
+                      const base  = baseRatings[uid] || defaultStats();
                       const bib = getBibNumber(uid, team);
+
+                      // Total delta across all stats for this player
+                      const totalDelta = CARD_STATS.reduce((sum, { key }) => sum + ((stats[key] || 0) - (base[key] || 0)), 0);
+
                       return (
                         <div key={uid} style={{
-                          background: 'var(--card)', border: `1px solid ${tc.border}`,
-                          borderRadius: 12, padding: 12, marginBottom: 10
+                          background: 'var(--card)', border: `1px solid ${totalDelta !== 0 ? tc.border : 'var(--border)'}`,
+                          borderRadius: 12, padding: 12, marginBottom: 10,
+                          transition: 'border-color 0.15s',
                         }}>
                           {/* Player info */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -690,33 +721,65 @@ export default function GameRatingPage() {
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontSize: 12, fontWeight: 700, color: '#1e2123', flexShrink: 0
                             }}>{bib}</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{p?.name}</div>
+                            <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{p?.name}</div>
+                            {totalDelta !== 0 && (
+                              <div style={{
+                                fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                                color: totalDelta > 0 ? '#4ade80' : '#f87171',
+                                background: totalDelta > 0 ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
+                                border: `1px solid ${totalDelta > 0 ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}`,
+                                borderRadius: 5, padding: '2px 6px',
+                              }}>
+                                {totalDelta > 0 ? `+${totalDelta}` : totalDelta} this game
+                              </div>
+                            )}
                           </div>
 
-                          {/* 6 card stat buttons — 3×2 grid */}
+                          {/* 6 stat pads — 3×2 grid with [−] VALUE [+] */}
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                             {CARD_STATS.map(({ key, label, color }) => {
-                              const count = stats[key] || 0;
+                              const taps     = stats[key] || 0;
+                              const baseTaps = base[key] || 0;
+                              const cardVal  = Math.min(99, 30 + taps);
+                              const delta    = taps - baseTaps;
+                              const canDecrease = taps > 0;
                               return (
-                                <div key={key} style={{ position: 'relative' }}>
-                                  <button type="button" onClick={() => updateStat(uid, key, 1)} style={{
-                                    width: '100%', padding: '7px 0', borderRadius: 8, cursor: 'pointer',
-                                    border: `1.5px solid ${count > 0 ? color : 'var(--border)'}`,
-                                    background: count > 0 ? `${color}18` : 'var(--card2)',
-                                    textAlign: 'center', transition: 'all 0.12s',
-                                  }}>
-                                    <div style={{ fontFamily: "'Space Mono'", fontSize: 8, fontWeight: 700, color: count > 0 ? color : 'var(--muted)', letterSpacing: 1 }}>{label}</div>
-                                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, lineHeight: 1.1, color: count > 0 ? color : 'var(--muted)', marginTop: 1 }}>{count}</div>
-                                  </button>
-                                  {count > 0 && (
-                                    <button type="button" onClick={e => { e.stopPropagation(); updateStat(uid, key, -1); }} style={{
-                                      position: 'absolute', top: -4, right: -4,
-                                      width: 14, height: 14, borderRadius: '50%',
-                                      background: 'rgba(240,101,67,0.9)', color: '#fff',
-                                      border: 'none', fontSize: 9, lineHeight: 1,
-                                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                <div key={key} style={{
+                                  borderRadius: 8,
+                                  border: `1.5px solid ${delta !== 0 ? color : 'var(--border)'}`,
+                                  background: delta !== 0 ? `${color}18` : 'var(--card2)',
+                                  transition: 'all 0.12s',
+                                }}>
+                                  <div style={{
+                                    fontFamily: "'Space Mono'", fontSize: 7, fontWeight: 700,
+                                    color: delta !== 0 ? color : 'var(--muted)',
+                                    letterSpacing: 1, textAlign: 'center', paddingTop: 5,
+                                  }}>{label}</div>
+                                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <button type="button" onClick={() => updateStat(uid, key, -1)} style={{
+                                      flex: 1, background: 'none', border: 'none',
+                                      cursor: canDecrease ? 'pointer' : 'default',
+                                      color: canDecrease ? '#f87171' : 'var(--border)',
+                                      fontSize: 15, fontWeight: 700, padding: '3px 0',
+                                      opacity: canDecrease ? 1 : 0.2, lineHeight: 1,
                                     }}>−</button>
-                                  )}
+                                    <div style={{ flex: 2, textAlign: 'center' }}>
+                                      <div style={{
+                                        fontFamily: "'Bebas Neue'", fontSize: 20, lineHeight: 1,
+                                        color: delta !== 0 ? color : 'var(--muted)',
+                                      }}>{cardVal}</div>
+                                      <div style={{
+                                        fontFamily: "'Space Mono'", fontSize: 8, fontWeight: 700, lineHeight: 1.5,
+                                        color: delta > 0 ? '#4ade80' : delta < 0 ? '#f87171' : 'transparent',
+                                      }}>{delta > 0 ? `+${delta}` : delta !== 0 ? `${delta}` : '·'}</div>
+                                    </div>
+                                    <button type="button" onClick={() => updateStat(uid, key, 1)} style={{
+                                      flex: 1, background: 'none', border: 'none', cursor: 'pointer',
+                                      color: '#4ade80', fontSize: 15, fontWeight: 700,
+                                      padding: '3px 0', lineHeight: 1,
+                                    }}>+</button>
+                                  </div>
+                                  <div style={{ height: 5 }} />
                                 </div>
                               );
                             })}

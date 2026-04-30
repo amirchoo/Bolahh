@@ -10,6 +10,7 @@ import { LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { FaLocationDot, FaWhatsapp, FaTelegram } from "react-icons/fa6";
 import { FaLink } from "react-icons/fa";
+import { getRank, getRankColor } from '../lib/rankUtils';
 
 export default function GameDetailPage() {
   const { id } = useParams();
@@ -19,6 +20,7 @@ export default function GameDetailPage() {
   const [field, setField] = useState(null);
   const [playerCount, setPlayerCount] = useState(0);
   const [hasJoined, setHasJoined] = useState(false);
+  const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isOwner, setIsOwner] = useState(false);
@@ -48,11 +50,21 @@ export default function GameDetailPage() {
     const { data: existing } = await supabase
       .from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle();
     setHasJoined(!!existing);
+
+    const { data: gamePlayers } = await supabase
+      .from('game_players').select('user_id').eq('game_id', id);
+    if (gamePlayers?.length) {
+      const { data: profilesData } = await supabase
+        .from('profiles').select('id, name, avatar_url, position, total_points, is_subscribed, subscription_expires_at')
+        .in('id', gamePlayers.map(p => p.user_id));
+      setPlayers(profilesData || []);
+    }
+
     setLoading(false);
   };
 
   const handleJoinClick = () => {
-    if (hasJoined || !game) return;
+    if (hasJoined || full || locked || !game) return;
     if (walletBalance < game.price) {
       setShowInsufficientModal(true);
       return;
@@ -76,6 +88,12 @@ export default function GameDetailPage() {
   const pct = Math.round((playerCount / game.slots) * 100);
   const open = game.slots - playerCount;
   const shortfall = Math.max(0, game.price - walletBalance);
+
+  const now = new Date();
+  const [gy, gm, gd] = game.date.split('-').map(Number);
+  const [gh, gmin] = (game.time || '00:00').split(':').map(Number);
+  const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
+  const locked = now >= new Date(gameStart.getTime() - 10 * 60 * 1000);
 
   const tagStyle = {
     background: 'var(--card2)', color: 'var(--text)',
@@ -354,7 +372,7 @@ export default function GameDetailPage() {
         </div>
 
         {/* Wallet balance hint */}
-        {!hasJoined && !full && (
+        {!hasJoined && !full && !locked && (
           <div style={{
             background: walletBalance >= game.price ? 'rgba(74,222,128,0.06)' : 'rgba(224,62,26,0.06)',
             border: `1px solid ${walletBalance >= game.price ? 'rgba(74,222,128,0.2)' : 'rgba(224,62,26,0.2)'}`,
@@ -382,19 +400,132 @@ export default function GameDetailPage() {
 
           <button
             onClick={handleJoinClick}
-            disabled={full || hasJoined}
+            disabled={full || hasJoined || locked}
             style={{
               width: '100%', padding: '13px',
-              background: hasJoined ? 'transparent' : full ? 'transparent' : 'var(--accent)',
-              color: hasJoined ? 'var(--accent)' : full ? 'var(--muted)' : '#fff',
-              border: hasJoined ? '1.5px solid var(--accent)' : full ? '1px solid var(--border)' : 'none',
+              background: hasJoined ? 'transparent' : full ? 'transparent' : locked ? 'transparent' : 'var(--accent)',
+              color: hasJoined ? 'var(--accent)' : full ? 'var(--muted)' : locked ? 'var(--accent)' : '#fff',
+              border: hasJoined ? '1.5px solid var(--accent)' : full ? '1px solid var(--border)' : locked ? '1.5px solid var(--accent)' : 'none',
               borderRadius: 10, fontWeight: 700, fontSize: 15, transition: 'all 0.15s',
-              cursor: hasJoined || full ? 'default' : 'pointer'
+              cursor: hasJoined || full || locked ? 'default' : 'pointer',
+              opacity: locked ? 0.7 : 1
             }}
           >
-            {hasJoined ? '✓ Already Joined' : full ? 'Game Full' : 'Join Game'}
+            {hasJoined ? '✓ Already Joined' : full ? 'Game Full' : locked ? '⏱ Game Starting Soon' : 'Join Game'}
           </button>
         </div>
+
+        {/* Cancel booking */}
+        {hasJoined && (
+          <div className="fade-up-2" style={{ marginBottom: 16 }}>
+            <button
+              onClick={() => navigate(`/game/${id}/cancel`)}
+              style={{
+                width: '100%', padding: '12px',
+                background: 'transparent', color: 'var(--red)',
+                border: '1.5px solid var(--red)', borderRadius: 10,
+                fontWeight: 700, fontSize: 14, cursor: 'pointer'
+              }}
+            >
+              ✕ Cancel Booking
+            </button>
+          </div>
+        )}
+
+        {/* Player list */}
+        {players.length > 0 && (
+          <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
+            {(() => {
+              const avgOvr = Math.round(players.reduce((sum, p) => sum + (p.total_points || 30), 0) / players.length);
+              const avgRank = getRank(avgOvr);
+              const avgColor = getRankColor(avgRank);
+              return (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)' }}>
+                    PLAYERS JOINED — {players.length}/{game.slots}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: "'Space Mono'", fontSize: 10, color: 'var(--muted)' }}>AVG</span>
+                    <span style={{ fontFamily: "'Bebas Neue'", fontSize: 16, color: avgColor, lineHeight: 1 }}>{avgOvr}</span>
+                    <span style={{
+                      fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: avgColor,
+                      background: `${avgColor}18`, border: `1px solid ${avgColor}55`,
+                      borderRadius: 5, padding: '2px 7px'
+                    }}>{avgRank}</span>
+                  </div>
+                </div>
+              );
+            })()}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', paddingRight: 2 }}>
+              {players.map((p) => {
+                const isMe = p.id === user.id;
+                const name = p.name || 'Player';
+                const initials = name.slice(0, 2).toUpperCase();
+                const rank = getRank(p.total_points);
+                const rankColor = getRankColor(rank);
+                const isVerified = p.is_subscribed && p.subscription_expires_at && new Date(p.subscription_expires_at) > new Date();
+                return (
+                  <div key={p.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 14px',
+                    background: isMe ? `${rankColor}14` : 'var(--card2)',
+                    border: `1px solid ${isMe ? rankColor + '55' : 'var(--border)'}`,
+                    borderLeft: `3px solid ${rankColor}`,
+                    borderRadius: 10,
+                  }}>
+                    {/* Avatar */}
+                    <div style={{
+                      width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
+                      border: `2px solid ${rankColor}`,
+                      overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'var(--card)'
+                    }}>
+                      {p.avatar_url
+                        ? <img src={p.avatar_url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <span style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: rankColor }}>{initials}</span>
+                      }
+                    </div>
+
+                    {/* Name + rank */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                        <span style={{
+                          fontWeight: 700, fontSize: 14, color: isMe ? rankColor : 'var(--text)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                        }}>
+                          {name}{isMe ? ' (you)' : ''}
+                        </span>
+                        {isVerified && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 14, height: 14, borderRadius: '50%',
+                            background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff'
+                          }}>✓</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: rankColor }}>
+                          {rank}
+                        </span>
+                        {p.position && (
+                          <span style={{ fontSize: 11, color: 'var(--muted)' }}>· {p.position}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* OVR */}
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, color: rankColor, lineHeight: 1 }}>
+                        {p.total_points || 30}
+                      </div>
+                      <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, marginTop: 1 }}>OVR</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Admin rate button */}
         {isAdmin && isOwner && (

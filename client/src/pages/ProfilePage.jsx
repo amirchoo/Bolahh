@@ -329,6 +329,8 @@ export default function ProfilePage() {
     const { data: playerData, error: playerError } = await supabase
       .from('game_players').select('id, game_id').eq('user_id', user.id);
     if (playerError || !playerData || playerData.length === 0) return;
+    // Sync games_played in local state from actual game_players count
+    setProfile(prev => prev ? { ...prev, games_played: playerData.length } : prev);
     const gameIds = playerData.map(p => p.game_id);
     const { data: gamesData, error: gamesError } = await supabase
       .from('games').select('id, title, area, date, time, format, price, fields(name)').in('id', gameIds);
@@ -646,7 +648,7 @@ export default function ProfilePage() {
         {/* Stats */}
         <div className="fade-up-3 stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
           {[
-            { label: 'Games Joined', val: upcomingGames.length + recentGames.length },
+            { label: 'Games Joined', val: profile?.games_played || 0 },
             { label: 'Member Since', val: new Date(user?.created_at).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' }) },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px' }}>

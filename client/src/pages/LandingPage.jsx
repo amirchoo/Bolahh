@@ -13,7 +13,7 @@ import { LiaUserFriendsSolid } from "react-icons/lia";
 import { supabase } from '../lib/supabaseClient';
 
 const RANKS = [
-  { name: 'Novis',      color: '#888880', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '0–30'    },
+  { name: 'Novis',      color: '#7088a0', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '0–30'    },
   { name: 'Gangsa III', color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '31–130'  },
   { name: 'Gangsa II',  color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '131–230' },
   { name: 'Gangsa I',   color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '231–330' },

@@ -53,7 +53,7 @@ function getTierStyle(name) {
 }
 
 function getRankColor(name) {
-  if (name === 'Novis')          return '#888880';
+  if (name === 'Novis')          return '#7088a0';
   if (name.startsWith('Gangsa')) return '#cd7f32';
   if (name.startsWith('Perak'))  return '#c0c0c0';
   return '#FFD700';
@@ -215,12 +215,12 @@ export default function GuidePage() {
         <section>
           <SectionHead id="ranks" sup="10 TIERS" title="THE RANK SYSTEM" />
           <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
-            Every player starts as <span style={{ color: '#888880', fontWeight: 600 }}>Novis</span>. Play games, earn points, and climb through Gangsa, Perak, and Emas tiers. Each tier has its own card theme.
+            Every player starts as <span style={{ color: '#7088a0', fontWeight: 600 }}>Novis</span>. Play games, earn points, and climb through Gangsa, Perak, and Emas tiers. Each tier has its own card theme.
           </p>
 
           {/* Tier groups */}
           {[
-            { tier: 'Novis',  color: '#888880', desc: 'New players. No card customisation yet — unlock your card by playing your first game.' },
+            { tier: 'Novis',  color: '#7088a0', desc: 'New players. No card customisation yet — unlock your card by playing your first game.' },
             { tier: 'Gangsa', color: '#cd7f32', desc: 'Bronze tier (31–330 pts). You\'ve played and your card is unlocked. Build up stats and start climbing.' },
             { tier: 'Perak',  color: '#c0c0c0', desc: 'Silver tier (331–630 pts). Consistent performers. Your card reflects real skill at this point.' },
             { tier: 'Emas',   color: '#FFD700', desc: 'Gold tier (631–930 pts). Top of the ladder. Near-max stats and the coveted gold card theme.' },
