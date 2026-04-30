@@ -13,35 +13,30 @@ import { LiaUserFriendsSolid } from "react-icons/lia";
 import { supabase } from '../lib/supabaseClient';
 
 const RANKS = [
-  { name: 'Novis',     color: '#888880', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '0–30'    },
-  { name: 'Gangsa III',color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '31–90'   },
-  { name: 'Gangsa II', color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '91–150'  },
-  { name: 'Gangsa I',  color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '151–210' },
-  { name: 'Perak V',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '211–270' },
-  { name: 'Perak IV',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '271–330' },
-  { name: 'Perak III', color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '331–390' },
-  { name: 'Perak II',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '391–450' },
-  { name: 'Perak I',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '451–510' },
-  { name: 'Emas III',  color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '511–540' },
-  { name: 'Emas II',   color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '541–570' },
-  { name: 'Emas I',    color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '571–594' },
+  { name: 'Novis',      color: '#888880', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '0–30'    },
+  { name: 'Gangsa III', color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '31–130'  },
+  { name: 'Gangsa II',  color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '131–230' },
+  { name: 'Gangsa I',   color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '231–330' },
+  { name: 'Perak III',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '331–430' },
+  { name: 'Perak II',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '431–530' },
+  { name: 'Perak I',    color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '531–630' },
+  { name: 'Emas III',   color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '631–730' },
+  { name: 'Emas II',    color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '731–830' },
+  { name: 'Emas I',     color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '831–930' },
 ];
 
-// Budget-derived sample stats using getCardBudget midpoints per rank
 // [PAC, SHO, PAS, DRI, DEF, PHY]
 const RANK_SAMPLE_STATS = [
-  null,                          // Novis — 0 budget, locked card
-  [45, 41, 39, 47, 35, 42],     // Gangsa III  (~budget 222)
-  [52, 48, 46, 54, 42, 49],     // Gangsa II   (~budget 264)
-  [59, 55, 53, 61, 49, 56],     // Gangsa I    (~budget 306)
-  [66, 62, 60, 68, 56, 63],     // Perak V     (~budget 347)
-  [73, 69, 67, 75, 63, 70],     // Perak IV    (~budget 389)
-  [80, 76, 74, 82, 70, 77],     // Perak III   (~budget 431)
-  [87, 83, 81, 89, 77, 84],     // Perak II    (~budget 473)
-  [94, 90, 88, 96, 84, 91],     // Perak I     (~budget 514)
-  [99, 95, 93, 99, 89, 96],     // Emas III    (~budget 546)
-  [99, 98, 96, 99, 92, 99],     // Emas II     (~budget 567)
-  [99, 99, 99, 99, 96, 99],     // Emas I      (~budget 588)
+  null,                          // Novis — locked card
+  [38, 34, 33, 40, 30, 37],     // Gangsa III
+  [45, 41, 40, 48, 37, 44],     // Gangsa II
+  [52, 48, 47, 55, 43, 51],     // Gangsa I
+  [59, 55, 53, 62, 50, 58],     // Perak III
+  [66, 62, 60, 69, 57, 65],     // Perak II
+  [73, 69, 67, 76, 63, 72],     // Perak I
+  [80, 76, 74, 83, 70, 79],     // Emas III
+  [87, 83, 81, 90, 77, 86],     // Emas II
+  [92, 89, 87, 96, 83, 92],     // Emas I
 ];
 
 const STEPS = [
@@ -53,7 +48,7 @@ const STEPS = [
 const FEATURES = [
   { icon: <IoMdFootball/>,      title: 'Smart Booking',    desc: 'Browse, filter and join games in seconds. Real-time slot tracking.' },
   { icon: <IoWallet/>,          title: 'Bolahh Wallet',    desc: 'Top up once, play anytime. Instant refunds to your wallet if a game is cancelled.' },
-  { icon: <FaRankingStar />,    title: '12-Tier Rank',     desc: 'From Novis to Emas I, your rank reflects your real performance on the pitch.' },
+  { icon: <FaRankingStar />,    title: '10-Tier Rank',     desc: 'From Novis to Emas I, your rank reflects your real performance on the pitch.' },
   { icon: <TbPlayCard7Filled/>, title: 'Bolahh Card',      desc: 'Customise your bolahh card and flex to your friends.' },
   { icon: <FaUserFriends/>,     title: 'Friends System',   desc: 'Add friends, view their cards, track their rank progress.' },
   { icon: <FaClipboardList/>,   title: 'Manager Tools',    desc: 'Organisers get a full dashboard to manage venues, games and post-match ratings.' },
@@ -99,7 +94,7 @@ function DemoCard({ floatOffset }) {
       </div>
       <div style={{ position:'absolute', bottom:8, left:10, right:10, display:'flex', justifyContent:'space-between', zIndex:3, borderTop:'1px solid rgba(255,215,0,0.4)', paddingTop:5 }}>
         <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00' }}><span style={{ fontWeight:700, color:'#3a2a00' }}>12</span> GAMES PLAYED</div>
-        <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00' }}><span style={{ fontWeight:700, color:'#3a2a00' }}>580</span> POINTS</div>
+        <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00' }}><span style={{ fontWeight:700, color:'#3a2a00' }}>880</span> POINTS</div>
       </div>
     </div>
   );
@@ -377,7 +372,7 @@ export default function LandingPage() {
               borderRadius:12, padding:'8px 14px', fontSize:12,
               fontFamily:"'Space Mono'", color:'#F09D51', fontWeight:700,
               transform:`translateY(${floatOffset * -0.5}px)`
-            }}>580 PTS</div>
+            }}>880 PTS</div>
           </div>
         </div>
       </section>
@@ -435,7 +430,7 @@ export default function LandingPage() {
             <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>PROGRESSION</div>
             <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb', marginBottom:12 }}>THE RANK SYSTEM</h2>
             <p style={{ fontSize:15, color:'rgba(232,233,235,0.5)', fontFamily:"'DM Sans'", maxWidth:480, margin:'0 auto' }}>
-              Every goal, assist and good play earns you points. Accumulate enough to climb through all 12 tiers.
+              Every goal, assist and good play earns you points. Accumulate enough to climb through all 10 tiers.
             </p>
           </div>
 
@@ -538,7 +533,7 @@ export default function LandingPage() {
                 );
               })}
             </div>
-            <div style={{ textAlign:'center', marginTop:12, fontSize:11, color:'rgba(232,233,235,0.25)', fontFamily:"'DM Sans'" }}>← scroll to see all 12 ranks →</div>
+            <div style={{ textAlign:'center', marginTop:12, fontSize:11, color:'rgba(232,233,235,0.25)', fontFamily:"'DM Sans'" }}>← scroll to see all 10 ranks →</div>
           </div>
         </div>
       </section>

@@ -57,6 +57,7 @@ function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick }) 
   const w = isSmall ? 140 : 220;
   const h = isSmall ? 210 : 330;
   const scale = isSmall ? 0.64 : 1;
+  const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
 
   return (
     <div style={{
@@ -130,13 +131,27 @@ function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick }) 
       <div style={{
         position: 'absolute',
         top: isSmall ? 102 : 160,
-        left: 0, right: 0, textAlign: 'center', zIndex: 3,
-        fontFamily: "'Bebas Neue'", fontSize: isSmall ? 11 : 17,
-        color: theme.text, letterSpacing: 1.5,
+        left: 0, right: 0, zIndex: 3,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: isSmall ? 2 : 4,
         padding: `0 ${isSmall ? 4 : 8}px`,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
       }}>
-        {profile?.name || 'PLAYER'}
+        <span style={{
+          fontFamily: "'Bebas Neue'", fontSize: isSmall ? 11 : 17,
+          color: theme.text, letterSpacing: 1.5,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {profile?.name || 'PLAYER'}
+        </span>
+        {isSubscribed && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: isSmall ? 9 : 14, height: isSmall ? 9 : 14,
+            borderRadius: '50%', background: '#4a9eff',
+            flexShrink: 0, fontSize: isSmall ? 5 : 9,
+            color: '#fff', lineHeight: 1,
+          }}>✓</span>
+        )}
       </div>
 
       {/* Divider */}
@@ -217,6 +232,14 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) { fetchProfile(); fetchGames(); }
   }, [user]);
+
+  useEffect(() => {
+    if (!profile || !user) return;
+    if (profile.is_subscribed && profile.subscription_expires_at && new Date(profile.subscription_expires_at) <= new Date()) {
+      supabase.from('profiles').update({ is_subscribed: false }).eq('id', user.id);
+      setProfile(prev => ({ ...prev, is_subscribed: false }));
+    }
+  }, [profile?.is_subscribed, profile?.subscription_expires_at]);
 
   useEffect(() => {
     if (!showCardModal) return;
@@ -430,6 +453,7 @@ export default function ProfilePage() {
 
   const rank = getRank(profile?.total_points || 0, profile?.games_played || 0);
   const rankColor = getRankColor(rank);
+  const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -650,6 +674,58 @@ export default function ProfilePage() {
           >
             + TOPUP
           </button>
+        </div>
+
+        {/* Subscription */}
+        <div
+          className="fade-up-3"
+          onClick={() => navigate('/subscription')}
+          style={{
+            background: isSubscribed
+              ? 'linear-gradient(135deg, #0f3824, #1a5c3a)'
+              : 'linear-gradient(135deg, #1c1e21, #27292d)',
+            border: isSubscribed
+              ? '1px solid rgba(74,222,128,0.3)'
+              : '1px solid rgba(240,157,81,0.15)',
+            borderRadius: 16, padding: '16px 20px', marginBottom: 16,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            cursor: 'pointer', position: 'relative', overflow: 'hidden',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: isSubscribed ? '#4ade8033' : 'rgba(255,255,255,0.06)',
+              border: isSubscribed ? '2px solid #4ade8066' : '2px solid rgba(255,255,255,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, flexShrink: 0, color: isSubscribed ? '#4ade80' : 'var(--muted)',
+            }}>✓</div>
+            <div>
+              <div style={{ fontSize: 10, color: isSubscribed ? 'rgba(74,222,128,0.7)' : 'rgba(240,157,81,0.65)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 3 }}>
+                BOLAHH VERIFIED
+              </div>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, lineHeight: 1, color: isSubscribed ? '#4ade80' : '#fff' }}>
+                {isSubscribed ? 'ACTIVE' : 'GET VERIFIED TICK'}
+              </div>
+              {isSubscribed && profile?.subscription_expires_at && (
+                <div style={{ fontSize: 11, color: 'rgba(74,222,128,0.6)', marginTop: 3 }}>
+                  Expires {new Date(profile.subscription_expires_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{
+            background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'var(--accent)',
+            color: isSubscribed ? '#4ade80' : '#fff',
+            border: isSubscribed ? '1px solid rgba(74,222,128,0.3)' : 'none',
+            borderRadius: 10, padding: '8px 16px', fontWeight: 700,
+            fontSize: 12, fontFamily: "'Bebas Neue'", letterSpacing: 1.5, flexShrink: 0,
+          }}>
+            {isSubscribed ? 'RENEW' : 'RM10/MONTH'}
+          </div>
         </div>
 
         {/* Upcoming Games */}
