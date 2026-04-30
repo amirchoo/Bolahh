@@ -6,6 +6,7 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,9 +18,12 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) checkAdmin(session.user.id);
-      else {
+      if (session?.user) {
+        setLoading(true);
+        checkAdmin(session.user.id);
+      } else {
         setIsAdmin(false);
+        setIsSuperAdmin(false);
         setLoading(false);
       }
     });
@@ -30,16 +34,17 @@ export function AuthProvider({ children }) {
   const checkAdmin = async (userId) => {
     const { data } = await supabase
       .from('profiles')
-      .select('is_admin')
+      .select('is_admin, name')
       .eq('id', userId)
       .single();
 
     setIsAdmin(data?.is_admin === true);
+    setIsSuperAdmin(data?.name === 'bolahhadmin');
     setLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading }}>
+    <AuthContext.Provider value={{ user, isAdmin, isSuperAdmin, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

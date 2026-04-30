@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { getRank, getRankColor, getCardBudget, MAX_POINTS } from '../lib/rankUtils';
+import { getRank, getRankColor } from '../lib/rankUtils';
+import { calculateCardStats } from '../lib/cardUtils';
+import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { RiTeamLine } from 'react-icons/ri';
 
@@ -40,30 +42,6 @@ function getCardTheme(rank) {
 }
 
 
-// When a player loses points, randomly drop stats proportionally
-function autoDropStats(currentStats, oldPoints, newPoints) {
-  if (newPoints >= oldPoints) return currentStats;
-  const totalUsed = Object.values(currentStats).reduce((a, b) => a + b, 0);
-  if (totalUsed === 0) return currentStats;
-  const ratio = Math.max(0, newPoints / oldPoints);
-  const targetTotal = Math.floor(totalUsed * ratio);
-  let excess = totalUsed - targetTotal;
-  if (excess <= 0) return currentStats;
-  const keys = ['pac', 'sho', 'pas', 'dri', 'def', 'phy'];
-  const newStats = { ...currentStats };
-  // Randomly reduce stats until excess is gone
-  let attempts = 0;
-  while (excess > 0 && attempts < 200) {
-    const key = keys[Math.floor(Math.random() * keys.length)];
-    if (newStats[key] > 0) {
-      const drop = Math.min(newStats[key], Math.ceil(Math.random() * excess));
-      newStats[key] -= drop;
-      excess -= drop;
-    }
-    attempts++;
-  }
-  return newStats;
-}
 
 function calcOverall(stats) {
   const vals = STATS.map(s => stats[s.key] || 0);
@@ -229,15 +207,38 @@ export default function ProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Card state
-  const [cardStats, setCardStats] = useState({ pac: 0, sho: 0, pas: 0, dri: 0, def: 0, phy: 0 });
-  const [draftStats, setDraftStats] = useState({ pac: 0, sho: 0, pas: 0, dri: 0, def: 0, phy: 0 });
-  const [showCardEditor, setShowCardEditor] = useState(false);
-  const [savingCard, setSavingCard] = useState(false);
+  const [cardStats, setCardStats] = useState({ pac: 30, sho: 30, pas: 30, dri: 30, def: 30, phy: 30 });
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [premiumBgs, setPremiumBgs] = useState([]);
+  const [selectedBg, setSelectedBg] = useState(DEFAULT_BG);
+  const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
 
   useEffect(() => {
     if (user) { fetchProfile(); fetchGames(); }
   }, [user]);
+
+  useEffect(() => {
+    if (!showCardModal) return;
+    supabase.storage.from('card-backgrounds').list('', { sortBy: { column: 'created_at', order: 'asc' } })
+      .then(({ data }) => {
+        if (!data) return;
+        const bgs = data
+          .filter(f => f.name && !f.name.startsWith('.'))
+          .map(f => ({
+            id: f.name,
+            label: f.name.replace(/\.[^.]+$/, '').replace(/-|_/g, ' '),
+            src: supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl,
+          }));
+        setPremiumBgs(bgs);
+      });
+  }, [showCardModal]);
+
+  useEffect(() => {
+    if (!showCardModal || !profile) return;
+    drawCardImage({ profile, cardStats, rank: getRank(profile.total_points || 0, profile.games_played || 0), bgUrl: selectedBg.src })
+      .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
+  }, [showCardModal, selectedBg, cardStats]);
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -254,7 +255,7 @@ export default function ProfilePage() {
         setProfile(newProfile);
         setWalletBalance(newProfile?.wallet_balance || 0);
         setForm({ name: newProfile.name || '', position: newProfile.position || '' });
-        fetchCard(newProfile.total_points || 0);
+        fetchCard();
       }
     } else {
       if (!data.name && user.user_metadata?.username) {
@@ -264,40 +265,32 @@ export default function ProfilePage() {
         setProfile({ ...data, name: username, position });
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: username, position });
-        fetchCard(data.total_points || 0);
+        fetchCard();
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: data.name || '', position: data.position || '' });
-        fetchCard(data.total_points || 0);
+        fetchCard();
       }
     }
     setLoading(false);
   };
 
-  const fetchCard = async (pts) => {
-    const { data } = await supabase
-      .from('player_cards')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (data) {
-      const loaded = { pac: data.pac, sho: data.sho, pas: data.pas, dri: data.dri, def: data.def, phy: data.phy };
-      const budget = Math.max(30, pts || 0);
-      const totalUsed = Object.values(loaded).reduce((a, b) => a + b, 0);
-      // If total used exceeds current budget, auto-drop
-      const adjusted = totalUsed > budget
-        ? autoDropStats(loaded, totalUsed, budget)
-        : loaded;
-      setCardStats(adjusted);
-      setDraftStats(adjusted);
-      // Save adjusted stats back if they changed
-      if (totalUsed > budget) {
-        await supabase.from('player_cards').upsert({
-          user_id: user.id, ...adjusted, overall: calcOverall(adjusted)
-        });
-      }
-    }
+  const fetchCard = async () => {
+    const { data: gameRatings } = await supabase
+      .from('game_ratings')
+      .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
+      .eq('user_id', user.id);
+
+    const stats = calculateCardStats(gameRatings || []);
+    setCardStats(stats);
+
+    await supabase.from('player_cards').upsert({
+      user_id: user.id,
+      pac: stats.pac, sho: stats.sho, pas: stats.pas,
+      dri: stats.dri, def: stats.def, phy: stats.phy,
+      overall: stats.overall,
+    });
   };
 
   const fetchGames = async () => {
@@ -349,48 +342,52 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
-  const handleSaveCard = async () => {
-    setSavingCard(true);
-    const budget = Math.max(29, profile?.total_points || 0);
-    const used = Object.values(draftStats).reduce((a, b) => a + b, 0);
-    if (used > budget) { setSavingCard(false); return; }
-    if (used < budget) { setSavingCard(false); return; }  // must use ALL points
 
-    const payload = {
-      user_id: user.id,
-      pac: draftStats.pac, sho: draftStats.sho, pas: draftStats.pas,
-      dri: draftStats.dri, def: draftStats.def, phy: draftStats.phy,
-      overall: calcOverall(draftStats),
-    };
-
-    // Check if row exists — use update if yes, insert if no
-    const { data: existing } = await supabase
-      .from('player_cards').select('id').eq('user_id', user.id).maybeSingle();
-
-    let error;
-    if (existing) {
-      ({ error } = await supabase.from('player_cards').update(payload).eq('user_id', user.id));
-    } else {
-      ({ error } = await supabase.from('player_cards').insert(payload));
-    }
-
-    if (error) {
-      console.error('Card save error:', error.message, error.details);
-      setSavingCard(false);
-      return;
-    }
-
-    setCardStats({...draftStats});
-    setSavingCard(false);
-    setShowCardEditor(false);
+  const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handleCancelCard = () => {
-    setDraftStats({...cardStats}); // restore original
-    setShowCardEditor(false);
+  const getCardCanvas = () =>
+    drawCardImage({ profile, cardStats, rank, bgUrl: selectedBg.src });
+
+  const handleShareCard = async () => {
+    setSharing(true);
+    try {
+      const canvas = await getCardCanvas();
+      canvas.toBlob(async (blob) => {
+        try {
+          const filename = `${profile?.name || 'player'}-bolahh-card.png`;
+          const file = new File([blob], filename, { type: 'image/png' });
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({
+              title: `${profile?.name}'s Bolahh Card`,
+              text: `${rank} · ${profile?.total_points || 0} pts · bolahh.com`,
+              files: [file],
+            });
+          } else {
+            downloadBlob(blob, filename);
+          }
+        } catch { /* user cancelled */ }
+        setSharing(false);
+      });
+    } catch { setSharing(false); }
   };
 
-
+  const handleDownloadCard = async () => {
+    setSharing(true);
+    try {
+      const canvas = await getCardCanvas();
+      canvas.toBlob(blob => {
+        downloadBlob(blob, `${profile?.name || 'player'}-bolahh-card.png`);
+        setSharing(false);
+      });
+    } catch { setSharing(false); }
+  };
 
   const getInitials = (name) => {
     if (!name || name.trim() === '') return '?';
@@ -428,9 +425,6 @@ export default function ProfilePage() {
 
   const rank = getRank(profile?.total_points || 0, profile?.games_played || 0);
   const rankColor = getRankColor(rank);
-  const budget = Math.max(30, profile?.total_points || 0);
-  const usedBudget = Object.values(cardStats).reduce((a, b) => a + b, 0);
-  const remaining = budget - usedBudget;
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -442,125 +436,92 @@ export default function ProfilePage() {
           .profile-header .edit-btn { margin-top: 12px; width: 100%; }
           .profile-info { align-items: center !important; }
           .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .card-editor-grid { grid-template-columns: 1fr !important; }
         }
         .avatar-hover-overlay { pointer-events: none; }
         div:hover > .avatar-hover-overlay { opacity: 1 !important; }
+        .card-tap-hint { opacity: 0; transition: opacity 0.2s; }
+        .card-tap-wrapper:hover .card-tap-hint { opacity: 1; }
       `}</style>
 
-      {/* Card Editor Modal */}
-      {showCardEditor && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
-          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 16
-        }} onClick={e => e.target === e.currentTarget && setShowCardEditor(false)}>
-          <div style={{
-            background: 'var(--card)', border: '1px solid var(--border)',
-            borderRadius: 20, padding: 24, width: '100%', maxWidth: 480,
-            maxHeight: '90vh', overflowY: 'auto'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div>
-                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 2, color: 'var(--text)' }}>EDIT CARD</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                  Budget: <span style={{ color: (budget - Object.values(draftStats).reduce((a,b)=>a+b,0)) < 10 ? 'var(--red)' : 'var(--accent)', fontWeight: 700 }}>{budget - Object.values(draftStats).reduce((a,b)=>a+b,0)} pts remaining</span> / {budget} (max {MAX_POINTS})
-                </div>
-              </div>
-              {/* Live preview */}
-              <FifaCard profile={profile} cardStats={draftStats} rank={rank} size="small" />
-            </div>
+      {/* Card Share Modal */}
+      {showCardModal && (
+        <div
+          onClick={() => setShowCardModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(10px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: 16, padding: '24px 16px', overflowY: 'auto',
+          }}
+        >
+          {/* Close */}
+          <button onClick={() => setShowCardModal(false)} style={{
+            position: 'absolute', top: 16, right: 16,
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+            color: '#fff', fontSize: 20, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>×</button>
 
-            {/* Budget bar */}
-            <div style={{ height: 4, background: 'var(--border)', borderRadius: 4, overflow: 'hidden', marginBottom: 20 }}>
-              <div style={{
-                height: '100%', borderRadius: 4, transition: 'width 0.2s',
-                width: `${Math.min(100, (Object.values(draftStats).reduce((a,b)=>a+b,0) / budget) * 100)}%`,
-                background: remaining < 10 ? 'var(--red)' : 'var(--accent)'
-              }} />
-            </div>
+          {/* Card preview — canvas output as img */}
+          <div onClick={e => e.stopPropagation()}>
+            {cardPreviewUrl
+              ? <img src={cardPreviewUrl} alt="card preview" style={{ width: 220, height: 308, borderRadius: 12, display: 'block', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }} />
+              : <div style={{ width: 220, height: 308, borderRadius: 12, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13 }}>Generating…</div>
+            }
+          </div>
 
-            {/* Stat adjusters */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-              <style>{`
-                .stat-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 10px; border-radius: 5px; outline: none; cursor: pointer; background: var(--border); touch-action: none; }
-                .stat-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 10px; height: 28px; border-radius: 3px; background: var(--text); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
-                .stat-slider::-moz-range-thumb { width: 10px; height: 28px; border-radius: 3px; background: var(--text); cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
-                .stat-slider:disabled { opacity: 0.35; cursor: not-allowed; }
-              `}</style>
-              {STATS.map(s => {
-                const val = draftStats[s.key] || 0;
-                const statColor = val >= 80 ? '#4ade80' : val >= 60 ? 'var(--accent)' : 'var(--tomato)';
-                return (
-                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700, color: 'var(--muted)', width: 32 }}>{s.label}</div>
-                    <div style={{ flex: 1, position: 'relative' }}>
-                      <input
-                        type="range" min={0} max={99} value={val}
-                        className="stat-slider"
-                        style={{ background: `linear-gradient(to right, ${statColor} ${val}%, var(--border) ${val}%)` }}
-                        onChange={e => {
-                          const newVal = parseInt(e.target.value);
-                          const budget = Math.max(29, profile?.total_points || 0);
-                          const otherUsed = Object.values(draftStats).reduce((a, b) => a + b, 0) - val;
-                          const capped = Math.min(newVal, budget - otherUsed);
-                          setDraftStats(prev => ({ ...prev, [s.key]: Math.max(0, capped) }));
-                        }}
-                      />
-                    </div>
-                    <div style={{ fontFamily: "'Space Mono'", fontSize: 14, fontWeight: 700, color: statColor, width: 28, textAlign: 'center' }}>{val}</div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Background picker */}
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: "'Space Mono'", letterSpacing: 2 }}>BACKGROUND</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
 
-            {(() => {
-              const draftUsed = Object.values(draftStats).reduce((a,b)=>a+b,0);
-              const draftRemaining = budget - draftUsed;
-              const allUsed = draftRemaining === 0;
-              return (
-                <>
-                  {!allUsed && (
-                    <div style={{
-                      background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)',
-                      borderRadius: 10, padding: '10px 14px', marginBottom: 14,
-                      color: 'var(--tomato)', fontSize: 12, fontWeight: 600, textAlign: 'center'
-                    }}>
-                      ⚠️ You still have <span style={{ fontFamily: "'Space Mono'" }}>{draftRemaining}</span> pts unallocated — distribute all points to save
-                    </div>
-                  )}
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16, textAlign: 'center' }}>
-                    Max per stat: 99 · You must use all {budget} points before saving
-                  </div>
-                </>
-              );
-            })()}
+              {/* Dark default */}
+              <button onClick={() => setSelectedBg(DEFAULT_BG)} style={{
+                width: 40, height: 40, borderRadius: 10, cursor: 'pointer', padding: 0,
+                border: `2px solid ${selectedBg.id === DEFAULT_BG.id ? 'var(--accent)' : 'rgba(255,255,255,0.15)'}`,
+                background: '#111213', outline: 'none',
+                boxShadow: selectedBg.id === DEFAULT_BG.id ? '0 0 0 3px rgba(240,157,81,0.3)' : 'none',
+              }} title="Dark" />
 
-            <div style={{ display: 'flex', gap: 10 }}>
-              {(() => {
-                const draftUsed = Object.values(draftStats).reduce((a,b)=>a+b,0);
-                const allUsed = draftUsed === budget;
-                return (
-                  <button type="button" onClick={handleSaveCard} disabled={savingCard || !allUsed} style={{
-                    flex: 2, padding: '12px',
-                    background: allUsed ? 'var(--accent)' : 'var(--card2)',
-                    color: allUsed ? '#fff' : 'var(--muted)',
-                    border: allUsed ? 'none' : '1px solid var(--border)',
-                    borderRadius: 10, fontWeight: 700, fontSize: 14,
-                    opacity: savingCard ? 0.6 : 1,
-                    cursor: allUsed && !savingCard ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.2s'
-                  }}>{savingCard ? 'Saving...' : allUsed ? 'Save Card' : `Use ${budget - draftUsed} more pts to save`}</button>
-                );
-              })()}
-              <button type="button" onClick={handleCancelCard} style={{
-                flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
-                border: '1px solid var(--border)', borderRadius: 10, fontSize: 14
-              }}>Cancel</button>
+              {/* Premium backgrounds from admin */}
+              {premiumBgs.map(bg => (
+                <button key={bg.id} onClick={() => setSelectedBg(bg)} style={{
+                  width: 40, height: 40, borderRadius: 10, cursor: 'pointer', padding: 0,
+                  border: `2px solid ${selectedBg.id === bg.id ? 'var(--accent)' : 'rgba(255,255,255,0.15)'}`,
+                  background: `url(${bg.src}) center/cover`,
+                  outline: 'none',
+                  boxShadow: selectedBg.id === bg.id ? '0 0 0 3px rgba(240,157,81,0.3)' : 'none',
+                }} title={bg.label} />
+              ))}
+
             </div>
+          </div>
+
+          {/* Share + Save buttons */}
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 12 }}>
+            <button onClick={handleShareCard} disabled={sharing || !cardPreviewUrl} style={{
+              padding: '12px 28px', borderRadius: 12,
+              background: 'var(--accent)', color: '#fff',
+              border: 'none', fontWeight: 700, fontSize: 14,
+              cursor: sharing ? 'wait' : 'pointer', opacity: (sharing || !cardPreviewUrl) ? 0.6 : 1,
+            }}>
+              {sharing ? 'Preparing...' : '↑ Share'}
+            </button>
+            <button onClick={handleDownloadCard} disabled={sharing || !cardPreviewUrl} style={{
+              padding: '12px 28px', borderRadius: 12,
+              background: 'transparent', color: '#fff',
+              border: '1px solid rgba(255,255,255,0.25)',
+              fontWeight: 700, fontSize: 14,
+              cursor: sharing ? 'wait' : 'pointer', opacity: (sharing || !cardPreviewUrl) ? 0.6 : 1,
+            }}>
+              ↓ Save
+            </button>
           </div>
         </div>
       )}
+
 
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
@@ -570,20 +531,21 @@ export default function ProfilePage() {
         }}>MY PROFILE</h2>
 
         {/* FIFA Card section */}
-        <div className="fade-up" style={{
-          display: 'flex', justifyContent: 'center', alignItems: 'center',
-          marginBottom: 20, position: 'relative'
-        }}>
+        <div
+          className="fade-up card-tap-wrapper"
+          onClick={() => setShowCardModal(true)}
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            marginBottom: 20, cursor: 'pointer', position: 'relative',
+          }}
+        >
           <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" onAvatarClick={() => fileInputRef.current?.click()} />
-          {/* Edit icon button — always shown */}
-          <button type="button" onClick={() => { setDraftStats({...cardStats}); setShowCardEditor(true); }} style={{
-            position: 'absolute', bottom: 8, right: 'calc(50% - 118px)',
-            width: 32, height: 32, borderRadius: '50%',
-            background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.2)',
-            color: '#fff', fontSize: 14, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backdropFilter: 'blur(4px)'
-          }} title="Edit card stats">✎</button>
+          <div className="card-tap-hint" style={{
+            marginTop: 8, fontSize: 11, color: 'var(--muted)',
+            fontFamily: "'Space Mono'", letterSpacing: 1,
+          }}>
+            TAP TO VIEW & SHARE
+          </div>
         </div>
 
         {/* Action row — edit profile + friends */}

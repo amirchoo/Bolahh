@@ -10,9 +10,11 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import GameDetailPage from './pages/GameDetailPage';
 import GameRatingPage from './pages/GameRatingPage';
 import ManagerPage from './pages/ManagerPage';
+import AdminPage from './pages/AdminPage';
 import FriendsPage from './pages/FriendsPage';
 import WalletTopupPage from './pages/WalletTopupPage';
 import GameCheckoutPage from './pages/GameCheckoutPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -25,6 +27,14 @@ function AdminRoute({ children }) {
   if (loading) return null;
   if (!user) return <Navigate to="/login" />;
   if (!isAdmin) return <Navigate to="/home" />;
+  return children;
+}
+
+function SuperAdminRoute({ children }) {
+  const { user, isSuperAdmin, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (!isSuperAdmin) return <Navigate to="/home" />;
   return children;
 }
 
@@ -63,11 +73,17 @@ function App() {
             <ManagerPage />
           </AdminRoute>
         } />
+        <Route path="/admin" element={
+          <SuperAdminRoute>
+            <AdminPage />
+          </SuperAdminRoute>
+        } />
         <Route path="/friends" element={
           <PrivateRoute>
             <FriendsPage />
           </PrivateRoute>
         } />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );
