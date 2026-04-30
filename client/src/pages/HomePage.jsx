@@ -265,17 +265,25 @@ function GameCard({ game }) {
   const open = game.slots - playerCount;
   const coverImage = Array.isArray(game.fields?.images) ? game.fields.images[0] : null;
 
+  const now = new Date();
+  const [gy, gm, gd] = game.date.split('-').map(Number);
+  const [gh, gmin] = (game.time || '00:00').split(':').map(Number);
+  const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
+  const locked = now >= new Date(gameStart.getTime() - 10 * 60 * 1000);
+
+  const disabled = full || locked;
+
   return (
     <div
-      onClick={() => { if (!full) navigate(`/game/${game.id}`); }}
+      onClick={() => { if (!disabled) navigate(`/game/${game.id}`); }}
       style={{
-        background: full ? 'var(--card2)' : 'var(--card)',
+        background: disabled ? 'var(--card2)' : 'var(--card)',
         border: '1px solid var(--border)',
         borderRadius: 16, overflow: 'hidden',
-        opacity: full ? 0.55 : 1,
-        transition: 'border-color 0.2s, transform 0.15s', cursor: full ? 'not-allowed' : 'pointer'
+        opacity: disabled ? 0.55 : 1,
+        transition: 'border-color 0.2s, transform 0.15s', cursor: disabled ? 'not-allowed' : 'pointer'
       }}
-      onMouseEnter={e => { if (!full) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)'; }}
     >
       {coverImage && (
@@ -285,13 +293,13 @@ function GameCard({ game }) {
             alt={game.fields?.name}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
-          {full && (
+          {disabled && (
             <div style={{
               position: 'absolute', inset: 0,
               background: 'rgba(0,0,0,0.45)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 3, color: 'var(--red)'
-            }}>FULL</div>
+            }}>{locked ? 'GAME FILLED' : 'FULL'}</div>
           )}
         </div>
       )}
@@ -327,31 +335,35 @@ function GameCard({ game }) {
         ))}
       </div>
 
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>
-          <span>{playerCount}/{game.slots} players</span>
+      {!locked && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>
+            <span>{playerCount}/{game.slots} players</span>
+          </div>
+          <div style={{ height: 4, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: full ? 'var(--red)' : 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
+          </div>
         </div>
-        <div style={{ height: 4, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: full ? 'var(--red)' : 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
-        </div>
-      </div>
+      )}
 
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingTop: 12, borderTop: '1px solid var(--border)'
       }}>
-        <span style={{ fontSize: 12, fontWeight: full ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6,
-          color: full ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : 'var(--text)'
+        <span style={{ fontSize: 12, fontWeight: disabled ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6,
+          color: disabled ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : 'var(--text)'
         }}>
           <span style={{
             width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-            background: full ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : '#ffffff'
+            background: disabled ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : '#ffffff'
           }} />
-          {full ? 'Game Full' : `${open} slot${open !== 1 ? 's' : ''} left`}
+          {locked ? 'Game Filled' : full ? 'Game Full' : `${open} slot${open !== 1 ? 's' : ''} left`}
         </span>
-        <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
-          View Details →
-        </span>
+        {!disabled && (
+          <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
+            View Details →
+          </span>
+        )}
       </div>
       </div>
     </div>
