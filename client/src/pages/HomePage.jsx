@@ -7,6 +7,9 @@ import { GiSoccerBall } from 'react-icons/gi';
 import { FaLocationDot } from "react-icons/fa6";
 import { MdDateRange } from "react-icons/md";
 import { MdAccessTime } from "react-icons/md";
+import { FaRankingStar } from "react-icons/fa6";
+import { TbPlayCard7Filled } from 'react-icons/tb';
+import { IoWallet } from 'react-icons/io5';
 
 
 
@@ -83,7 +86,7 @@ export default function HomePage() {
     const today = toDateStr(new Date());
     const { data, error } = await supabase
       .from('games')
-      .select('*, fields(name, area)')
+      .select('*, fields(name, area, images)')
       .gte('date', today)
       .order('date', { ascending: true });
     if (error || !data) { setLoading(false); return; }
@@ -246,6 +249,9 @@ export default function HomePage() {
             )}
           </div>
         )}
+
+        {/* Footer */}
+        <HomeFooter />
       </div>
     </div>
   );
@@ -257,6 +263,7 @@ function GameCard({ game }) {
   const full = playerCount >= game.slots;
   const pct = Math.round((playerCount / game.slots) * 100);
   const open = game.slots - playerCount;
+  const coverImage = Array.isArray(game.fields?.images) ? game.fields.images[0] : null;
 
   return (
     <div
@@ -264,13 +271,31 @@ function GameCard({ game }) {
       style={{
         background: full ? 'var(--card2)' : 'var(--card)',
         border: '1px solid var(--border)',
-        borderRadius: 16, padding: 20,
+        borderRadius: 16, overflow: 'hidden',
         opacity: full ? 0.55 : 1,
         transition: 'border-color 0.2s, transform 0.15s', cursor: full ? 'not-allowed' : 'pointer'
       }}
       onMouseEnter={e => { if (!full) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)'; }}
     >
+      {coverImage && (
+        <div style={{ width: '100%', height: 140, overflow: 'hidden', position: 'relative' }}>
+          <img
+            src={coverImage}
+            alt={game.fields?.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+          {full && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 3, color: 'var(--red)'
+            }}>FULL</div>
+          )}
+        </div>
+      )}
+      <div style={{ padding: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2, color: 'var(--text)' }}>{game.fields?.name}</div>
@@ -327,6 +352,97 @@ function GameCard({ game }) {
         <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
           View Details →
         </span>
+      </div>
+      </div>
+    </div>
+  );
+}
+
+function HomeFooter() {
+  const navigate = useNavigate();
+  return (
+    <div style={{
+      marginTop: 56, borderTop: '1px solid var(--border)',
+      paddingTop: 32, paddingBottom: 24,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24 }}>
+
+        {/* Brand */}
+        <div>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3, color: 'var(--accent)', marginBottom: 6 }}>BOLAHH</div>
+          <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, maxWidth: 220 }}>
+            Malaysia's futsal booking and progression platform.
+          </p>
+        </div>
+
+        {/* Quick links */}
+        <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: 'var(--accent)', letterSpacing: 2, marginBottom: 10 }}>LEARN</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { icon: <GiSoccerBall size={12} />,       label: 'How It Works',  href: '#flow'   },
+                { icon: <FaRankingStar size={12} />,      label: 'Rank System',   href: '#ranks'  },
+                { icon: <TbPlayCard7Filled size={12} />,  label: 'Bolahh Card',   href: '#card'   },
+                { icon: <IoWallet size={12} />,           label: 'Wallet',        href: '#wallet' },
+              ].map(link => (
+                <button
+                  key={link.label}
+                  onClick={() => navigate('/guide')}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    color: 'var(--muted)', fontSize: 12, fontFamily: "'DM Sans'",
+                    display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left',
+                    transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+                >
+                  {link.icon} {link.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: 'var(--accent)', letterSpacing: 2, marginBottom: 10 }}>ACCOUNT</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { label: 'My Profile',  path: '/profile'      },
+                { label: 'Friends',     path: '/friends'      },
+                { label: 'Top Up',      path: '/wallet/topup' },
+              ].map(link => (
+                <button
+                  key={link.label}
+                  onClick={() => navigate(link.path)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    color: 'var(--muted)', fontSize: 12, fontFamily: "'DM Sans'",
+                    textAlign: 'left', transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+                >{link.label}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
+      }}>
+        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Sans'" }}>© 2026 Bolahh. All rights reserved.</span>
+        <button
+          onClick={() => navigate('/guide')}
+          style={{
+            background: 'rgba(240,157,81,0.08)', color: 'var(--accent)',
+            border: '1px solid rgba(240,157,81,0.2)', borderRadius: 8,
+            padding: '5px 14px', fontSize: 11, fontFamily: "'Space Mono'",
+            cursor: 'pointer', letterSpacing: 1,
+          }}
+        >GUIDE & HELP →</button>
       </div>
     </div>
   );

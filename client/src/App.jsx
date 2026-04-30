@@ -14,6 +14,7 @@ import AdminPage from './pages/AdminPage';
 import FriendsPage from './pages/FriendsPage';
 import WalletTopupPage from './pages/WalletTopupPage';
 import GameCheckoutPage from './pages/GameCheckoutPage';
+import GuidePage from './pages/GuidePage';
 import NotFoundPage from './pages/NotFoundPage';
 
 function PrivateRoute({ children }) {
@@ -81,6 +82,11 @@ function App() {
         <Route path="/friends" element={
           <PrivateRoute>
             <FriendsPage />
+          </PrivateRoute>
+        } />
+        <Route path="/guide" element={
+          <PrivateRoute>
+            <GuidePage />
           </PrivateRoute>
         } />
         <Route path="*" element={<NotFoundPage />} />

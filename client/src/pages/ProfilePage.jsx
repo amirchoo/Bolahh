@@ -97,7 +97,7 @@ function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick }) 
 
       {/* Avatar */}
       <div
-        onClick={!isSmall && onAvatarClick ? onAvatarClick : undefined}
+        onClick={!isSmall && onAvatarClick ? (e) => { e.stopPropagation(); onAvatarClick(e); } : undefined}
         style={{
           position: 'absolute',
           top: isSmall ? 28 : 44,
@@ -321,6 +321,11 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setSaveMsg('Only JPG and PNG images are allowed.');
+      e.target.value = '';
+      return;
+    }
     setUploadingAvatar(true);
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
@@ -563,7 +568,7 @@ export default function ProfilePage() {
             display: 'flex', alignItems: 'center', gap: 6
           }}><RiTeamLine size={14} /> Friends</button>
         </div>
-        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" style={{ display: 'none' }} onChange={handleAvatarUpload} />
 
         {/* Edit form */}
         {editing && (

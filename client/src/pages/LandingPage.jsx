@@ -13,18 +13,35 @@ import { LiaUserFriendsSolid } from "react-icons/lia";
 import { supabase } from '../lib/supabaseClient';
 
 const RANKS = [
-  { name: 'Novis',     color: '#888880', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '< 30'   },
-  { name: 'Gangsa III',color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '30–89'  },
-  { name: 'Gangsa II', color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '90–149' },
-  { name: 'Gangsa I',  color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '150–209'},
-  { name: 'Perak V',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '210–269'},
-  { name: 'Perak IV',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '270–329'},
-  { name: 'Perak III', color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '330–389'},
-  { name: 'Perak II',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '390–449'},
-  { name: 'Perak I',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '450–509'},
-  { name: 'Emas III',  color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '510–539'},
-  { name: 'Emas II',   color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '540–569'},
-  { name: 'Emas I',    color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '570–594'},
+  { name: 'Novis',     color: '#888880', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '0–30'    },
+  { name: 'Gangsa III',color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '31–90'   },
+  { name: 'Gangsa II', color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '91–150'  },
+  { name: 'Gangsa I',  color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '151–210' },
+  { name: 'Perak V',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '211–270' },
+  { name: 'Perak IV',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '271–330' },
+  { name: 'Perak III', color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '331–390' },
+  { name: 'Perak II',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '391–450' },
+  { name: 'Perak I',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '451–510' },
+  { name: 'Emas III',  color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '511–540' },
+  { name: 'Emas II',   color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '541–570' },
+  { name: 'Emas I',    color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '571–594' },
+];
+
+// Budget-derived sample stats using getCardBudget midpoints per rank
+// [PAC, SHO, PAS, DRI, DEF, PHY]
+const RANK_SAMPLE_STATS = [
+  null,                          // Novis — 0 budget, locked card
+  [45, 41, 39, 47, 35, 42],     // Gangsa III  (~budget 222)
+  [52, 48, 46, 54, 42, 49],     // Gangsa II   (~budget 264)
+  [59, 55, 53, 61, 49, 56],     // Gangsa I    (~budget 306)
+  [66, 62, 60, 68, 56, 63],     // Perak V     (~budget 347)
+  [73, 69, 67, 75, 63, 70],     // Perak IV    (~budget 389)
+  [80, 76, 74, 82, 70, 77],     // Perak III   (~budget 431)
+  [87, 83, 81, 89, 77, 84],     // Perak II    (~budget 473)
+  [94, 90, 88, 96, 84, 91],     // Perak I     (~budget 514)
+  [99, 95, 93, 99, 89, 96],     // Emas III    (~budget 546)
+  [99, 98, 96, 99, 92, 99],     // Emas II     (~budget 567)
+  [99, 99, 99, 99, 96, 99],     // Emas I      (~budget 588)
 ];
 
 const STEPS = [
@@ -36,8 +53,8 @@ const STEPS = [
 const FEATURES = [
   { icon: <IoMdFootball/>,      title: 'Smart Booking',    desc: 'Browse, filter and join games in seconds. Real-time slot tracking.' },
   { icon: <IoWallet/>,          title: 'Bolahh Wallet',    desc: 'Top up once, play anytime. Instant refunds to your wallet if a game is cancelled.' },
-  { icon: <FaRankingStar />,    title: '12-Tier Rank',     desc: 'From Novis to Emas I — your rank reflects your real performance on the pitch.' },
-  { icon: <TbPlayCard7Filled/>, title: 'Bolahh Card',      desc: 'Customise your PAC, SHO, PAS, DRI, DEF, PHY stats within your point budget.' },
+  { icon: <FaRankingStar />,    title: '12-Tier Rank',     desc: 'From Novis to Emas I, your rank reflects your real performance on the pitch.' },
+  { icon: <TbPlayCard7Filled/>, title: 'Bolahh Card',      desc: 'Customise your bolahh card and flex to your friends.' },
   { icon: <FaUserFriends/>,     title: 'Friends System',   desc: 'Add friends, view their cards, track their rank progress.' },
   { icon: <FaClipboardList/>,   title: 'Manager Tools',    desc: 'Organisers get a full dashboard to manage venues, games and post-match ratings.' },
 ];
@@ -457,67 +474,65 @@ export default function LandingPage() {
             }}>
               {RANKS.map((rank, i) => {
                 const isEmas = rank.name.startsWith('Emas');
-                const isGangsa = rank.name.startsWith('Gangsa');
-                const isPerak = rank.name.startsWith('Perak');
                 const isNovis = rank.name === 'Novis';
                 const textDark = isEmas;
                 const tc = textDark ? '#3a2a00' : '#e8e9eb';
                 const tcMuted = textDark ? 'rgba(58,42,0,0.55)' : 'rgba(232,233,235,0.45)';
-                // Sample stats per tier — higher rank = higher stats
-                const base = 20 + i * 4;
-                const sampleStats = [
-                  Math.min(99, base + 12), Math.min(99, base + 8),
-                  Math.min(99, base + 6), Math.min(99, base + 14),
-                  Math.min(99, base + 4), Math.min(99, base + 10),
-                ];
-                const ovr = Math.round(sampleStats.reduce((a,b)=>a+b,0)/6);
+                const sampleStats = RANK_SAMPLE_STATS[i];
+                const ovr = sampleStats ? Math.round(sampleStats.reduce((a,b)=>a+b,0)/6) : null;
                 return (
                   <div key={rank.name} style={{
                     flexShrink: 0, width: 140, height: 210, borderRadius: 12,
-                    background: rank.bg, border: `1.5px solid ${rank.border}`,
+                    background: isNovis ? 'linear-gradient(145deg,#1a1b1d,#232527)' : rank.bg,
+                    border: `1.5px solid ${isNovis ? '#333' : rank.border}`,
                     position: 'relative', overflow: 'hidden',
-                    boxShadow: `0 12px 40px ${rank.border}33`,
-                    opacity: rankVisible ? 1 : 0,
+                    boxShadow: isNovis ? 'none' : `0 12px 40px ${rank.border}33`,
+                    opacity: rankVisible ? (isNovis ? 0.6 : 1) : 0,
                     transform: rankVisible ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.95)',
                     transition: `opacity 0.5s ease ${i * 0.06}s, transform 0.5s ease ${i * 0.06}s`,
                     cursor: 'default',
                   }}>
-                    {/* Shine overlay */}
-                    <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg,rgba(255,255,255,0.12) 0%,transparent 55%)', pointerEvents:'none', zIndex:2 }} />
+                    {/* Shine overlay — hidden for Novis */}
+                    {!isNovis && <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg,rgba(255,255,255,0.12) 0%,transparent 55%)', pointerEvents:'none', zIndex:2 }} />}
                     {/* OVR + pos */}
                     <div style={{ position:'absolute', top:8, left:10, zIndex:3 }}>
-                      <div style={{ fontFamily:"'Bebas Neue'", fontSize:30, color:tc, lineHeight:1, letterSpacing:1 }}>{ovr}</div>
-                      <div style={{ fontFamily:"'Space Mono'", fontSize:7, color:tc, fontWeight:700, letterSpacing:0.5, marginTop:1 }}>MF</div>
+                      {isNovis
+                        ? <div style={{ fontFamily:"'Bebas Neue'", fontSize:30, color:'#555', lineHeight:1, letterSpacing:1 }}>?</div>
+                        : <div style={{ fontFamily:"'Bebas Neue'", fontSize:30, color:tc, lineHeight:1, letterSpacing:1 }}>{ovr}</div>
+                      }
+                      <div style={{ fontFamily:"'Space Mono'", fontSize:7, color: isNovis ? '#555' : tc, fontWeight:700, letterSpacing:0.5, marginTop:1 }}>MF</div>
                     </div>
                     {/* Rank name top right */}
-                    <div style={{ position:'absolute', top:8, right:8, zIndex:3, fontFamily:"'Bebas Neue'", fontSize:7, color:tcMuted, letterSpacing:1, textAlign:'right', lineHeight:1.3 }}>
+                    <div style={{ position:'absolute', top:8, right:8, zIndex:3, fontFamily:"'Bebas Neue'", fontSize:7, color: isNovis ? '#444' : tcMuted, letterSpacing:1, textAlign:'right', lineHeight:1.3 }}>
                       {rank.name.split(' ').map((w,j) => <div key={j}>{w}</div>)}
                     </div>
                     {/* Avatar circle */}
                     <div style={{
                       position:'absolute', top:28, left:'50%', transform:'translateX(-50%)',
                       width:56, height:56, borderRadius:'50%',
-                      border:`2px solid ${rank.border}`, background:'rgba(0,0,0,0.2)',
+                      border:`2px solid ${isNovis ? '#333' : rank.border}`, background:'rgba(0,0,0,0.2)',
                       zIndex:3, display:'flex', alignItems:'center', justifyContent:'center'
                     }}>
-                      <span style={{ fontFamily:"'Space Mono'", fontSize:14, fontWeight:700, color:tc }}>?</span>
+                      <span style={{ fontFamily:"'Space Mono'", fontSize:14, fontWeight:700, color: isNovis ? '#555' : tc }}>?</span>
                     </div>
                     {/* Name */}
-                    <div style={{ position:'absolute', top:91, left:0, right:0, textAlign:'center', zIndex:3, fontFamily:"'Bebas Neue'", fontSize:10, color:tc, letterSpacing:1.5 }}>PLAYER</div>
+                    <div style={{ position:'absolute', top:91, left:0, right:0, textAlign:'center', zIndex:3, fontFamily:"'Bebas Neue'", fontSize:10, color: isNovis ? '#555' : tc, letterSpacing:1.5 }}>PLAYER</div>
                     {/* Divider */}
-                    <div style={{ position:'absolute', top:102, left:10, right:10, height:1, background:`${rank.border}55`, zIndex:3 }} />
+                    <div style={{ position:'absolute', top:102, left:10, right:10, height:1, background: isNovis ? '#2a2a2a' : `${rank.border}55`, zIndex:3 }} />
                     {/* Stats grid */}
                     <div style={{ position:'absolute', top:108, left:6, right:6, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:2, zIndex:3 }}>
-                      {[['PAC',sampleStats[0]],['SHO',sampleStats[1]],['PAS',sampleStats[2]],['DRI',sampleStats[3]],['DEF',sampleStats[4]],['PHY',sampleStats[5]]].map(([k,v]) => (
-                        <div key={k} style={{ background:'rgba(0,0,0,0.18)', borderRadius:3, padding:'3px 2px', textAlign:'center' }}>
-                          <div style={{ fontFamily:"'Space Mono'", fontSize:9, fontWeight:700, color:tc, lineHeight:1 }}>{v}</div>
-                          <div style={{ fontFamily:"'Space Mono'", fontSize:6, color:tcMuted, letterSpacing:0.3, marginTop:1 }}>{k}</div>
+                      {[['PAC',0],['SHO',1],['PAS',2],['DRI',3],['DEF',4],['PHY',5]].map(([k, idx]) => (
+                        <div key={k} style={{ background: isNovis ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.18)', borderRadius:3, padding:'3px 2px', textAlign:'center' }}>
+                          <div style={{ fontFamily:"'Space Mono'", fontSize:9, fontWeight:700, color: isNovis ? '#444' : tc, lineHeight:1 }}>
+                            {isNovis ? '—' : sampleStats[idx]}
+                          </div>
+                          <div style={{ fontFamily:"'Space Mono'", fontSize:6, color: isNovis ? '#333' : tcMuted, letterSpacing:0.3, marginTop:1 }}>{k}</div>
                         </div>
                       ))}
                     </div>
                     {/* Bottom pts */}
-                    <div style={{ position:'absolute', bottom:6, left:8, right:8, borderTop:`1px solid ${rank.border}44`, paddingTop:4, zIndex:3, display:'flex', justifyContent:'center' }}>
-                      <span style={{ fontFamily:"'Space Mono'", fontSize:7, color:tcMuted, fontWeight:700 }}>{rank.pts} PTS</span>
+                    <div style={{ position:'absolute', bottom:6, left:8, right:8, borderTop:`1px solid ${isNovis ? '#2a2a2a' : rank.border + '44'}`, paddingTop:4, zIndex:3, display:'flex', justifyContent:'center' }}>
+                      <span style={{ fontFamily:"'Space Mono'", fontSize:7, color: isNovis ? '#444' : tcMuted, fontWeight:700 }}>{rank.pts} PTS</span>
                     </div>
                   </div>
                 );
@@ -552,7 +567,7 @@ export default function LandingPage() {
             <div className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-3`} style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
                 [<GiUpgrade />,'Card theme upgrades with your rank from Novis to Emas'],
-                [<IoStatsChart />,'Distribute points exactly how you want across 6 stats'],
+                [<IoStatsChart />,'Get card based on your true potential'],
                 [<MdOutlineAutoMode />,'Auto-adjusts if you lose points after a bad game'],
                 [<LiaUserFriendsSolid />,'Friends can view your card on your profile'],
               ].map(([icon,text]) => (
