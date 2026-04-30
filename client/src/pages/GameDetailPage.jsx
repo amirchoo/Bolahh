@@ -8,7 +8,8 @@ import { FaRankingStar } from "react-icons/fa6";
 import { FaSquareParking } from 'react-icons/fa6';
 import { LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
-import { FaLocationDot } from "react-icons/fa6";
+import { FaLocationDot, FaWhatsapp, FaTelegram } from "react-icons/fa6";
+import { FaLink } from "react-icons/fa";
 
 export default function GameDetailPage() {
   const { id } = useParams();
@@ -23,6 +24,8 @@ export default function GameDetailPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { fetchGame(); }, [id]);
 
@@ -104,6 +107,25 @@ export default function GameDetailPage() {
     const hour = parseInt(h);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     return `${timeStr}${ampm}`;
+  };
+
+  const shareMessage = game && field
+    ? `${game.title} at ${field.name}, ${game.area} will be held on ${formatDate(game.date)} at ${formatTime(game.time)}`
+    : '';
+  const shareUrl = window.location.href;
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(`${shareMessage}\n\n${shareUrl}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${shareMessage}\n\n${shareUrl}`)}`, '_blank');
+  };
+
+  const handleTelegram = () => {
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareMessage)}`, '_blank');
   };
 
   return (
@@ -193,14 +215,109 @@ export default function GameDetailPage() {
         </div>
       )}
 
+      {/* ── Share Modal ── */}
+      {showShareModal && (
+        <div
+          onClick={e => e.target === e.currentTarget && setShowShareModal(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)',
+            zIndex: 1000, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', padding: 16
+          }}
+        >
+          <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 24, padding: '28px 24px', width: '100%', maxWidth: 360,
+            boxShadow: '0 24px 64px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 14 }}>SHARE GAME</div>
+
+            <div style={{
+              background: 'var(--card2)', border: '1px solid var(--border)',
+              borderRadius: 12, padding: '12px 16px', marginBottom: 20,
+              fontSize: 13, color: 'var(--muted)', lineHeight: 1.7
+            }}>
+              {shareMessage}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={handleWhatsApp}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  width: '100%', padding: '13px', background: '#25D366', color: '#fff',
+                  border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15,
+                  cursor: 'pointer', fontFamily: "'DM Sans'"
+                }}
+              >
+                <FaWhatsapp size={18} /> Share on WhatsApp
+              </button>
+
+              <button
+                onClick={handleTelegram}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  width: '100%', padding: '13px', background: '#229ED9', color: '#fff',
+                  border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15,
+                  cursor: 'pointer', fontFamily: "'DM Sans'"
+                }}
+              >
+                <FaTelegram size={18} /> Share on Telegram
+              </button>
+
+              <button
+                onClick={handleCopyLink}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  width: '100%', padding: '13px',
+                  background: copied ? 'rgba(74,222,128,0.1)' : 'var(--card2)',
+                  color: copied ? '#4ade80' : 'var(--text)',
+                  border: `1px solid ${copied ? 'rgba(74,222,128,0.35)' : 'var(--border)'}`,
+                  borderRadius: 12, fontWeight: 600, fontSize: 14,
+                  cursor: 'pointer', fontFamily: "'DM Sans'", transition: 'all 0.2s'
+                }}
+              >
+                <FaLink size={14} /> {copied ? 'Copied!' : 'Copy Link'}
+              </button>
+
+              <button
+                onClick={() => setShowShareModal(false)}
+                style={{
+                  width: '100%', padding: '11px',
+                  background: 'transparent', color: 'var(--muted)',
+                  border: '1px solid var(--border)', borderRadius: 12,
+                  fontSize: 13, cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
 
-        <button onClick={() => navigate('/home')} style={{
-          background: 'transparent', color: 'var(--muted)',
-          border: '1px solid var(--border)', borderRadius: 8,
-          padding: '7px 16px', fontSize: 13, marginBottom: 24,
-          display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
-        }}>← Back to Games</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <button onClick={() => navigate('/home')} style={{
+            background: 'transparent', color: 'var(--muted)',
+            border: '1px solid var(--border)', borderRadius: 8,
+            padding: '7px 16px', fontSize: 13,
+            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
+          }}>← Back to Games</button>
+
+          <button
+            onClick={() => setShowShareModal(true)}
+            style={{
+              background: 'var(--card)', color: 'var(--text)',
+              border: '1px solid var(--border)', borderRadius: 8,
+              padding: '7px 16px', fontSize: 13,
+              display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer'
+            }}
+          >
+            <FaWhatsapp size={14} style={{ color: '#25D366' }} /> Share
+          </button>
+        </div>
 
         {/* Field images */}
         {field?.images?.length > 0 ? (

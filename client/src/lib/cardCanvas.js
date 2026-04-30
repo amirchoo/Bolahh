@@ -63,10 +63,12 @@ function rrect(ctx, x, y, w, h, r) {
 export async function drawCardImage({ profile, cardStats, rank, bgUrl }) {
   await document.fonts.ready;
 
+  const DPR = Math.min(window.devicePixelRatio || 1, 3);
   const canvas = document.createElement('canvas');
-  canvas.width  = CW;
-  canvas.height = CH;
+  canvas.width  = CW * DPR;
+  canvas.height = CH * DPR;
   const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
   const t   = getTheme(rank);
   const cx  = CARD_X, cy = CARD_Y, cw = CARD_W, ch = CARD_H;
 
