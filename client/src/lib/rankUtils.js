@@ -33,7 +33,7 @@ export const MAX_POINTS = 594;
 
 export function getRank(totalPoints, gamesPlayed) {
   const pts = Math.min(totalPoints, MAX_POINTS);
-  if (pts <= 30)  return 'Novis';
+  if (pts <= 30 || (gamesPlayed || 0) < 1) return 'Novis';
   if (pts <= 90)  return 'Gangsa III';
   if (pts <= 150) return 'Gangsa II';
   if (pts <= 210) return 'Gangsa I';

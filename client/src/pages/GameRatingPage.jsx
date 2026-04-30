@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getRank } from '../lib/rankUtils';
 
-const STAT_FIELDS = [
-  { key: 'goals',              label: 'Goal',     points: 3,  emoji: '⚽' },
-  { key: 'assists',            label: 'Assist',   points: 2,  emoji: '🎯' },
-  { key: 'good_defending',     label: 'Defend',   points: 2,  emoji: '🛡️' },
-  { key: 'good_keeping',       label: 'Keep',     points: 2,  emoji: '🧤' },
-  { key: 'successful_dribble', label: 'Dribble',  points: 2,  emoji: '🪄' },
-  { key: 'good_chance',        label: 'Chance',   points: 2,  emoji: '🔥' },
-  { key: 'good_manner',        label: 'Manner',   points: 2,  emoji: '🤝' },
+const CARD_STATS = [
+  { key: 'goals',              label: 'SHO', color: '#f87171' },
+  { key: 'assists',            label: 'PAS', color: '#4ade80' },
+  { key: 'successful_dribble', label: 'DRI', color: '#F09D51' },
+  { key: 'good_defending',     label: 'DEF', color: '#a78bfa' },
+  { key: 'good_keeping',       label: 'PHY', color: '#34d399' },
+  { key: 'good_chance',        label: 'PAC', color: '#64a0ff' },
 ];
 
 const defaultStats = () => ({
@@ -68,10 +67,34 @@ const TEAM_COLORS = {
   C: { bg: 'rgba(100,220,130,0.15)', border: 'rgba(100,220,130,0.4)', text: '#64dc82' },
 };
 
+// ── PREVIEW / DEV MODE ────────────────────────────────────────────────────────
+// Visit /game/any-id/rate?preview=1 to see the full UI with mock data.
+// Submit is disabled in preview mode — no DB writes happen.
+const MOCK_GAME = {
+  id: 'preview', title: 'Preview Game', format: '5v5', time: '20:00',
+  fields: { name: 'Futsal Arena KL' }, created_by: 'preview-admin',
+};
+const MOCK_PLAYER_IDS = ['p1','p2','p3','p4','p5','p6','p7','p8','p9','p10'];
+const MOCK_PROFILES = {
+  p1:  { id:'p1',  name:'Amir Hazif',   avatar_url: null, total_points: 320, games_played: 14 },
+  p2:  { id:'p2',  name:'Hafiz Noor',   avatar_url: null, total_points: 210, games_played: 9  },
+  p3:  { id:'p3',  name:'Razif Shah',   avatar_url: null, total_points: 180, games_played: 8  },
+  p4:  { id:'p4',  name:'Danial Amin',  avatar_url: null, total_points: 440, games_played: 21 },
+  p5:  { id:'p5',  name:'Syafiq Rizal', avatar_url: null, total_points: 90,  games_played: 4  },
+  p6:  { id:'p6',  name:'Irfan Zaki',   avatar_url: null, total_points: 275, games_played: 12 },
+  p7:  { id:'p7',  name:'Faiz Luqman',  avatar_url: null, total_points: 130, games_played: 6  },
+  p8:  { id:'p8',  name:'Haris Fikri',  avatar_url: null, total_points: 360, games_played: 16 },
+  p9:  { id:'p9',  name:'Izzat Kamil',  avatar_url: null, total_points: 55,  games_played: 2  },
+  p10: { id:'p10', name:'Zulhilmi',     avatar_url: null, total_points: 490, games_played: 24 },
+};
+// ──────────────────────────────────────────────────────────────────────────────
+
 export default function GameRatingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get('preview') === '1';
 
   const [game, setGame] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -100,6 +123,19 @@ export default function GameRatingPage() {
 
   const fetchData = async () => {
     setLoading(true);
+
+    if (isPreview) {
+      setGame(MOCK_GAME);
+      setProfiles(MOCK_PROFILES);
+      setPlayers(MOCK_PLAYER_IDS);
+      const initRatings = {};
+      MOCK_PLAYER_IDS.forEach(uid => { initRatings[uid] = defaultStats(); });
+      setRatings(initRatings);
+      setTeamMode(3); // 10 players → 3 teams suggested
+      setLoading(false);
+      return;
+    }
+
     const { data: gameData } = await supabase
       .from('games').select('*, fields(name)').eq('id', id).single();
     setGame(gameData);
@@ -228,6 +264,7 @@ export default function GameRatingPage() {
   };
 
   const handleSubmit = async () => {
+  if (isPreview) { setSuccess('Preview mode — no data written.'); return; }
   setSaving(true); setError('');
   try {
     for (const uid of players) {
@@ -326,6 +363,18 @@ export default function GameRatingPage() {
           </h1>
           <p style={{ color: 'var(--muted)', fontSize: 14 }}>{game?.title} · {game?.fields?.name} · {game?.format}</p>
         </div>
+
+        {/* Preview mode banner */}
+        {isPreview && (
+          <div style={{
+            background: 'rgba(100,160,255,0.1)', border: '1px solid rgba(100,160,255,0.35)',
+            borderRadius: 10, padding: '10px 16px', marginBottom: 16,
+            color: '#64a0ff', fontSize: 13, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            🛠️ Preview mode — mock data, no DB writes
+          </div>
+        )}
 
         {/* Banners */}
         {alreadyRated && !success && (
@@ -667,21 +716,35 @@ export default function GameRatingPage() {
                             </div>
                           </div>
 
-                          {/* Compact stat buttons */}
+                          {/* 6 card stat buttons — 3×2 grid */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                            {STAT_FIELDS.map(({ key, label, points, emoji }) => (
-                              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontSize: 11, color: 'var(--muted)', width: 56, flexShrink: 0 }}>{emoji} {label}</span>
-                                <button type="button" onClick={() => updateStat(uid, key, -1)} disabled={!stats[key]}
-                                  style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--card2)', color: 'var(--text)', fontSize: 13, opacity: stats[key] ? 1 : 0.3, cursor: stats[key] ? 'pointer' : 'default' }}>−</button>
-                                <span style={{ fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700, color: 'var(--text)', minWidth: 16, textAlign: 'center' }}>{stats[key] || 0}</span>
-                                <button type="button" onClick={() => updateStat(uid, key, 1)}
-                                  style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--card2)', color: 'var(--text)', fontSize: 13, cursor: 'pointer' }}>+</button>
-                                <span style={{ fontSize: 10, color: tc.text, fontFamily: "'Space Mono'", marginLeft: 2 }}>
-                                  {stats[key] ? `+${stats[key] * points}` : ''}
-                                </span>
-                              </div>
-                            ))}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                              {CARD_STATS.map(({ key, label, color }) => {
+                                const count = stats[key] || 0;
+                                return (
+                                  <div key={key} style={{ position: 'relative' }}>
+                                    <button type="button" onClick={() => updateStat(uid, key, 1)} style={{
+                                      width: '100%', padding: '7px 0', borderRadius: 8, cursor: 'pointer',
+                                      border: `1.5px solid ${count > 0 ? color : 'var(--border)'}`,
+                                      background: count > 0 ? `${color}18` : 'var(--card2)',
+                                      textAlign: 'center', transition: 'all 0.12s',
+                                    }}>
+                                      <div style={{ fontFamily: "'Space Mono'", fontSize: 8, fontWeight: 700, color: count > 0 ? color : 'var(--muted)', letterSpacing: 1 }}>{label}</div>
+                                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, lineHeight: 1.1, color: count > 0 ? color : 'var(--muted)', marginTop: 1 }}>{count}</div>
+                                    </button>
+                                    {count > 0 && (
+                                      <button type="button" onClick={e => { e.stopPropagation(); updateStat(uid, key, -1); }} style={{
+                                        position: 'absolute', top: -4, right: -4,
+                                        width: 14, height: 14, borderRadius: '50%',
+                                        background: 'rgba(240,101,67,0.9)', color: '#fff',
+                                        border: 'none', fontSize: 9, lineHeight: 1,
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      }}>−</button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
 
                             {/* Bonus */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, paddingTop: 6, borderTop: '1px solid var(--border)' }}>

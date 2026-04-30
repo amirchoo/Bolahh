@@ -48,7 +48,7 @@ export default function LoginPage() {
       }
       setLoading(false);
     } else {
-      navigate('/home');
+      navigate(identifier.toLowerCase() === 'bolahhadmin' ? '/admin' : '/home');
     }
   };
 
