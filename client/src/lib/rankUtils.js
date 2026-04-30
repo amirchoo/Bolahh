@@ -25,11 +25,11 @@ export function getRank(ovr) {
 }
 
 export function getRankColor(rank) {
-  if (rank === 'Novis')          return '#888880';
+  if (rank === 'Novis')          return '#7088a0';
   if (rank.startsWith('Gangsa')) return '#cd7f32';
   if (rank.startsWith('Perak'))  return '#a8a9ad';
   if (rank.startsWith('Emas'))   return '#FFD700';
-  return '#888880';
+  return '#7088a0';
 }
 
 export function getRankTier(rank) {

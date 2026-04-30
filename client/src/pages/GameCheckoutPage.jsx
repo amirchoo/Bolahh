@@ -36,6 +36,15 @@ export default function GameCheckoutPage() {
     if (gameRes.error || !gameRes.data) { navigate('/home'); return; }
     // If already joined, redirect back
     if (joinedRes.data) { navigate(`/game/${id}`); return; }
+    // Block checkout if within 10 minutes of game start
+    const g = gameRes.data;
+    const [gy, gm, gd] = g.date.split('-').map(Number);
+    const [gh, gmin] = (g.time || '00:00').split(':').map(Number);
+    const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
+    if (new Date() >= new Date(gameStart.getTime() - 10 * 60 * 1000)) {
+      navigate(`/game/${id}`);
+      return;
+    }
     setGame(gameRes.data);
     setField(gameRes.data.fields);
     setWalletBalance(profileRes.data?.wallet_balance || 0);
@@ -46,6 +55,16 @@ export default function GameCheckoutPage() {
     if (!agreed) { setError('Please agree to the terms before confirming.'); return; }
     setConfirming(true);
     setError('');
+
+    // Re-check locked state in case window passed while user was on this page
+    const [gy, gm, gd] = game.date.split('-').map(Number);
+    const [gh, gmin] = (game.time || '00:00').split(':').map(Number);
+    const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
+    if (new Date() >= new Date(gameStart.getTime() - 10 * 60 * 1000)) {
+      setError('Booking is now closed — game starts in less than 10 minutes.');
+      setConfirming(false);
+      return;
+    }
 
     // Re-fetch balance live to prevent race condition
     const { data: freshProfile } = await supabase

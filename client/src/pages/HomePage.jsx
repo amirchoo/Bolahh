@@ -275,15 +275,15 @@ function GameCard({ game }) {
 
   return (
     <div
-      onClick={() => { if (!disabled) navigate(`/game/${game.id}`); }}
+      onClick={() => { if (!full) navigate(`/game/${game.id}`); }}
       style={{
         background: disabled ? 'var(--card2)' : 'var(--card)',
         border: '1px solid var(--border)',
         borderRadius: 16, overflow: 'hidden',
-        opacity: disabled ? 0.55 : 1,
-        transition: 'border-color 0.2s, transform 0.15s', cursor: disabled ? 'not-allowed' : 'pointer'
+        opacity: disabled ? 0.65 : 1,
+        transition: 'border-color 0.2s, transform 0.15s', cursor: full ? 'not-allowed' : 'pointer'
       }}
-      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+      onMouseEnter={e => { if (!full) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)'; }}
     >
       {coverImage && (
@@ -299,7 +299,7 @@ function GameCard({ game }) {
               background: 'rgba(0,0,0,0.45)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 3, color: 'var(--red)'
-            }}>{locked ? 'GAME FILLED' : 'FULL'}</div>
+            }}>{locked ? 'TIME OUT' : 'FULL'}</div>
           )}
         </div>
       )}
@@ -357,9 +357,9 @@ function GameCard({ game }) {
             width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
             background: disabled ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : '#ffffff'
           }} />
-          {locked ? 'Game Filled' : full ? 'Game Full' : `${open} slot${open !== 1 ? 's' : ''} left`}
+          {locked ? 'Time Out' : full ? 'Game Full' : `${open} slot${open !== 1 ? 's' : ''} left`}
         </span>
-        {!disabled && (
+        {!full && (
           <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
             View Details →
           </span>
