@@ -1,43 +1,26 @@
-// ─────────────────────────────────────────────
-//  Bolahh Rank System
-//  Points per game:
-//    Attendance: +5 (automatic)
-//    Goal:       +3
-//    Assist:     +2
-//    Defending:  +2
-//    Keeping:    +2
-//    Dribble:    +2
-//    Chance:     +2
-//    Manner:     +2
-//    Admin Bonus: -5 to +5
-// ─────────────────────────────────────────────
-
 export const RANKS = [
-  { name: 'Novis',      minPoints: 0,   maxPoints: 0             },
-  { name: 'Gangsa III', minPoints: 1,   maxPoints: 100           },
-  { name: 'Gangsa II',  minPoints: 101, maxPoints: 200           },
-  { name: 'Gangsa I',   minPoints: 201, maxPoints: 300           },
-  { name: 'Perak III',  minPoints: 301, maxPoints: 400           },
-  { name: 'Perak II',   minPoints: 401, maxPoints: 500           },
-  { name: 'Perak I',    minPoints: 501, maxPoints: 600           },
-  { name: 'Emas III',   minPoints: 601, maxPoints: 700           },
-  { name: 'Emas II',    minPoints: 701, maxPoints: 800           },
-  { name: 'Emas I',     minPoints: 801, maxPoints: Infinity      },
+  { name: 'Novis',      minOvr: 0,  maxOvr: 30 },
+  { name: 'Gangsa III', minOvr: 31, maxOvr: 39 },
+  { name: 'Gangsa II',  minOvr: 40, maxOvr: 49 },
+  { name: 'Gangsa I',   minOvr: 50, maxOvr: 60 },
+  { name: 'Perak III',  minOvr: 61, maxOvr: 69 },
+  { name: 'Perak II',   minOvr: 70, maxOvr: 74 },
+  { name: 'Perak I',    minOvr: 75, maxOvr: 79 },
+  { name: 'Emas III',   minOvr: 80, maxOvr: 85 },
+  { name: 'Emas II',    minOvr: 86, maxOvr: 94 },
+  { name: 'Emas I',     minOvr: 95, maxOvr: 99 },
 ];
 
-// Hard cap on total_points
-export const MAX_POINTS = 900;
-
-export function getRank(totalPoints, gamesPlayed) {
-  if (!totalPoints || totalPoints === 0) return 'Novis';
-  if (totalPoints <= 100) return 'Gangsa III';
-  if (totalPoints <= 200) return 'Gangsa II';
-  if (totalPoints <= 300) return 'Gangsa I';
-  if (totalPoints <= 400) return 'Perak III';
-  if (totalPoints <= 500) return 'Perak II';
-  if (totalPoints <= 600) return 'Perak I';
-  if (totalPoints <= 700) return 'Emas III';
-  if (totalPoints <= 800) return 'Emas II';
+export function getRank(ovr) {
+  if (!ovr || ovr <= 30) return 'Novis';
+  if (ovr <= 39) return 'Gangsa III';
+  if (ovr <= 49) return 'Gangsa II';
+  if (ovr <= 60) return 'Gangsa I';
+  if (ovr <= 69) return 'Perak III';
+  if (ovr <= 74) return 'Perak II';
+  if (ovr <= 79) return 'Perak I';
+  if (ovr <= 85) return 'Emas III';
+  if (ovr <= 94) return 'Emas II';
   return 'Emas I';
 }
 

@@ -200,7 +200,7 @@ function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick }) 
           <span style={{ fontWeight: 700, color: theme.text }}>{profile?.games_played || 0}</span> GAMES PLAYED
         </div>
         <div style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 5 : 8, color: theme.muted, textAlign: 'center' }}>
-          <span style={{ fontWeight: 700, color: theme.text }}>{profile?.total_points || 0}</span> POINTS
+          <span style={{ fontWeight: 700, color: theme.text }}>{profile?.total_points || 30}</span> OVR
         </div>
       </div>
     </div>
@@ -259,7 +259,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!showCardModal || !profile) return;
-    drawCardImage({ profile, cardStats, rank: getRank(profile.total_points || 0, profile.games_played || 0), bgUrl: selectedBg.src })
+    drawCardImage({ profile, cardStats, rank: getRank(profile.total_points || 0), bgUrl: selectedBg.src })
       .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
   }, [showCardModal, selectedBg, cardStats]);
 
@@ -278,7 +278,7 @@ export default function ProfilePage() {
         setProfile(newProfile);
         setWalletBalance(newProfile?.wallet_balance || 0);
         setForm({ name: newProfile.name || '', position: newProfile.position || '' });
-        fetchCard(newProfile?.total_points || 0);
+        fetchCard();
       }
     } else {
       if (!data.name && user.user_metadata?.username) {
@@ -288,24 +288,24 @@ export default function ProfilePage() {
         setProfile({ ...data, name: username, position });
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: username, position });
-        fetchCard(data?.total_points || 0);
+        fetchCard();
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: data.name || '', position: data.position || '' });
-        fetchCard(data?.total_points || 0);
+        fetchCard();
       }
     }
     setLoading(false);
   };
 
-  const fetchCard = async (totalPoints = 0) => {
+  const fetchCard = async () => {
     const { data: gameRatings } = await supabase
       .from('game_ratings')
       .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
       .eq('user_id', user.id);
 
-    const stats = calculateCardStats(gameRatings || [], totalPoints);
+    const stats = calculateCardStats(gameRatings || []);
     setCardStats(stats);
 
     await supabase.from('player_cards').upsert({
@@ -394,7 +394,7 @@ export default function ProfilePage() {
           if (navigator.canShare?.({ files: [file] })) {
             await navigator.share({
               title: `${profile?.name}'s Bolahh Card`,
-              text: `${rank} · ${profile?.total_points || 0} pts · bolahh.com`,
+              text: `${rank} · ${profile?.total_points || 30} OVR · bolahh.com`,
               files: [file],
             });
           } else {
@@ -451,7 +451,7 @@ export default function ProfilePage() {
     );
   }
 
-  const rank = getRank(profile?.total_points || 0, profile?.games_played || 0);
+  const rank = getRank(profile?.total_points || 0);
   const rankColor = getRankColor(rank);
   const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
 

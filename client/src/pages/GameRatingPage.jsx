@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { getRank, MAX_POINTS } from '../lib/rankUtils';
+import { calculateCardStats } from '../lib/cardUtils';
 
 const CARD_STATS = [
   { key: 'goals',              label: 'SHO', color: '#f87171' },
@@ -16,21 +16,8 @@ const CARD_STATS = [
 
 const defaultStats = () => ({
   goals: 0, assists: 0, good_defending: 0,
-  good_keeping: 0, successful_dribble: 0,
-  good_chance: 0, good_manner: 0, admin_bonus: 0,
+  good_keeping: 0, successful_dribble: 0, good_chance: 0,
 });
-
-function calcTotal(stats) {
-  return 5
-    + (stats.goals || 0) * 3
-    + (stats.assists || 0) * 2
-    + (stats.good_defending || 0) * 2
-    + (stats.good_keeping || 0) * 2
-    + (stats.successful_dribble || 0) * 2
-    + (stats.good_chance || 0) * 2
-    + (stats.good_manner || 0) * 2
-    + (stats.admin_bonus || 0);
-}
 
 // Base 3-team rotation (1 round)
 const BASE_ROTATION = [
@@ -76,16 +63,16 @@ const MOCK_GAME = {
 };
 const MOCK_PLAYER_IDS = ['p1','p2','p3','p4','p5','p6','p7','p8','p9','p10'];
 const MOCK_PROFILES = {
-  p1:  { id:'p1',  name:'Amir Hazif',   avatar_url: null, total_points: 320, games_played: 14 },
-  p2:  { id:'p2',  name:'Hafiz Noor',   avatar_url: null, total_points: 210, games_played: 9  },
-  p3:  { id:'p3',  name:'Razif Shah',   avatar_url: null, total_points: 180, games_played: 8  },
-  p4:  { id:'p4',  name:'Danial Amin',  avatar_url: null, total_points: 440, games_played: 21 },
-  p5:  { id:'p5',  name:'Syafiq Rizal', avatar_url: null, total_points: 90,  games_played: 4  },
-  p6:  { id:'p6',  name:'Irfan Zaki',   avatar_url: null, total_points: 275, games_played: 12 },
-  p7:  { id:'p7',  name:'Faiz Luqman',  avatar_url: null, total_points: 130, games_played: 6  },
-  p8:  { id:'p8',  name:'Haris Fikri',  avatar_url: null, total_points: 360, games_played: 16 },
-  p9:  { id:'p9',  name:'Izzat Kamil',  avatar_url: null, total_points: 55,  games_played: 2  },
-  p10: { id:'p10', name:'Zulhilmi',     avatar_url: null, total_points: 490, games_played: 24 },
+  p1:  { id:'p1',  name:'Amir Hazif',   avatar_url: null, total_points: 52, games_played: 14 },
+  p2:  { id:'p2',  name:'Hafiz Noor',   avatar_url: null, total_points: 44, games_played: 9  },
+  p3:  { id:'p3',  name:'Razif Shah',   avatar_url: null, total_points: 41, games_played: 8  },
+  p4:  { id:'p4',  name:'Danial Amin',  avatar_url: null, total_points: 63, games_played: 21 },
+  p5:  { id:'p5',  name:'Syafiq Rizal', avatar_url: null, total_points: 33, games_played: 4  },
+  p6:  { id:'p6',  name:'Irfan Zaki',   avatar_url: null, total_points: 48, games_played: 12 },
+  p7:  { id:'p7',  name:'Faiz Luqman',  avatar_url: null, total_points: 37, games_played: 6  },
+  p8:  { id:'p8',  name:'Haris Fikri',  avatar_url: null, total_points: 56, games_played: 16 },
+  p9:  { id:'p9',  name:'Izzat Kamil',  avatar_url: null, total_points: 31, games_played: 2  },
+  p10: { id:'p10', name:'Zulhilmi',     avatar_url: null, total_points: 71, games_played: 24 },
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -258,65 +245,61 @@ export default function GameRatingPage() {
     }));
   };
 
-  const updateBonus = (uid, val) => {
-    const clamped = Math.max(-5, Math.min(5, parseInt(val) || 0));
-    setRatings(prev => ({ ...prev, [uid]: { ...prev[uid], admin_bonus: clamped } }));
-  };
-
   const handleSubmit = async () => {
-  if (isPreview) { setSuccess('Preview mode — no data written.'); return; }
-  setSaving(true); setError('');
-  try {
-    for (const uid of players) {
-      const stats = ratings[uid] || defaultStats();
-      const total = calcTotal(stats);
+    if (isPreview) { setSuccess('Preview mode — no data written.'); return; }
+    setSaving(true); setError('');
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      const { error: insertError } = await supabase.from('game_ratings').insert({
-        game_id: id,
-        user_id: uid,
-        rated_by: (await supabase.auth.getUser()).data.user.id,
-        goals: stats.goals,
-        assists: stats.assists,
-        good_defending: stats.good_defending,
-        good_keeping: stats.good_keeping,
-        successful_dribble: stats.successful_dribble,
-        good_chance: stats.good_chance,
-        good_manner: stats.good_manner,
-        admin_bonus: stats.admin_bonus,
-        total_points: total,
-      });
-      if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
-
-      const profile = profiles[uid];
-      const newPoints = Math.min(MAX_POINTS, (profile?.total_points || 0) + total);
-      const newGamesPlayed = (profile?.games_played || 0) + 1;
-
-      const { data: updateData, error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          total_points: newPoints,
-          games_played: newGamesPlayed,
-        })
-        .eq('id', uid)
-        .select();
-
-      if (updateError) {
-        console.error('Profile update failed for', uid, updateError);
-        throw new Error('Profile update failed: ' + updateError.message);
+      // Insert per-game stat taps
+      for (const uid of players) {
+        const stats = ratings[uid] || defaultStats();
+        const { error: insertError } = await supabase.from('game_ratings').insert({
+          game_id: id,
+          user_id: uid,
+          rated_by: currentUser.id,
+          goals: stats.goals,
+          assists: stats.assists,
+          good_defending: stats.good_defending,
+          good_keeping: stats.good_keeping,
+          successful_dribble: stats.successful_dribble,
+          good_chance: stats.good_chance,
+          good_manner: 0,
+          admin_bonus: 0,
+          total_points: 0,
+        });
+        if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
       }
-      if (!updateData || updateData.length === 0) {
-        console.error('Profile update matched no rows for', uid);
-        throw new Error('Profile update matched no rows for ' + uid);
+
+      // Recalculate OVR from lifetime stats and store in profiles.total_points
+      for (const uid of players) {
+        const { data: allRatings } = await supabase
+          .from('game_ratings')
+          .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
+          .eq('user_id', uid);
+
+        const cardStats = calculateCardStats(allRatings || []);
+        const profile = profiles[uid];
+        const newGamesPlayed = (profile?.games_played || 0) + 1;
+
+        const { data: updateData, error: updateError } = await supabase
+          .from('profiles')
+          .update({ total_points: cardStats.overall, games_played: newGamesPlayed })
+          .eq('id', uid)
+          .select();
+
+        if (updateError) throw new Error('Profile update failed: ' + updateError.message);
+        if (!updateData || updateData.length === 0) throw new Error('Profile update matched no rows for ' + uid);
       }
+
+      setSuccess('Ratings submitted!');
+      setAlreadyRated(true);
+      setStep('setup');
+    } catch (e) {
+      setError(e.message);
     }
-    setSuccess('Ratings submitted!');
-    setAlreadyRated(true);
-    setStep('setup');
-  } catch (e) {
-    setError(e.message);
-  }
-  setSaving(false);
-};
+    setSaving(false);
+  };
   // ── STYLES ──
   const cardStyle = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, marginBottom: 12 };
 
@@ -695,7 +678,6 @@ export default function GameRatingPage() {
                       const p = profiles[uid];
                       const stats = ratings[uid] || defaultStats();
                       const bib = getBibNumber(uid, team);
-                      const total = calcTotal(stats);
                       return (
                         <div key={uid} style={{
                           background: 'var(--card)', border: `1px solid ${tc.border}`,
@@ -708,55 +690,36 @@ export default function GameRatingPage() {
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontSize: 12, fontWeight: 700, color: '#1e2123', flexShrink: 0
                             }}>{bib}</div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{p?.name}</div>
-                            </div>
-                            <div style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: total >= 10 ? 'var(--accent)' : 'var(--red)' }}>
-                              {total >= 0 ? '+' : ''}{total}
-                            </div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{p?.name}</div>
                           </div>
 
                           {/* 6 card stat buttons — 3×2 grid */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
-                              {CARD_STATS.map(({ key, label, color }) => {
-                                const count = stats[key] || 0;
-                                return (
-                                  <div key={key} style={{ position: 'relative' }}>
-                                    <button type="button" onClick={() => updateStat(uid, key, 1)} style={{
-                                      width: '100%', padding: '7px 0', borderRadius: 8, cursor: 'pointer',
-                                      border: `1.5px solid ${count > 0 ? color : 'var(--border)'}`,
-                                      background: count > 0 ? `${color}18` : 'var(--card2)',
-                                      textAlign: 'center', transition: 'all 0.12s',
-                                    }}>
-                                      <div style={{ fontFamily: "'Space Mono'", fontSize: 8, fontWeight: 700, color: count > 0 ? color : 'var(--muted)', letterSpacing: 1 }}>{label}</div>
-                                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, lineHeight: 1.1, color: count > 0 ? color : 'var(--muted)', marginTop: 1 }}>{count}</div>
-                                    </button>
-                                    {count > 0 && (
-                                      <button type="button" onClick={e => { e.stopPropagation(); updateStat(uid, key, -1); }} style={{
-                                        position: 'absolute', top: -4, right: -4,
-                                        width: 14, height: 14, borderRadius: '50%',
-                                        background: 'rgba(240,101,67,0.9)', color: '#fff',
-                                        border: 'none', fontSize: 9, lineHeight: 1,
-                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      }}>−</button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-
-                            {/* Bonus */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
-                              <span style={{ fontSize: 11, color: 'var(--muted)', width: 56, flexShrink: 0 }}>🎖️ Bonus</span>
-                              <button type="button" onClick={() => updateBonus(uid, (stats.admin_bonus || 0) - 1)} disabled={(stats.admin_bonus || 0) <= -5}
-                                style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--card2)', color: 'var(--text)', fontSize: 13, opacity: (stats.admin_bonus || 0) > -5 ? 1 : 0.3 }}>−</button>
-                              <span style={{ fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700, color: (stats.admin_bonus || 0) >= 0 ? 'var(--accent)' : 'var(--red)', minWidth: 24, textAlign: 'center' }}>
-                                {(stats.admin_bonus || 0) >= 0 ? '+' : ''}{stats.admin_bonus || 0}
-                              </span>
-                              <button type="button" onClick={() => updateBonus(uid, (stats.admin_bonus || 0) + 1)} disabled={(stats.admin_bonus || 0) >= 5}
-                                style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--card2)', color: 'var(--text)', fontSize: 13, opacity: (stats.admin_bonus || 0) < 5 ? 1 : 0.3 }}>+</button>
-                            </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                            {CARD_STATS.map(({ key, label, color }) => {
+                              const count = stats[key] || 0;
+                              return (
+                                <div key={key} style={{ position: 'relative' }}>
+                                  <button type="button" onClick={() => updateStat(uid, key, 1)} style={{
+                                    width: '100%', padding: '7px 0', borderRadius: 8, cursor: 'pointer',
+                                    border: `1.5px solid ${count > 0 ? color : 'var(--border)'}`,
+                                    background: count > 0 ? `${color}18` : 'var(--card2)',
+                                    textAlign: 'center', transition: 'all 0.12s',
+                                  }}>
+                                    <div style={{ fontFamily: "'Space Mono'", fontSize: 8, fontWeight: 700, color: count > 0 ? color : 'var(--muted)', letterSpacing: 1 }}>{label}</div>
+                                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, lineHeight: 1.1, color: count > 0 ? color : 'var(--muted)', marginTop: 1 }}>{count}</div>
+                                  </button>
+                                  {count > 0 && (
+                                    <button type="button" onClick={e => { e.stopPropagation(); updateStat(uid, key, -1); }} style={{
+                                      position: 'absolute', top: -4, right: -4,
+                                      width: 14, height: 14, borderRadius: '50%',
+                                      background: 'rgba(240,101,67,0.9)', color: '#fff',
+                                      border: 'none', fontSize: 9, lineHeight: 1,
+                                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }}>−</button>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );

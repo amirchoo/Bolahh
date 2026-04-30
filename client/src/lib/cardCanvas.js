@@ -238,7 +238,7 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl }) {
   ctx.font = `700 9px 'Space Mono', monospace`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillText(
-    `${profile?.games_played || 0} GAMES PLAYED   ·   ${profile?.total_points || 0} PTS`,
+    `${profile?.games_played || 0} GAMES PLAYED   ·   ${profile?.total_points || 30} OVR`,
     cx + cw / 2, btmY,
   );
 

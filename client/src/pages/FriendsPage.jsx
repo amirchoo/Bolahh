@@ -60,7 +60,7 @@ function FifaCard({ profile, cardStats, rank }) {
       </div>
       <div style={{ position: 'absolute', bottom: 8, left: 10, right: 10, display: 'flex', justifyContent: 'space-between', zIndex: 3, borderTop: `1px solid ${theme.border}55`, paddingTop: 5 }}>
         <div style={{ fontFamily: "'Space Mono'", fontSize: 8, color: theme.muted }}><span style={{ fontWeight: 700, color: theme.text }}>{profile?.games_played || 0}</span> GAMES PLAYED</div>
-        <div style={{ fontFamily: "'Space Mono'", fontSize: 8, color: theme.muted }}><span style={{ fontWeight: 700, color: theme.text }}>{profile?.total_points || 0}</span> POINTS</div>
+        <div style={{ fontFamily: "'Space Mono'", fontSize: 8, color: theme.muted }}><span style={{ fontWeight: 700, color: theme.text }}>{profile?.total_points || 30}</span> OVR</div>
       </div>
     </div>
   );
@@ -217,7 +217,7 @@ export default function FriendsPage() {
   ];
 
   const PlayerCard = ({ profile, actions }) => {
-    const rank = getRank(profile.total_points || 0, profile.games_played || 0);
+    const rank = getRank(profile.total_points || 0);
     const color = getRankColor(rank);
     return (
       <div
@@ -419,7 +419,7 @@ export default function FriendsPage() {
             <FifaCard
               profile={viewingPlayer.profile}
               cardStats={viewingPlayer.cardStats}
-              rank={getRank(viewingPlayer.profile.total_points || 0, viewingPlayer.profile.games_played || 0)}
+              rank={getRank(viewingPlayer.profile.total_points || 0)}
             />
             <button onClick={() => setViewingPlayer(null)} style={{
               background: 'rgba(255,255,255,0.1)', color: '#fff',
