@@ -26,6 +26,7 @@ function calcOverall(stats) {
 
 function FifaCard({ profile, cardStats, rank }) {
   const theme = getCardTheme(rank);
+  const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
   return (
     <div style={{ width: 220, height: 330, borderRadius: 16, background: theme.bg, border: `2px solid ${theme.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)', position: 'relative', overflow: 'hidden', flexShrink: 0, fontFamily: "'DM Sans'" }}>
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%)', pointerEvents: 'none', zIndex: 2 }} />
@@ -39,7 +40,15 @@ function FifaCard({ profile, cardStats, rank }) {
           ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <span style={{ fontFamily: "'Space Mono'", fontSize: 28, fontWeight: 700, color: theme.text }}>{(profile?.name?.[0] || '?').toUpperCase()}</span>}
       </div>
-      <div style={{ position: 'absolute', top: 160, left: 0, right: 0, textAlign: 'center', zIndex: 3, fontFamily: "'Bebas Neue'", fontSize: 17, color: theme.text, letterSpacing: 1.5, padding: '0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.name || 'PLAYER'}</div>
+      {/* Name + verified tick */}
+      <div style={{ position: 'absolute', top: 160, left: 0, right: 0, zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '0 8px' }}>
+        <span style={{ fontFamily: "'Bebas Neue'", fontSize: 17, color: theme.text, letterSpacing: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {profile?.name || 'PLAYER'}
+        </span>
+        {isSubscribed && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff', lineHeight: 1 }}>✓</span>
+        )}
+      </div>
       <div style={{ position: 'absolute', top: 182, left: 16, right: 16, height: 1, background: `${theme.border}55`, zIndex: 3 }} />
       <div style={{ position: 'absolute', top: 190, left: 10, right: 10, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, zIndex: 3 }}>
         {STATS.map(s => (
@@ -94,7 +103,7 @@ export default function FriendsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at')
       .in('id', friendIds);
 
     setFriends(profiles || []);
@@ -113,7 +122,7 @@ export default function FriendsPage() {
     const senderIds = data.map(f => f.sender_id);
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at')
       .in('id', senderIds);
 
     setPending(profiles || []);
@@ -138,7 +147,7 @@ export default function FriendsPage() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at')
       .ilike('name', `%${q}%`)
       .neq('id', user.id)
       .limit(10);

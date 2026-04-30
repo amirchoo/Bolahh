@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { getRank } from '../lib/rankUtils';
+import { getRank, MAX_POINTS } from '../lib/rankUtils';
 
 const CARD_STATS = [
   { key: 'goals',              label: 'SHO', color: '#f87171' },
@@ -288,7 +288,7 @@ export default function GameRatingPage() {
       if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
 
       const profile = profiles[uid];
-      const newPoints = Math.min(594, (profile?.total_points || 0) + total);
+      const newPoints = Math.min(MAX_POINTS, (profile?.total_points || 0) + total);
       const newGamesPlayed = (profile?.games_played || 0) + 1;
 
       const { data: updateData, error: updateError } = await supabase

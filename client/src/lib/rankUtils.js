@@ -1,6 +1,5 @@
 // ─────────────────────────────────────────────
 //  Bolahh Rank System
-//  Max points: 594 (Emas I)
 //  Points per game:
 //    Attendance: +5 (automatic)
 //    Goal:       +3
@@ -14,36 +13,31 @@
 // ─────────────────────────────────────────────
 
 export const RANKS = [
-  { name: 'Novis',      minPoints: 0,   maxPoints: 30  },
-  { name: 'Gangsa III', minPoints: 31,  maxPoints: 90,       minGames: 2  },
-  { name: 'Gangsa II',  minPoints: 91,  maxPoints: 150,      minGames: 2  },
-  { name: 'Gangsa I',   minPoints: 151, maxPoints: 210,      minGames: 2  },
-  { name: 'Perak V',    minPoints: 211, maxPoints: 270,      minGames: 2  },
-  { name: 'Perak IV',   minPoints: 271, maxPoints: 330,      minGames: 2  },
-  { name: 'Perak III',  minPoints: 331, maxPoints: 390,      minGames: 2  },
-  { name: 'Perak II',   minPoints: 391, maxPoints: 450,      minGames: 2  },
-  { name: 'Perak I',    minPoints: 451, maxPoints: 510,      minGames: 2  },
-  { name: 'Emas III',   minPoints: 511, maxPoints: 540,      minGames: 2  },
-  { name: 'Emas II',    minPoints: 541, maxPoints: 570,      minGames: 2  },
-  { name: 'Emas I',     minPoints: 571, maxPoints: Infinity, minGames: 2  },
+  { name: 'Novis',      minPoints: 0,   maxPoints: 30            },
+  { name: 'Gangsa III', minPoints: 31,  maxPoints: 130, minGames: 1 },
+  { name: 'Gangsa II',  minPoints: 131, maxPoints: 230, minGames: 1 },
+  { name: 'Gangsa I',   minPoints: 231, maxPoints: 330, minGames: 1 },
+  { name: 'Perak III',  minPoints: 331, maxPoints: 430, minGames: 1 },
+  { name: 'Perak II',   minPoints: 431, maxPoints: 530, minGames: 1 },
+  { name: 'Perak I',    minPoints: 531, maxPoints: 630, minGames: 1 },
+  { name: 'Emas III',   minPoints: 631, maxPoints: 730, minGames: 1 },
+  { name: 'Emas II',    minPoints: 731, maxPoints: 830, minGames: 1 },
+  { name: 'Emas I',     minPoints: 831, maxPoints: Infinity, minGames: 1 },
 ];
 
 // Hard cap on total_points
-export const MAX_POINTS = 594;
+export const MAX_POINTS = 930;
 
 export function getRank(totalPoints, gamesPlayed) {
-  const pts = Math.min(totalPoints, MAX_POINTS);
-  if (pts <= 30 || (gamesPlayed || 0) < 1) return 'Novis';
-  if (pts <= 90)  return 'Gangsa III';
-  if (pts <= 150) return 'Gangsa II';
-  if (pts <= 210) return 'Gangsa I';
-  if (pts <= 270) return 'Perak V';
-  if (pts <= 330) return 'Perak IV';
-  if (pts <= 390) return 'Perak III';
-  if (pts <= 450) return 'Perak II';
-  if (pts <= 510) return 'Perak I';
-  if (pts <= 540) return 'Emas III';
-  if (pts <= 570) return 'Emas II';
+  if ((gamesPlayed || 0) < 1 || totalPoints <= 30) return 'Novis';
+  if (totalPoints <= 130) return 'Gangsa III';
+  if (totalPoints <= 230) return 'Gangsa II';
+  if (totalPoints <= 330) return 'Gangsa I';
+  if (totalPoints <= 430) return 'Perak III';
+  if (totalPoints <= 530) return 'Perak II';
+  if (totalPoints <= 630) return 'Perak I';
+  if (totalPoints <= 730) return 'Emas III';
+  if (totalPoints <= 830) return 'Emas II';
   return 'Emas I';
 }
 
@@ -63,10 +57,9 @@ export function getRankTier(rank) {
   return 'novis';
 }
 
-// Card stat budget — scales from 180 (Gangsa III) to 594 (Emas I)
-// Novis gets 0 budget — grey locked card
-export function getCardBudget(totalPoints) {
+// Card stat budget — Novis: 0 (grey locked), Gangsa III: 180 → Emas I: 594
+export function getCardBudget(totalPoints, gamesPlayed) {
+  if ((gamesPlayed || 0) < 1 || totalPoints <= 30) return 0;
   const pts = Math.min(totalPoints, MAX_POINTS);
-  if (pts < 30) return 0;
-  return Math.min(594, Math.round(180 + (pts / MAX_POINTS) * 414));
+  return Math.min(594, Math.round(180 + ((pts - 31) / (MAX_POINTS - 31)) * 414));
 }

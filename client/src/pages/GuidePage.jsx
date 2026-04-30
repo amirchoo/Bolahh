@@ -60,7 +60,7 @@ function getRankColor(name) {
 }
 
 function rankPts(r) {
-  if (r.maxPoints === Infinity) return `${r.minPoints}–594`;
+  if (r.maxPoints === Infinity) return `${r.minPoints}–930`;
   return `${r.minPoints}–${r.maxPoints}`;
 }
 
@@ -181,7 +181,7 @@ export default function GuidePage() {
         <section>
           <SectionHead id="points" sup="PROGRESSION" title="EARNING POINTS" />
           <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
-            Points are awarded by the game organiser after every match based on your performance. Accumulate enough to climb through all 12 ranks.
+            Points are awarded by the game organiser after every match based on your performance. Accumulate enough to climb through all 10 ranks.
           </p>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
             {POINT_EVENTS.map((ev, i) => (
@@ -213,7 +213,7 @@ export default function GuidePage() {
 
         {/* ── SECTION 3: RANKS ── */}
         <section>
-          <SectionHead id="ranks" sup="12 TIERS" title="THE RANK SYSTEM" />
+          <SectionHead id="ranks" sup="10 TIERS" title="THE RANK SYSTEM" />
           <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
             Every player starts as <span style={{ color: '#888880', fontWeight: 600 }}>Novis</span>. Play games, earn points, and climb through Gangsa, Perak, and Emas tiers. Each tier has its own card theme.
           </p>
@@ -221,9 +221,9 @@ export default function GuidePage() {
           {/* Tier groups */}
           {[
             { tier: 'Novis',  color: '#888880', desc: 'New players. No card customisation yet — unlock your card by playing your first game.' },
-            { tier: 'Gangsa', color: '#cd7f32', desc: 'Bronze tier. You\'ve played and your card is unlocked. Build up stats and start climbing.' },
-            { tier: 'Perak',  color: '#c0c0c0', desc: 'Silver tier. Consistent performers. Your card reflects real skill at this point.' },
-            { tier: 'Emas',   color: '#FFD700', desc: 'Gold tier. Top of the ladder. Near-max stats and the coveted gold card theme.' },
+            { tier: 'Gangsa', color: '#cd7f32', desc: 'Bronze tier (31–330 pts). You\'ve played and your card is unlocked. Build up stats and start climbing.' },
+            { tier: 'Perak',  color: '#c0c0c0', desc: 'Silver tier (331–630 pts). Consistent performers. Your card reflects real skill at this point.' },
+            { tier: 'Emas',   color: '#FFD700', desc: 'Gold tier (631–930 pts). Top of the ladder. Near-max stats and the coveted gold card theme.' },
           ].map(group => {
             const groupRanks = RANKS.filter(r =>
               group.tier === 'Novis' ? r.name === 'Novis' : r.name.startsWith(group.tier)
