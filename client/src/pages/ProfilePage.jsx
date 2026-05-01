@@ -227,6 +227,7 @@ export default function ProfilePage() {
   const [saveMsg, setSaveMsg] = useState('');
   const [upcomingGames, setUpcomingGames] = useState([]);
   const [recentGames, setRecentGames] = useState([]);
+  const [deletedGameCount, setDeletedGameCount] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -308,37 +309,52 @@ export default function ProfilePage() {
   };
 
   const fetchCard = async () => {
+    // Try to recompute from game_ratings (admin-readable; user may get empty due to RLS)
     const { data: gameRatings } = await supabase
       .from('game_ratings')
       .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
       .eq('user_id', user.id);
 
-    const stats = calculateCardStats(gameRatings || []);
-    setCardStats(stats);
-
-    await supabase.from('player_cards').upsert({
-      user_id: user.id,
-      pac: stats.pac, sho: stats.sho, pas: stats.pas,
-      dri: stats.dri, def: stats.def, phy: stats.phy,
-      overall: stats.overall,
-    });
+    if (gameRatings && gameRatings.length > 0) {
+      const stats = calculateCardStats(gameRatings);
+      setCardStats(stats);
+      await supabase.from('player_cards').upsert({
+        user_id: user.id,
+        pac: stats.pac, sho: stats.sho, pas: stats.pas,
+        dri: stats.dri, def: stats.def, phy: stats.phy,
+        overall: stats.overall,
+      });
+    } else {
+      // Fall back to player_cards (written by the admin's rating submission)
+      const { data: cardData } = await supabase
+        .from('player_cards')
+        .select('pac, sho, pas, dri, def, phy, overall')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (cardData && (cardData.pac > 30 || cardData.overall > 30)) {
+        setCardStats(cardData);
+      }
+    }
   };
 
   const fetchGames = async () => {
-    const today = new Date().toISOString().split('T')[0];
     const { data: playerData, error: playerError } = await supabase
       .from('game_players').select('id, game_id').eq('user_id', user.id);
     if (playerError || !playerData || playerData.length === 0) return;
-    // Sync games_played in local state from actual game_players count
-    setProfile(prev => prev ? { ...prev, games_played: playerData.length } : prev);
     const gameIds = playerData.map(p => p.game_id);
     const { data: gamesData, error: gamesError } = await supabase
       .from('games').select('id, title, area, date, time, format, price, fields(name)').in('id', gameIds);
-    if (gamesError || !gamesData) return;
+    if (gamesError) return;
+    const allGames = gamesData || [];
     const merged = playerData.map(p => ({
       id: p.id,
-      games: gamesData.find(g => g.id === p.game_id) || null
-    })).filter(e => e.games !== null);
+      games: allGames.find(g => g.id === p.game_id) || null
+    }));
+    const valid = merged.filter(e => e.games !== null);
+    const orphaned = merged.length - valid.length;
+    setDeletedGameCount(orphaned);
+    // Sync games_played from valid game count (games that still exist)
+    setProfile(prev => prev ? { ...prev, games_played: playerData.length } : prev);
     const now = new Date();
     const isUpcoming = (g) => {
       const [year, month, day] = g.date.split('-').map(Number);
@@ -347,8 +363,8 @@ export default function ProfilePage() {
       const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
       return now < gameStart;
     };
-    setUpcomingGames(merged.filter(e => isUpcoming(e.games)).sort((a, b) => a.games.date.localeCompare(b.games.date) || a.games.time.localeCompare(b.games.time)));
-    setRecentGames(merged.filter(e => !isUpcoming(e.games)).sort((a, b) => b.games.date.localeCompare(a.games.date) || b.games.time.localeCompare(a.games.time)));
+    setUpcomingGames(valid.filter(e => isUpcoming(e.games)).sort((a, b) => a.games.date.localeCompare(b.games.date) || a.games.time.localeCompare(b.games.time)));
+    setRecentGames(valid.filter(e => !isUpcoming(e.games)).sort((a, b) => b.games.date.localeCompare(a.games.date) || b.games.time.localeCompare(a.games.time)));
   };
 
   const handleAvatarUpload = async (e) => {
@@ -789,25 +805,36 @@ export default function ProfilePage() {
 
         {/* Past Games */}
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Past Games</div>
-          {recentGames.length === 0 ? (
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Past Games</span>
+            {recentGames.length > 0 && (
+              <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700 }}>
+                {recentGames.length}
+              </span>
+            )}
+          </div>
+          {recentGames.length === 0 && deletedGameCount === 0 && (
             <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>No past games yet.</div>
-          ) : (
-            recentGames.map((entry, i) => (
-              <div key={entry.id} style={{
-                padding: '12px 18px',
-                borderBottom: i < recentGames.length - 1 ? '1px solid var(--border)' : 'none',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.65
-              }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.games?.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text)' }}>📍 {entry.games?.area} · {entry.games?.date}</div>
-                </div>
-                <span style={{ background: 'rgba(240,157,81,0.1)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", flexShrink: 0, marginLeft: 8 }}>
-                  {entry.games?.format}
-                </span>
+          )}
+          {recentGames.map((entry, i) => (
+            <div key={entry.id} style={{
+              padding: '12px 18px',
+              borderBottom: i < recentGames.length - 1 || deletedGameCount > 0 ? '1px solid var(--border)' : 'none',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.65
+            }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.games?.title}</div>
+                <div style={{ fontSize: 12, color: 'var(--text)' }}>📍 {entry.games?.area} · {entry.games?.date}</div>
               </div>
-            ))
+              <span style={{ background: 'rgba(240,157,81,0.1)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", flexShrink: 0, marginLeft: 8 }}>
+                {entry.games?.format}
+              </span>
+            </div>
+          ))}
+          {deletedGameCount > 0 && (
+            <div style={{ padding: '12px 18px', fontSize: 12, color: 'var(--muted)', textAlign: 'center', fontFamily: "'Space Mono'" }}>
+              + {deletedGameCount} game{deletedGameCount !== 1 ? 's' : ''} no longer available
+            </div>
           )}
         </div>
 
