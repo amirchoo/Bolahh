@@ -10,6 +10,7 @@ serve(async (req) => {
 
     const status      = params.get('status');
     const referenceNo = params.get('order_id');
+    const billCode    = params.get('billcode') ?? params.get('refno');
 
     if (status !== '1' || !referenceNo) return new Response('OK');
 
@@ -53,6 +54,16 @@ serve(async (req) => {
       description:  `Wallet topup RM${amount} [${referenceNo}]`,
       balance_after: newBalance,
     });
+
+    // Clean up the pending placeholder created by create-toyyibpay-bill
+    if (billCode) {
+      await supabase
+        .from('wallet_transactions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('type', 'topup_pending')
+        .eq('description', billCode);
+    }
 
     return new Response('OK');
   } catch (err) {
