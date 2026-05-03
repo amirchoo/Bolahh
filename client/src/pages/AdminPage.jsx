@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
@@ -8,6 +8,9 @@ import { LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { IoCheckmarkDoneCircleSharp } from 'react-icons/io5';
 import { MdError, MdOutlineStadium } from 'react-icons/md';
+import FifaCard from '../components/FifaCard';
+import { drawCardImage } from '../lib/cardCanvas';
+import { RANKS } from '../lib/rankUtils';
 
 const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
 
@@ -22,6 +25,56 @@ export default function AdminPage() {
   const [cardBgs, setCardBgs] = useState([]);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [editingField, setEditingField] = useState(null);
+
+  const cardAvatarRef = useRef(null);
+  const [cardForm, setCardForm] = useState({
+    name: 'PLAYER ONE', position: 'Attacker', rank: 'Novis',
+    pac: 72, sho: 68, pas: 75, dri: 70, def: 60, phy: 65,
+    games_played: 0,
+  });
+  const [cardAvatarPreview, setCardAvatarPreview] = useState(null);
+  const [cardDownloading, setCardDownloading] = useState(false);
+
+  const cardOverall = Math.round(
+    [cardForm.pac, cardForm.sho, cardForm.pas, cardForm.dri, cardForm.def, cardForm.phy]
+      .reduce((a, b) => a + b, 0) / 6
+  );
+
+  const CARD_STAT_FIELDS = [
+    { key: 'pac', label: 'PAC' }, { key: 'sho', label: 'SHO' },
+    { key: 'pas', label: 'PAS' }, { key: 'dri', label: 'DRI' },
+    { key: 'def', label: 'DEF' }, { key: 'phy', label: 'PHY' },
+  ];
+
+  const handleCardAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (cardAvatarPreview) URL.revokeObjectURL(cardAvatarPreview);
+    setCardAvatarPreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
+
+  const handleDownloadCard = async (fmt = 'png') => {
+    setCardDownloading(true);
+    try {
+      const profile = {
+        name: cardForm.name || 'PLAYER',
+        position: cardForm.position,
+        avatar_url: cardAvatarPreview,
+        games_played: cardForm.games_played,
+        total_points: cardOverall,
+      };
+      const stats = { pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy };
+      const canvas = await drawCardImage({ profile, cardStats: stats, rank: cardForm.rank });
+      const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL(mime, 0.92);
+      a.download = `bolahh-promo-${(cardForm.name || 'card').toLowerCase().replace(/\s+/g, '-')}.${fmt}`;
+      a.click();
+    } finally {
+      setCardDownloading(false);
+    }
+  };
 
   const [fieldForm, setFieldForm] = useState({
     name: '', area: '', address: '', field_rules: '', images: [],
@@ -145,8 +198,9 @@ export default function AdminPage() {
   const sectionCard = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 20 };
 
   const TABS = [
-    { key: 'fields', label: 'Fields' },
-    { key: 'backgrounds', label: 'Card BG' },
+    { key: 'fields',      label: 'Fields'      },
+    { key: 'backgrounds', label: 'Card BG'     },
+    { key: 'cardmaker',   label: 'Card Maker'  },
   ];
 
   return (
@@ -383,6 +437,150 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── CARD MAKER TAB ── */}
+        {activeTab === 'cardmaker' && (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 24, alignItems: 'start' }}>
+
+              {/* Controls */}
+              <div style={sectionCard}>
+                <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 20 }}>CARD SETTINGS</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>PLAYER NAME</label>
+                      <input
+                        placeholder="e.g. AMIR HAZIF"
+                        value={cardForm.name}
+                        onChange={e => setCardForm({ ...cardForm, name: e.target.value.toUpperCase() })}
+                        style={{ textTransform: 'uppercase' }}
+                      />
+                    </div>
+                    <div style={{ flex: '0 0 130px' }}>
+                      <label style={labelStyle}>POSITION</label>
+                      <select value={cardForm.position} onChange={e => setCardForm({ ...cardForm, position: e.target.value })}>
+                        {['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'].map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>RANK (controls card colour)</label>
+                    <select value={cardForm.rank} onChange={e => setCardForm({ ...cardForm, rank: e.target.value })}>
+                      {RANKS.map(r => <option key={r.name} value={r.name}>{r.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>AVATAR</label>
+                    <input type="file" ref={cardAvatarRef} accept="image/*" onChange={handleCardAvatarChange} style={{ display: 'none' }} />
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      {cardAvatarPreview && (
+                        <img src={cardAvatarPreview} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)', flexShrink: 0 }} />
+                      )}
+                      <button
+                        onClick={() => cardAvatarRef.current?.click()}
+                        style={{ background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px', fontSize: 13 }}
+                      >
+                        {cardAvatarPreview ? 'Change Avatar' : '+ Upload Avatar'}
+                      </button>
+                      {cardAvatarPreview && (
+                        <button
+                          onClick={() => { URL.revokeObjectURL(cardAvatarPreview); setCardAvatarPreview(null); }}
+                          style={{ background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}
+                        >Remove</button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>STATS</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {CARD_STAT_FIELDS.map(({ key, label }) => (
+                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 32, fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1 }}>{label}</span>
+                          <input
+                            type="range" min={30} max={99}
+                            value={cardForm[key]}
+                            onChange={e => setCardForm({ ...cardForm, [key]: parseInt(e.target.value) })}
+                            style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                          />
+                          <span style={{ width: 28, fontFamily: "'Space Mono'", fontSize: 14, fontWeight: 700, color: 'var(--accent)', textAlign: 'right' }}>
+                            {cardForm[key]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>GAMES PLAYED</label>
+                    <input
+                      type="number" min={0}
+                      value={cardForm.games_played}
+                      onChange={e => setCardForm({ ...cardForm, games_played: Math.max(0, parseInt(e.target.value) || 0) })}
+                      style={{ maxWidth: 120 }}
+                    />
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Preview + Download */}
+              <div style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+                <div style={{ ...sectionCard, padding: 20, textAlign: 'center', marginBottom: 0 }}>
+                  <div style={{ fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>LIVE PREVIEW</div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <FifaCard
+                      profile={{
+                        name: cardForm.name || 'PLAYER',
+                        position: cardForm.position,
+                        avatar_url: cardAvatarPreview,
+                        games_played: cardForm.games_played,
+                        total_points: cardOverall,
+                      }}
+                      cardStats={{ pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy }}
+                      rank={cardForm.rank}
+                    />
+                  </div>
+                  <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
+                    OVR {cardOverall} · {cardForm.rank}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                  <button
+                    onClick={() => handleDownloadCard('png')}
+                    disabled={cardDownloading}
+                    style={{
+                      flex: 1, padding: '11px 0', background: 'var(--accent)', color: '#fff',
+                      border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13,
+                      opacity: cardDownloading ? 0.6 : 1, cursor: cardDownloading ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {cardDownloading ? 'Generating…' : 'Download PNG'}
+                  </button>
+                  <button
+                    onClick={() => handleDownloadCard('jpg')}
+                    disabled={cardDownloading}
+                    style={{
+                      padding: '11px 16px', background: 'var(--card2)', color: 'var(--text)',
+                      border: '1px solid var(--border)', borderRadius: 10, fontWeight: 700, fontSize: 13,
+                      opacity: cardDownloading ? 0.6 : 1, cursor: cardDownloading ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    JPG
+                  </button>
+                </div>
+              </div>
+
+            </div>
           </div>
         )}
 

@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { IconLoading } from '../components/Icons';
-import { LogOut as IconLogout,ClipboardList as IconManager} from 'lucide-react';
+import { LogOut as IconLogout, ClipboardList as IconManager, ShieldCheck as IconAdmin } from 'lucide-react';
 import { IoFootballOutline as IconBall} from 'react-icons/io5';
 import { AiOutlineUser as IconProfile } from 'react-icons/ai';
 import { GiSoccerKick as IconGames} from "react-icons/gi";
@@ -12,7 +12,7 @@ import { GiSoccerKick as IconGames} from "react-icons/gi";
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -45,16 +45,19 @@ export default function Navbar() {
         >
           <span style={{
             fontFamily: "'Bebas Neue'", fontSize: 20,
-            letterSpacing: 3, color: 'var(--accent)'
-          }}>BOLAHH</span>
+            letterSpacing: 3,
+          }}>
+            <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
+          </span>
         </div>
 
         {/* Nav links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {[
-            { path: '/home', label: 'Games', icon :<IconGames size={22} /> },
+            { path: '/home', label: 'Games', icon: <IconGames size={22} /> },
             { path: '/profile', label: 'Profile', icon: <IconProfile size={20} /> },
-            ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon:<IconManager size={20} />}] : []),
+            ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon: <IconManager size={20} /> }] : []),
+            ...(isSuperAdmin ? [{ path: '/admin', label: 'Admin', icon: <IconAdmin size={20} /> }] : []),
           ].map(({ path, label, icon }) => (
             <button
               key={path}
