@@ -10,6 +10,7 @@ import { MdAccessTime } from "react-icons/md";
 import { FaRankingStar } from "react-icons/fa6";
 import { TbPlayCard7Filled } from 'react-icons/tb';
 import { IoWallet } from 'react-icons/io5';
+import { FaInstagram } from 'react-icons/fa';
 
 
 
@@ -381,7 +382,9 @@ function HomeFooter() {
 
         {/* Brand */}
         <div>
-          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3, color: 'var(--accent)', marginBottom: 6 }}>BOLAHH</div>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3, marginBottom: 6 }}>
+            <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
+          </div>
           <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, maxWidth: 220 }}>
             Malaysia's futsal booking and progression platform.
           </p>
@@ -436,6 +439,30 @@ function HomeFooter() {
                   onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
                 >{link.label}</button>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: 'var(--accent)', letterSpacing: 2, marginBottom: 10 }}>CONTACT US</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <a
+                href="https://instagram.com/bolahhmy"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--muted)', fontSize: 12, fontFamily: "'DM Sans'", textDecoration: 'none', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+              >
+                <FaInstagram size={15} />
+              </a>
+              <a
+                href="mailto:admin@bolahh.com"
+                style={{ color: 'var(--muted)', fontSize: 12, fontFamily: "'DM Sans'", textDecoration: 'none', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+              >
+                admin@bolahh.com
+              </a>
             </div>
           </div>
         </div>

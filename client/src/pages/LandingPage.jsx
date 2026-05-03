@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FaUserFriends } from 'react-icons/fa';
+import { FaUserFriends, FaInstagram } from 'react-icons/fa';
 import { IoMdFootball } from 'react-icons/io';
 import { TbPlayCard7Filled } from 'react-icons/tb';
 import { useNavigate } from 'react-router-dom';
@@ -253,7 +253,9 @@ export default function LandingPage() {
         padding: '0 24px', height: 64,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 3, color: '#F09D51' }}>BOLAHH</div>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 3 }}>
+          <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
+        </div>
         <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           <span className="nav-link" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>How It Works</span>
           <span className="nav-link" onClick={() => document.getElementById('ranks')?.scrollIntoView({ behavior: 'smooth' })}>Ranks</span>
@@ -554,7 +556,7 @@ export default function LandingPage() {
           <div style={{ flex:1, minWidth:260 }}>
             <div className={`reveal ${cardVisible ? 'visible' : ''}`} style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>YOUR IDENTITY</div>
             <h2 className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-1`} style={{ fontFamily:"'Bebas Neue'", fontSize:48, letterSpacing:3, color:'#e8e9eb', lineHeight:1, marginBottom:20 }}>
-              YOUR Bolahh<br />PLAYER CARD
+              YOUR <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>o</span>lahh</span><br />PLAYER CARD
             </h2>
             <p className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-2`} style={{ fontSize:15, color:'rgba(232,233,235,0.55)', lineHeight:1.8, fontFamily:"'DM Sans'", marginBottom:24 }}>
               Every player gets a card that reflects their rank tier. Your 6 stats — PAC, SHO, PAS, DRI, DEF and PHY — are rated by the organiser after each game and build your OVR.
@@ -640,7 +642,29 @@ export default function LandingPage() {
         display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12,
         background:'#0e0f10'
       }}>
-        <div style={{ fontFamily:"'Bebas Neue'", fontSize:22, letterSpacing:3, color:'rgba(240,157,81,0.6)' }}>BOLAHH</div>
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <div style={{ fontFamily:"'Bebas Neue'", fontSize:22, letterSpacing:3 }}>
+            <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
+          </div>
+          <a
+            href="https://instagram.com/bolahhmy"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color:'rgba(232,233,235,0.45)', textDecoration:'none', lineHeight:1, transition:'color 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.color='#F09D51'}
+            onMouseLeave={e => e.currentTarget.style.color='rgba(232,233,235,0.45)'}
+          >
+            <FaInstagram size={16} />
+          </a>
+          <a
+            href="mailto:admin@bolahh.com"
+            style={{ color:'rgba(232,233,235,0.35)', fontSize:11, fontFamily:"'DM Sans'", textDecoration:'none', transition:'color 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.color='#F09D51'}
+            onMouseLeave={e => e.currentTarget.style.color='rgba(232,233,235,0.35)'}
+          >
+            admin@bolahh.com
+          </a>
+        </div>
         <div style={{ fontSize:12, color:'rgba(232,233,235,0.25)', fontFamily:"'DM Sans'" }}>© 2026 Bolahh. All rights reserved.</div>
         <div style={{ display:'flex', gap:20 }}>
           <span className="nav-link" onClick={() => navigate('/login')}>Login</span>

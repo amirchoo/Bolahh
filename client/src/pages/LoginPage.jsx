@@ -119,8 +119,8 @@ export default function LoginPage() {
             <>
               <div onClick={() => navigate('/')}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 32, cursor: 'pointer' }}>
-                <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3, color: 'var(--accent)' }}>
-                  BOLAHH
+                <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3 }}>
+                  <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
                 </span>
               </div>
 
@@ -173,8 +173,8 @@ export default function LoginPage() {
 
         <div onClick={() => navigate('/')}
           style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 32, cursor: 'pointer' }}>
-          <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3, color: 'var(--accent)' }}>
-            BOLAHH
+          <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3 }}>
+            <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
           </span>
         </div>
 
