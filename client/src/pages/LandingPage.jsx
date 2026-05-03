@@ -25,18 +25,18 @@ const RANKS = [
   { name: 'Emas I',     color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', ovr: '95–99' },
 ];
 
-// [PAC, SHO, PAS, DRI, DEF, PHY]
+// [PAC, SHO, PAS, DRI, DEF, PHY] — each row averages to an OVR within its rank's range
 const RANK_SAMPLE_STATS = [
   null,                          // Novis — locked card
-  [38, 34, 33, 40, 30, 37],     // Gangsa III
-  [45, 41, 40, 48, 37, 44],     // Gangsa II
-  [52, 48, 47, 55, 43, 51],     // Gangsa I
-  [59, 55, 53, 62, 50, 58],     // Perak III
-  [66, 62, 60, 69, 57, 65],     // Perak II
-  [73, 69, 67, 76, 63, 72],     // Perak I
-  [80, 76, 74, 83, 70, 79],     // Emas III
-  [87, 83, 81, 90, 77, 86],     // Emas II
-  [92, 89, 87, 96, 83, 92],     // Emas I
+  [36, 33, 34, 38, 32, 37],     // Gangsa III  → OVR 35
+  [44, 42, 43, 47, 40, 46],     // Gangsa II   → OVR 44
+  [56, 53, 54, 58, 51, 58],     // Gangsa I    → OVR 55
+  [65, 63, 64, 67, 62, 66],     // Perak III   → OVR 65
+  [73, 71, 72, 75, 69, 74],     // Perak II    → OVR 72
+  [78, 75, 76, 80, 73, 78],     // Perak I     → OVR 77
+  [83, 80, 81, 85, 78, 83],     // Emas III    → OVR 82
+  [91, 88, 89, 93, 86, 91],     // Emas II     → OVR 90
+  [97, 95, 96, 99, 94, 99],     // Emas I      → OVR 97
 ];
 
 const STEPS = [
@@ -56,7 +56,7 @@ const FEATURES = [
 
 // Inline demo card (no external imports needed)
 function DemoCard({ floatOffset }) {
-  const stats = { pac: 88, sho: 82, pas: 79, dri: 91, def: 74, phy: 85 };
+  const stats = { pac: 97, sho: 95, pas: 96, dri: 99, def: 94, phy: 99 };
   const overall = Math.round(Object.values(stats).reduce((a,b)=>a+b,0)/6);
   return (
     <div style={{
@@ -85,7 +85,7 @@ function DemoCard({ floatOffset }) {
       <div style={{ position:'absolute', top:160, left:0, right:0, textAlign:'center', zIndex:3, fontFamily:"'Bebas Neue'", fontSize:17, color:'#3a2a00', letterSpacing:1.5 }}>CHONALDO7</div>
       <div style={{ position:'absolute', top:182, left:16, right:16, height:1, background:'rgba(255,215,0,0.4)', zIndex:3 }} />
       <div style={{ position:'absolute', top:190, left:10, right:10, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:4, zIndex:3 }}>
-        {[['pac',88],['sho',82],['pas',79],['dri',91],['def',74],['phy',85]].map(([k,v]) => (
+        {Object.entries(stats).map(([k,v]) => (
           <div key={k} style={{ background:'rgba(0,0,0,0.2)', borderRadius:5, padding:'4px', textAlign:'center' }}>
             <div style={{ fontFamily:"'Space Mono'", fontSize:14, fontWeight:700, color:'#3a2a00', lineHeight:1 }}>{v}</div>
             <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00', letterSpacing:0.5, marginTop:1 }}>{k.toUpperCase()}</div>
@@ -94,7 +94,7 @@ function DemoCard({ floatOffset }) {
       </div>
       <div style={{ position:'absolute', bottom:8, left:10, right:10, display:'flex', justifyContent:'space-between', zIndex:3, borderTop:'1px solid rgba(255,215,0,0.4)', paddingTop:5 }}>
         <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00' }}><span style={{ fontWeight:700, color:'#3a2a00' }}>12</span> GAMES PLAYED</div>
-        <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00' }}><span style={{ fontWeight:700, color:'#3a2a00' }}>880</span> POINTS</div>
+        <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00' }}><span style={{ fontWeight:700, color:'#3a2a00' }}>{overall}</span> OVR</div>
       </div>
     </div>
   );
@@ -146,7 +146,7 @@ export default function LandingPage() {
     Promise.all([
       supabase.from('fields').select('*', { count: 'exact', head: true }),
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('games').select('*', { count: 'exact', head: true }),
+      supabase.from('games').select('*', { count: 'exact', head: true }).lt('date', new Date().toISOString().split('T')[0]),
     ]).then(([fields, profiles, games]) => {
       setHeroStats({
         courts: fields.count ?? 0,
@@ -372,7 +372,7 @@ export default function LandingPage() {
               borderRadius:12, padding:'8px 14px', fontSize:12,
               fontFamily:"'Space Mono'", color:'#F09D51', fontWeight:700,
               transform:`translateY(${floatOffset * -0.5}px)`
-            }}>880 PTS</div>
+            }}>97 OVR</div>
           </div>
         </div>
       </section>
