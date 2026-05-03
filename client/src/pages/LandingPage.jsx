@@ -13,16 +13,16 @@ import { LiaUserFriendsSolid } from "react-icons/lia";
 import { supabase } from '../lib/supabaseClient';
 
 const RANKS = [
-  { name: 'Novis',      color: '#7088a0', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    pts: '0–30'    },
-  { name: 'Gangsa III', color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '31–130'  },
-  { name: 'Gangsa II',  color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '131–230' },
-  { name: 'Gangsa I',   color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', pts: '231–330' },
-  { name: 'Perak III',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '331–430' },
-  { name: 'Perak II',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '431–530' },
-  { name: 'Perak I',    color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', pts: '531–630' },
-  { name: 'Emas III',   color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '631–730' },
-  { name: 'Emas II',    color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '731–830' },
-  { name: 'Emas I',     color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', pts: '831–930' },
+  { name: 'Novis',      color: '#7088a0', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    ovr: '0–30'  },
+  { name: 'Gangsa III', color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', ovr: '31–39' },
+  { name: 'Gangsa II',  color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', ovr: '40–49' },
+  { name: 'Gangsa I',   color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', ovr: '50–60' },
+  { name: 'Perak III',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', ovr: '61–69' },
+  { name: 'Perak II',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', ovr: '70–74' },
+  { name: 'Perak I',    color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', ovr: '75–79' },
+  { name: 'Emas III',   color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', ovr: '80–85' },
+  { name: 'Emas II',    color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', ovr: '86–94' },
+  { name: 'Emas I',     color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', ovr: '95–99' },
 ];
 
 // [PAC, SHO, PAS, DRI, DEF, PHY]
@@ -42,7 +42,7 @@ const RANK_SAMPLE_STATS = [
 const STEPS = [
   { num: '01', icon: <IoSearchCircleOutline />, title: 'Find a Game', desc: 'Browse upcoming futsal sessions near you. Filter by area, format, and price.' },
   { num: '02', icon: <IoWallet/>, title: 'Top Up & Join', desc: 'Add funds to your Bolahh wallet and book your slot in one tap. No payment hassle every time.' },
-  { num: '03', icon: <FaRankingStar />, title: 'Play & Get Rated', desc: 'After the match, the organiser rates your performance. Earn points, climb the ranks.' },
+  { num: '03', icon: <FaRankingStar />, title: 'Play & Get Rated', desc: 'After the match, the organiser rates your stats. Your OVR updates and pushes you up the rank ladder.' },
 ];
 
 const FEATURES = [
@@ -430,7 +430,7 @@ export default function LandingPage() {
             <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>PROGRESSION</div>
             <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb', marginBottom:12 }}>THE RANK SYSTEM</h2>
             <p style={{ fontSize:15, color:'rgba(232,233,235,0.5)', fontFamily:"'DM Sans'", maxWidth:480, margin:'0 auto' }}>
-              Every goal, assist and good play earns you points. Accumulate enough to climb through all 10 tiers.
+              Get rated after every game. Your stats build your OVR and determine which of the 10 tiers you sit in.
             </p>
           </div>
 
@@ -454,7 +454,7 @@ export default function LandingPage() {
               >
                 <div style={{ width:10, height:10, borderRadius:'50%', background:rank.color, boxShadow:`0 0 8px ${rank.color}` }} />
                 <div style={{ fontFamily:"'Bebas Neue'", fontSize:13, letterSpacing:1, color: activeRank === i ? (rank.name.startsWith('Emas') ? '#3a2a00' : '#e8e9eb') : rank.color }}>{rank.name}</div>
-                <div style={{ fontFamily:"'Space Mono'", fontSize:9, color: activeRank === i ? 'rgba(0,0,0,0.5)' : 'rgba(232,233,235,0.35)', fontWeight:700 }}>{rank.pts}</div>
+                <div style={{ fontFamily:"'Space Mono'", fontSize:9, color: activeRank === i ? 'rgba(0,0,0,0.5)' : 'rgba(232,233,235,0.35)', fontWeight:700 }}>{rank.ovr}</div>
               </div>
             ))}
           </div>
@@ -525,9 +525,9 @@ export default function LandingPage() {
                         </div>
                       ))}
                     </div>
-                    {/* Bottom pts */}
+                    {/* Bottom OVR range */}
                     <div style={{ position:'absolute', bottom:6, left:8, right:8, borderTop:`1px solid ${isNovis ? '#2a2a2a' : rank.border + '44'}`, paddingTop:4, zIndex:3, display:'flex', justifyContent:'center' }}>
-                      <span style={{ fontFamily:"'Space Mono'", fontSize:7, color: isNovis ? '#444' : tcMuted, fontWeight:700 }}>{rank.pts} PTS</span>
+                      <span style={{ fontFamily:"'Space Mono'", fontSize:7, color: isNovis ? '#444' : tcMuted, fontWeight:700 }}>{rank.ovr} OVR</span>
                     </div>
                   </div>
                 );
@@ -557,13 +557,13 @@ export default function LandingPage() {
               YOUR Bolahh<br />PLAYER CARD
             </h2>
             <p className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-2`} style={{ fontSize:15, color:'rgba(232,233,235,0.55)', lineHeight:1.8, fontFamily:"'DM Sans'", marginBottom:24 }}>
-              Every player gets a card that reflects their rank tier. Distribute your earned points across PAC, SHO, PAS, DRI, DEF and PHY — your call how you build your identity on the pitch.
+              Every player gets a card that reflects their rank tier. Your 6 stats — PAC, SHO, PAS, DRI, DEF and PHY — are rated by the organiser after each game and build your OVR.
             </p>
             <div className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-3`} style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
                 [<GiUpgrade />,'Card theme upgrades with your rank from Novis to Emas'],
                 [<IoStatsChart />,'Get card based on your true potential'],
-                [<MdOutlineAutoMode />,'Auto-adjusts if you lose points after a bad game'],
+                [<MdOutlineAutoMode />,'OVR updates after every rated game — up or down'],
                 [<LiaUserFriendsSolid />,'Friends can view your card on your profile'],
               ].map(([icon,text]) => (
                 <div key={text} style={{ display:'flex', alignItems:'flex-start', gap:12, fontSize:13, color:'rgba(232,233,235,0.6)', fontFamily:"'DM Sans'" }}>
@@ -613,7 +613,7 @@ export default function LandingPage() {
             START YOUR<br /><span className="shimmer-text">JOURNEY</span><br />TODAY
           </h2>
           <p style={{ fontSize:15, color:'rgba(232,233,235,0.5)', lineHeight:1.7, fontFamily:"'DM Sans'", marginBottom:36 }}>
-            Join Malaysia's futsal community. Book your first game, earn your first points, and start climbing the ranks.
+            Join Malaysia's futsal community. Book your first game, get rated, and start climbing the ranks.
           </p>
           <div style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap' }}>
             <button className="cta-btn" onClick={() => navigate('/signup')} style={{
