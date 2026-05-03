@@ -7,26 +7,12 @@ import { FaRankingStar } from 'react-icons/fa6';
 import { TbPlayCard7Filled } from 'react-icons/tb';
 import { IoSearchCircleOutline } from 'react-icons/io5';
 import { GiSoccerBall } from 'react-icons/gi';
-import { FaShieldAlt, FaRunning, FaHandshake, FaSmile, FaBullseye } from 'react-icons/fa';
 
 const SECTIONS = [
   { id: 'flow',   label: 'How It Works' },
-  { id: 'points', label: 'Points'       },
   { id: 'ranks',  label: 'Ranks'        },
   { id: 'card',   label: 'Bolahh Card'  },
   { id: 'wallet', label: 'Wallet'       },
-];
-
-const POINT_EVENTS = [
-  { icon: <GiSoccerBall />, label: 'Attend a match',        color: '#4ade80', note: 'Automatic for all players' },
-  { icon: <GiSoccerBall />, label: 'Score a goal',          color: '#fbbf24' },
-  { icon: <FaHandshake />,  label: 'Assist a goal',         color: '#60a5fa' },
-  { icon: <FaShieldAlt />,  label: 'Defensive play',        color: '#a78bfa' },
-  { icon: <FaRunning />,    label: 'Dribbling',             color: '#fb923c' },
-  { icon: <FaBullseye />,   label: 'Chance created',        color: '#f472b6' },
-  { icon: <FaSmile />,      label: 'Good manner',           color: '#34d399' },
-  { icon: <FaShieldAlt />,  label: 'Keeping (GK)',          color: '#818cf8' },
-  { icon: <FaRankingStar />,label: 'Admin bonus / penalty', color: '#F09D51', note: 'At admin discretion' },
 ];
 
 const STATS = [
@@ -59,9 +45,8 @@ function getRankColor(name) {
   return '#FFD700';
 }
 
-function rankPts(r) {
-  if (r.maxPoints === Infinity) return `${r.minPoints}–930`;
-  return `${r.minPoints}–${r.maxPoints}`;
+function rankOvr(r) {
+  return `${r.minOvr}–${r.maxOvr}`;
 }
 
 function SectionHead({ id, sup, title }) {
@@ -144,8 +129,8 @@ export default function GuidePage() {
                 desc: 'Head to the field at the scheduled time. Play your match — goals, assists, and good plays all count towards your post-match rating.',
               },
               {
-                num: '04', icon: <FaRankingStar size={22} />, title: 'Get Rated & Earn Points',
-                desc: 'After the match, the organiser rates each player\'s performance. Points are added to your profile and push you up the rank ladder.',
+                num: '04', icon: <FaRankingStar size={22} />, title: 'Get Rated & Build Your OVR',
+                desc: 'After the match, the organiser rates each player\'s stats. Your OVR updates automatically and determines your rank tier.',
               },
             ].map((step, i) => (
               <div
@@ -177,53 +162,19 @@ export default function GuidePage() {
 
         {divider}
 
-        {/* ── SECTION 2: POINTS ── */}
-        <section>
-          <SectionHead id="points" sup="PROGRESSION" title="EARNING POINTS" />
-          <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
-            Points are awarded by the game organiser after every match based on your performance. Accumulate enough to climb through all 10 ranks.
-          </p>
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
-            {POINT_EVENTS.map((ev, i) => (
-              <div
-                key={ev.label}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '13px 18px',
-                  borderBottom: i < POINT_EVENTS.length - 1 ? '1px solid var(--border)' : 'none',
-                }}
-              >
-                <span style={{ color: ev.color, fontSize: 16, flexShrink: 0 }}>{ev.icon}</span>
-                <span style={{ flex: 1, color: 'var(--text)', fontSize: 13 }}>
-                  {ev.label}
-                  {ev.note && <span style={{ color: 'var(--muted)', fontSize: 11, marginLeft: 8 }}>— {ev.note}</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div style={{
-            marginTop: 12, background: 'rgba(240,157,81,0.06)', border: '1px solid rgba(240,157,81,0.15)',
-            borderRadius: 10, padding: '10px 16px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.6,
-          }}>
-            Points accumulate across all your games. The organiser has full discretion on the rating — play well, behave well, and the points will follow.
-          </div>
-        </section>
-
-        {divider}
-
-        {/* ── SECTION 3: RANKS ── */}
+        {/* ── SECTION 2: RANKS ── */}
         <section>
           <SectionHead id="ranks" sup="10 TIERS" title="THE RANK SYSTEM" />
           <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
-            Every player starts as <span style={{ color: '#7088a0', fontWeight: 600 }}>Novis</span>. Play games, earn points, and climb through Gangsa, Perak, and Emas tiers. Each tier has its own card theme.
+            Every player starts as <span style={{ color: '#7088a0', fontWeight: 600 }}>Novis</span>. Get rated after games to build your OVR and climb through Gangsa, Perak, and Emas tiers. Each tier has its own card theme.
           </p>
 
           {/* Tier groups */}
           {[
             { tier: 'Novis',  color: '#7088a0', desc: 'New players. No card customisation yet — unlock your card by playing your first game.' },
-            { tier: 'Gangsa', color: '#cd7f32', desc: 'Bronze tier (31–330 pts). You\'ve played and your card is unlocked. Build up stats and start climbing.' },
-            { tier: 'Perak',  color: '#c0c0c0', desc: 'Silver tier (331–630 pts). Consistent performers. Your card reflects real skill at this point.' },
-            { tier: 'Emas',   color: '#FFD700', desc: 'Gold tier (631–930 pts). Top of the ladder. Near-max stats and the coveted gold card theme.' },
+            { tier: 'Gangsa', color: '#cd7f32', desc: 'Bronze tier (31–60 OVR). You\'ve played and your card is unlocked. Build up your stats and start climbing.' },
+            { tier: 'Perak',  color: '#c0c0c0', desc: 'Silver tier (61–79 OVR). Consistent performers. Your card reflects real skill at this point.' },
+            { tier: 'Emas',   color: '#FFD700', desc: 'Gold tier (80–99 OVR). Top of the ladder. Near-max stats and the coveted gold card theme.' },
           ].map(group => {
             const groupRanks = RANKS.filter(r =>
               group.tier === 'Novis' ? r.name === 'Novis' : r.name.startsWith(group.tier)
@@ -246,7 +197,7 @@ export default function GuidePage() {
                         minWidth: 80,
                       }}>
                         <span style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 1, color: ts.tc }}>{r.name}</span>
-                        <span style={{ fontFamily: "'Space Mono'", fontSize: 9, color: ts.muted, fontWeight: 700 }}>{rankPts(r)} pts</span>
+                        <span style={{ fontFamily: "'Space Mono'", fontSize: 9, color: ts.muted, fontWeight: 700 }}>{rankOvr(r)} OVR</span>
                       </div>
                     );
                   })}
@@ -260,7 +211,7 @@ export default function GuidePage() {
             borderRadius: 12, padding: '14px 18px', fontSize: 13, color: 'var(--muted)', lineHeight: 1.7,
           }}>
             <span style={{ color: 'var(--text)', fontWeight: 600 }}>Note: </span>
-            You must have played at least 1 game to move out of Novis, regardless of points.
+            You must have played at least 1 game to move out of Novis.
           </div>
         </section>
 
