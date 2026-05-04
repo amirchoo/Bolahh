@@ -92,6 +92,12 @@ export default function WalletTopupPage() {
         }
       );
 
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        setError(errBody.error || errBody.message || `Verification failed (${res.status}). Please contact support.`);
+        return;
+      }
+
       const result = await res.json();
       if (result.error) { setError(result.error); return; }
 
