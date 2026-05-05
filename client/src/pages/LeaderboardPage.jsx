@@ -25,22 +25,34 @@ export default function LeaderboardPage() {
 
   const fetchLeaderboard = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('player_cards')
-      .select('pac, sho, pas, dri, def, phy, overall, user_id, profiles(id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at)')
-      .order('overall', { ascending: false });
 
-    if (!error && data) {
-      const enriched = data
-        .filter(r => r.profiles)
-        .map(r => ({
-          ...r.profiles,
-          pac: r.pac, sho: r.sho, pas: r.pas,
-          dri: r.dri, def: r.def, phy: r.phy,
-          overall: r.overall,
-        }));
-      setPlayers(enriched);
-    }
+    // total_points is the authoritative OVR — synced every time a user visits their profile
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points')
+      .gt('total_points', 0)
+      .order('total_points', { ascending: false });
+
+    if (error || !profiles || profiles.length === 0) { setLoading(false); return; }
+
+    const userIds = profiles.map(p => p.id);
+    const { data: cards } = await supabase
+      .from('player_cards')
+      .select('user_id, pac, sho, pas, dri, def, phy')
+      .in('user_id', userIds);
+
+    const cardMap = Object.fromEntries((cards || []).map(c => [c.user_id, c]));
+    const enriched = profiles.map(p => ({
+      ...p,
+      overall: p.total_points,
+      pac: cardMap[p.id]?.pac || 30,
+      sho: cardMap[p.id]?.sho || 30,
+      pas: cardMap[p.id]?.pas || 30,
+      dri: cardMap[p.id]?.dri || 30,
+      def: cardMap[p.id]?.def || 30,
+      phy: cardMap[p.id]?.phy || 30,
+    }));
+    setPlayers(enriched);
     setLoading(false);
   };
 
@@ -193,7 +205,7 @@ export default function LeaderboardPage() {
                     </div>
                     <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
                     {player.games_played > 0 && (
-                      <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{player.games_played}g</div>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{player.games_played} games</div>
                     )}
                   </div>
                 </div>
