@@ -8,9 +8,13 @@ serve(async (req) => {
     const body = await req.text();
     const params = new URLSearchParams(body);
 
-    const status      = params.get('status');
-    const referenceNo = params.get('order_id');
-    const billCode    = params.get('billcode') ?? params.get('refno');
+    const status      = params.get('status_id') ?? params.get('status');
+    // ToyyibPay server-side callback sends our billExternalReferenceNo in 'refno'.
+    // 'order_id' in the callback is ToyyibPay's internal transaction ID, not ours.
+    const referenceNo = params.get('refno') ?? params.get('order_id');
+    const billCode    = params.get('billcode');
+
+    console.log('ToyyibPay callback received:', { status, referenceNo, billCode, body });
 
     if (status !== '1' || !referenceNo) return new Response('OK');
 

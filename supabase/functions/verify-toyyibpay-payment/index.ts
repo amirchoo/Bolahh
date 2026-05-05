@@ -32,7 +32,8 @@ serve(async (req) => {
     const txList = await verifyRes.json();
     console.log('ToyyibPay getBillTransactions response:', JSON.stringify(txList));
 
-    const tx = Array.isArray(txList) ? txList.find((t: any) => t.billpaymentStatus === '1') : null;
+    // Use String() cast — ToyyibPay sometimes returns numeric 1 instead of '1'
+    const tx = Array.isArray(txList) ? txList.find((t: any) => String(t.billpaymentStatus) === '1') : null;
 
     if (!tx) {
       return new Response(JSON.stringify({ error: 'Payment not confirmed by ToyyibPay' }), {
