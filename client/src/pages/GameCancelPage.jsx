@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
 import { RiRefund2Line } from 'react-icons/ri';
-import { IoWarningOutline } from 'react-icons/io5';
+import { IoWarningOutline, IoCheckmarkCircle } from 'react-icons/io5';
 import { MdOutlineCancel } from 'react-icons/md';
 import { MdDateRange, MdAccessTime } from 'react-icons/md';
 import { FaLocationDot } from 'react-icons/fa6';
@@ -138,7 +138,7 @@ export default function GameCancelPage() {
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '32px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 16 }}>✓</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><IoCheckmarkCircle size={52} color="#4ade80" /></div>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
             Booking Cancelled
           </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import { IoCheckmark, IoClose } from 'react-icons/io5';
 
 const SUBSCRIPTION_COST = 10;
 
@@ -151,7 +152,7 @@ export default function SubscriptionPage() {
               border: subscribed ? '2px solid #4ade8066' : '2px solid rgba(255,255,255,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 16, color: subscribed ? '#4ade80' : 'var(--muted)',
-            }}>✓</div>
+            }}><IoCheckmark size={18} /></div>
             <div>
               <div style={{
                 fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2,
@@ -200,7 +201,7 @@ export default function SubscriptionPage() {
             borderRadius: 12, padding: '12px 16px', marginBottom: 20,
             color: '#4ade80', fontSize: 14, fontWeight: 600, textAlign: 'center',
           }}>
-            ✓ Verified! RM{SUBSCRIPTION_COST} deducted from your wallet.
+            <IoCheckmark size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Verified! RM{SUBSCRIPTION_COST} deducted from your wallet.
           </div>
         )}
 
@@ -211,7 +212,7 @@ export default function SubscriptionPage() {
             borderRadius: 12, padding: '12px 16px', marginBottom: 20,
             color: 'var(--red)', fontSize: 14,
           }}>
-            ✕ {error}
+            <IoClose size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} /> {error}
           </div>
         )}
 
@@ -234,7 +235,7 @@ export default function SubscriptionPage() {
                 background: '#4a9eff', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 12, color: '#fff', fontWeight: 900,
-              }}>✓</div>
+              }}><IoCheckmark size={12} /></div>
               <span style={{ fontSize: 14, color: 'var(--text)' }}>{b}</span>
             </div>
           ))}
@@ -261,7 +262,7 @@ export default function SubscriptionPage() {
               background: '#4a9eff22', border: '2px solid #4a9eff44',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 26, flexShrink: 0,
-            }}>✓</div>
+            }}><IoCheckmark size={24} /></div>
           </div>
         )}
 
@@ -289,7 +290,7 @@ export default function SubscriptionPage() {
               transition: 'all 0.2s', fontFamily: "'Bebas Neue'",
             }}
           >
-            {processing ? 'PROCESSING...' : balance < SUBSCRIPTION_COST ? 'INSUFFICIENT BALANCE' : 'SUBSCRIBE — RM10/MONTH'}
+            {processing ? 'PROCESSING...' : balance < SUBSCRIPTION_COST ? 'INSUFFICIENT BALANCE' : 'SUBSCRIBE FOR RM10/MONTH'}
           </button>
         )}
 

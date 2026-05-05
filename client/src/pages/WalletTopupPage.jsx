@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import { IoCheckmark, IoClose, IoLockClosed } from 'react-icons/io5';
 
 const TOPUP_OPTIONS = [5, 10, 20, 30, 50, 100];
 
@@ -196,9 +197,10 @@ export default function WalletTopupPage() {
           <div style={{
             background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)',
             borderRadius: 12, padding: '12px 16px', marginBottom: 20,
-            color: '#4ade80', fontSize: 14, fontWeight: 600, textAlign: 'center'
+            color: '#4ade80', fontSize: 14, fontWeight: 600, textAlign: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
           }}>
-            ✓ Topup successful! Your balance has been updated.
+            <IoCheckmark size={16} /> Topup successful! Your balance has been updated.
           </div>
         )}
 
@@ -207,9 +209,10 @@ export default function WalletTopupPage() {
           <div style={{
             background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)',
             borderRadius: 12, padding: '12px 16px', marginBottom: 20,
-            color: 'var(--red)', fontSize: 14, fontWeight: 600
+            color: 'var(--red)', fontSize: 14, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 6
           }}>
-            ✕ {error}
+            <IoClose size={16} /> {error}
           </div>
         )}
 
@@ -274,7 +277,7 @@ export default function WalletTopupPage() {
               borderRadius: 12, padding: '14px 16px', marginBottom: 24,
               display: 'flex', alignItems: 'flex-start', gap: 10
             }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>🔒</span>
+              <IoLockClosed size={18} style={{ flexShrink: 0, color: 'var(--accent)' }} />
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Secure Payment via ToyyibPay</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>

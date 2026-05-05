@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { IoCheckmarkCircle, IoEye, IoEyeOff } from 'react-icons/io5';
+import { GiSoccerBall } from 'react-icons/gi';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -52,7 +54,7 @@ export default function ResetPasswordPage() {
         padding: 24, background: 'var(--bg)'
       }}>
         <div className="fade-up" style={{ ...cardStyle, textAlign: 'center', padding: '48px 36px' }}>
-          <div style={{ fontSize: 56, marginBottom: 20 }}>✅</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}><IoCheckmarkCircle size={56} color="#4ade80" /></div>
           <h2 style={{
             fontFamily: "'Bebas Neue'", fontSize: 32,
             letterSpacing: 2, marginBottom: 10, color: 'var(--text)'
@@ -87,8 +89,8 @@ export default function ResetPasswordPage() {
           <div style={{
             width: 32, height: 32, background: 'var(--accent)',
             borderRadius: 8, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 16
-          }}>⚽</div>
+            justifyContent: 'center',
+          }}><GiSoccerBall size={18} color="#fff" /></div>
           <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3, color: 'var(--accent)' }}>
             BOLAHH
           </span>
@@ -127,7 +129,7 @@ export default function ResetPasswordPage() {
                 background: 'none', border: 'none',
                 color: 'var(--muted)', fontSize: 16, padding: 0
               }}>
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <IoEyeOff size={16} /> : <IoEye size={16} />}
               </button>
             </div>
           </div>

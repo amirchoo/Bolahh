@@ -208,22 +208,28 @@ export function IconShoe({ size = 20, color = 'currentColor', style = {} }) {
   );
 }
 
-// ── STILL EMOJI — replace as you make more ──
-export const IconEmail    = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>📧</span>;
-export const IconCamera   = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>📷</span>;
-export const IconPhoto    = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>📸</span>;
-export const IconEyeShow  = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>👁️</span>;
-export const IconEyeHide  = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>🙈</span>;
-export const IconSuccess  = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>✅</span>;
-export const IconError    = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>❌</span>;
-export const IconSave     = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>💾</span>;
-export const IconRating   = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>🎖️</span>;
-export const IconToilet   = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>🚽</span>;
-export const IconParking  = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>🅿️</span>;
-export const IconShop     = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>🏪</span>;
-export const IconStat     = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>📊</span>;
-export const IconFlash    = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>⚡</span>;
-export const IconParty    = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>🎉</span>;
-export const IconGreen    = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>🟢</span>;
-export const IconRed      = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>🔴</span>;
-export const IconBall     = ({ size = 18 }) => <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>⚽</span>;
+import { IoMail, IoCameraOutline, IoCamera, IoEye, IoEyeOff, IoCheckmarkCircle, IoCloseCircle, IoBarChart, IoFlash, IoEllipse } from 'react-icons/io5';
+import { MdSave } from 'react-icons/md';
+import { LuMedal, LuToilet, LuPartyPopper } from 'react-icons/lu';
+import { FaSquareParking } from 'react-icons/fa6';
+import { CiShop } from 'react-icons/ci';
+import { GiSoccerBall } from 'react-icons/gi';
+
+export const IconEmail    = ({ size = 18, color = 'currentColor' }) => <IoMail size={size} color={color} />;
+export const IconCamera   = ({ size = 18, color = 'currentColor' }) => <IoCameraOutline size={size} color={color} />;
+export const IconPhoto    = ({ size = 18, color = 'currentColor' }) => <IoCamera size={size} color={color} />;
+export const IconEyeShow  = ({ size = 18, color = 'currentColor' }) => <IoEye size={size} color={color} />;
+export const IconEyeHide  = ({ size = 18, color = 'currentColor' }) => <IoEyeOff size={size} color={color} />;
+export const IconSuccess  = ({ size = 18, color = '#4ade80' })       => <IoCheckmarkCircle size={size} color={color} />;
+export const IconError    = ({ size = 18, color = 'var(--red)' })    => <IoCloseCircle size={size} color={color} />;
+export const IconSave     = ({ size = 18, color = 'currentColor' }) => <MdSave size={size} color={color} />;
+export const IconRating   = ({ size = 18, color = 'currentColor' }) => <LuMedal size={size} color={color} />;
+export const IconToilet   = ({ size = 18, color = 'currentColor' }) => <LuToilet size={size} color={color} />;
+export const IconParking  = ({ size = 18, color = 'currentColor' }) => <FaSquareParking size={size} color={color} />;
+export const IconShop     = ({ size = 18, color = 'currentColor' }) => <CiShop size={size} color={color} />;
+export const IconStat     = ({ size = 18, color = 'currentColor' }) => <IoBarChart size={size} color={color} />;
+export const IconFlash    = ({ size = 18, color = 'currentColor' }) => <IoFlash size={size} color={color} />;
+export const IconParty    = ({ size = 18, color = 'currentColor' }) => <LuPartyPopper size={size} color={color} />;
+export const IconGreen    = ({ size = 18 }) => <IoEllipse size={size} color="#22c55e" />;
+export const IconRed      = ({ size = 18 }) => <IoEllipse size={size} color="#ef4444" />;
+export const IconBall     = ({ size = 18, color = 'currentColor' }) => <GiSoccerBall size={size} color={color} />;

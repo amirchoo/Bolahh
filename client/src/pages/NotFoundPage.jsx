@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { GiSoccerBall } from 'react-icons/gi';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
@@ -26,9 +27,10 @@ export default function NotFoundPage() {
             width: 72, height: 72, borderRadius: '50%',
             background: 'rgba(240,157,81,0.1)', border: '2px solid rgba(240,157,81,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 24px', fontSize: 32,
+            margin: '0 auto 24px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            ⚽
+            <GiSoccerBall size={32} color="var(--accent)" />
           </div>
 
           <h1 style={{

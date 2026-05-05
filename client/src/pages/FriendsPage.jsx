@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import { calculateCardStats } from '../lib/cardUtils';
 import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
+import { IoSearch, IoPeople, IoMailOpen, IoCheckmark } from 'react-icons/io5';
 
 
 const POSITION_ABBR = { 'Attacker': 'AT', 'Midfielder': 'MF', 'Defender': 'DF', 'Goalkeeper': 'GK' };
@@ -44,7 +45,7 @@ function FifaCard({ profile, cardStats, rank }) {
           {profile?.name || 'PLAYER'}
         </span>
         {isSubscribed && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff', lineHeight: 1 }}>✓</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, color: '#fff' }}><IoCheckmark size={9} /></span>
         )}
       </div>
       <div style={{ position: 'absolute', top: 182, left: 16, right: 16, height: 1, background: `${theme.border}55`, zIndex: 3 }} />
@@ -211,7 +212,7 @@ export default function FriendsPage() {
   const TABS = [
     { key: 'friends', label: `Friends (${friends.length})` },
     { key: 'requests', label: `Requests${pending.length > 0 ? ` (${pending.length})` : ''}` },
-    { key: 'search', label: '🔍 Find Players' },
+    { key: 'search', label: <><IoSearch size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />Find Players</> },
   ];
 
   const PlayerCard = ({ profile, actions }) => {
@@ -299,7 +300,7 @@ export default function FriendsPage() {
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)' }}><IconLoading size={16} />Loading...</div>
             ) : friends.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>👥</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><IoPeople size={40} color="var(--muted)" /></div>
                 <p style={{ color: 'var(--muted)', fontSize: 14 }}>No friends yet. Use Find Players to add some!</p>
                 <button type="button" onClick={() => setActiveTab('search')} style={{
                   ...btnBase, marginTop: 16, background: 'var(--accent)', color: '#fff', padding: '9px 20px', fontSize: 13
@@ -321,7 +322,7 @@ export default function FriendsPage() {
           <div>
             {pending.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><IoMailOpen size={40} color="var(--muted)" /></div>
                 <p style={{ color: 'var(--muted)', fontSize: 14 }}>No pending friend requests.</p>
               </div>
             ) : (
@@ -364,14 +365,14 @@ export default function FriendsPage() {
 
             {!searching && searchQuery && searchResults.length === 0 && (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><IoSearch size={36} color="var(--muted)" /></div>
                 <p style={{ color: 'var(--muted)', fontSize: 14 }}>No players found for "{searchQuery}"</p>
               </div>
             )}
 
             {!searching && !searchQuery && (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><IoSearch size={36} color="var(--muted)" /></div>
                 <p style={{ color: 'var(--muted)', fontSize: 14 }}>Type a username to search for players</p>
               </div>
             )}
@@ -381,7 +382,7 @@ export default function FriendsPage() {
               return (
                 <PlayerCard key={profile.id} profile={profile} actions={
                   status === 'friends' ? (
-                    <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>✓ Friends</span>
+                    <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}><IoCheckmark size={13} />Friends</span>
                   ) : status === 'sent' ? (
                     <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Pending...</span>
                   ) : status === 'pending' ? (

@@ -1,3 +1,5 @@
+import { IoCameraOutline, IoCheckmark } from 'react-icons/io5';
+
 export const STATS = [
   { key: 'pac', label: 'PAC' },
   { key: 'sho', label: 'SHO' },
@@ -88,7 +90,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
             opacity: 0, transition: 'opacity 0.2s',
           }}>
-            <span style={{ fontSize: 20 }}>📷</span>
+            <IoCameraOutline size={20} />
             {isSubscribed && (
               <span style={{ fontSize: 8, fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 1, background: '#4a9eff', color: '#fff', borderRadius: 3, padding: '2px 5px' }}>GIF</span>
             )}
@@ -107,7 +109,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           {profile?.name || 'PLAYER'}
         </span>
         {isSubscribed && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: isSmall ? 9 : 14, height: isSmall ? 9 : 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: isSmall ? 5 : 9, color: '#fff', lineHeight: 1 }}>✓</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: isSmall ? 9 : 14, height: isSmall ? 9 : 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: isSmall ? 5 : 9, color: '#fff', lineHeight: 1 }}><IoCheckmark size={isSmall ? 5 : 9} /></span>
         )}
       </div>
 

@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { calculateCardStats } from '../lib/cardUtils';
+import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct } from 'react-icons/io5';
+import { GiSoccerBall } from 'react-icons/gi';
+import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
 const CARD_STATS = [
   { key: 'goals',              label: 'SHO', color: '#f87171' },
@@ -338,7 +341,7 @@ export default function GameRatingPage() {
   if (loading) return (
     <div style={{ minHeight: '100vh' }}><Navbar />
       <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>⚽</div><p>Loading...</p>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><GiSoccerBall size={32} color="var(--accent)" /></div><p>Loading...</p>
       </div>
     </div>
   );
@@ -348,7 +351,7 @@ export default function GameRatingPage() {
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '32px 24px' }}>
         <button onClick={() => navigate('/manager')} style={{ background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 16px', fontSize: 13, marginBottom: 24 }}>← Back</button>
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><IoRemoveCircle size={48} color="var(--red)" /></div>
           <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>ACCESS DENIED</h2>
           <p style={{ color: 'var(--muted)', fontSize: 14 }}>You can only rate players for games you created.</p>
         </div>
@@ -387,24 +390,24 @@ export default function GameRatingPage() {
             color: '#64a0ff', fontSize: 13, fontWeight: 600,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            🛠️ Preview mode — mock data, no DB writes
+            <IoConstruct size={16} /> Preview mode. Nothing will be saved.
           </div>
         )}
 
         {/* Banners */}
         {alreadyRated && !success && (
-          <div style={{ background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>
-            ✅ This game has already been rated.
+          <div style={{ background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: 'var(--accent)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IoCheckmarkCircle size={16} /> This game has already been rated.
           </div>
         )}
         {success && (
-          <div style={{ background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>
-            ✅ {success}
+          <div style={{ background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: 'var(--accent)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IoCheckmarkCircle size={16} /> {success}
           </div>
         )}
         {error && (
-          <div style={{ background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: 'var(--red)', fontSize: 13 }}>
-            ❌ {error}
+          <div style={{ background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: 'var(--red)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IoCloseCircle size={16} /> {error}
           </div>
         )}
 
@@ -451,11 +454,11 @@ export default function GameRatingPage() {
               </p>
               {teamMode !== null && (
                 <div style={{
-                  display: 'inline-block', marginBottom: 16,
+                  display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 16,
                   background: 'rgba(100,160,255,0.1)', border: '1px solid rgba(100,160,255,0.3)',
                   borderRadius: 6, padding: '3px 10px', fontSize: 12, color: '#64a0ff', fontWeight: 600
                 }}>
-                  💡 {teamMode} teams suggested based on player count
+                  <LuLightbulb size={13} /> {teamMode} teams suggested based on player count
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
@@ -480,9 +483,9 @@ export default function GameRatingPage() {
               <div style={{
                 background: 'var(--card2)', border: '1px solid var(--border)',
                 borderRadius: 10, padding: '12px 16px', marginBottom: 20,
-                fontSize: 13, color: 'var(--muted)'
+                fontSize: 13, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6
               }}>
-                📅 <strong style={{ color: 'var(--text)' }}>Preview:</strong> {getScheduleInfo()}
+                <IoCalendar size={14} /><strong style={{ color: 'var(--text)' }}>Preview:</strong> {getScheduleInfo()}
               </div>
             )}
 
@@ -569,8 +572,9 @@ export default function GameRatingPage() {
                           <div style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
                           <button type="button" onClick={() => assignPlayer(uid, team)} style={{
                             background: 'rgba(240,101,67,0.2)', color: 'var(--red)',
-                            border: 'none', borderRadius: 4, fontSize: 10, padding: '2px 6px', cursor: 'pointer'
-                          }}>✕</button>
+                            border: 'none', borderRadius: 4, fontSize: 10, padding: '2px 6px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}><IoClose size={10} /></button>
                         </div>
                       );
                     })}
@@ -633,14 +637,14 @@ export default function GameRatingPage() {
                       background: 'rgba(136,136,128,0.1)', color: 'var(--muted)',
                       border: '1px solid var(--border)', borderRadius: 6,
                       padding: '3px 10px', fontSize: 11, fontWeight: 600
-                    }}>💤 Team {s.rest} rests</div>
+                    }}><LuMoon size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />Team {s.rest} rests</div>
                   )}
                   {!s.rest && i < schedule.length - 1 && (
                     <div style={{
                       background: 'rgba(100,160,255,0.08)', color: '#64a0ff',
                       border: '1px solid rgba(100,160,255,0.2)', borderRadius: 6,
                       padding: '3px 10px', fontSize: 11, fontWeight: 600
-                    }}>☕ 7 min break</div>
+                    }}><LuCoffee size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />7 min break</div>
                   )}
                 </div>
               ))}
@@ -684,7 +688,7 @@ export default function GameRatingPage() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {match.rest && (
-                  <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>💤 Team {match.rest} rests</div>
+                  <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><LuMoon size={11} />Team {match.rest} rests</div>
                 )}
                 {match.time && <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)' }}>{formatTime(match.time)}</div>}
               </div>
@@ -692,7 +696,7 @@ export default function GameRatingPage() {
 
             {/* Hint */}
             <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ opacity: 0.6 }}>Stats show each player's current card rating — adjust with</span>
+              <span style={{ opacity: 0.6 }}>Tap to adjust each stat. Current values shown. Use</span>
               <span style={{ fontFamily: "'Space Mono'", color: '#f87171', fontWeight: 700 }}>−</span>
               <span style={{ opacity: 0.6 }}>and</span>
               <span style={{ fontFamily: "'Space Mono'", color: '#4ade80', fontWeight: 700 }}>+</span>
@@ -812,8 +816,8 @@ export default function GameRatingPage() {
                 </button>
               ) : (
                 <button type="button" onClick={handleSubmit} disabled={saving || alreadyRated}
-                  style={{ flex: 1, padding: '11px', background: alreadyRated ? 'var(--card2)' : 'var(--accent)', color: alreadyRated ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, opacity: saving ? 0.6 : 1 }}>
-                  {saving ? 'Submitting...' : alreadyRated ? 'Already Submitted' : '✅ Submit All Ratings'}
+                  style={{ flex: 1, padding: '11px', background: alreadyRated ? 'var(--card2)' : 'var(--accent)', color: alreadyRated ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, opacity: saving ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  {saving ? 'Submitting...' : alreadyRated ? 'Already Submitted' : <><IoCheckmarkCircle size={16} />Submit All Ratings</>}
                 </button>
               )}
             </div>
@@ -821,7 +825,8 @@ export default function GameRatingPage() {
             <button type="button" onClick={() => setStep('schedule')} style={{
               width: '100%', padding: '10px', background: 'transparent', color: 'var(--muted)',
               border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, cursor: 'pointer',
-            }}>📅 View Schedule</button>
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}><IoCalendar size={14} />View Schedule</button>
           </div>
         )}
 

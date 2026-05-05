@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { GiRunningShoe } from 'react-icons/gi';
-import { FaSquareParking } from 'react-icons/fa6';
+import { FaSquareParking, FaLocationDot } from 'react-icons/fa6';
 import { LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
-import { IoCheckmarkDoneCircleSharp } from 'react-icons/io5';
+import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera } from 'react-icons/io5';
 import { MdError, MdOutlineStadium } from 'react-icons/md';
 import FifaCard from '../components/FifaCard';
 import { drawCardImage } from '../lib/cardCanvas';
@@ -213,7 +213,7 @@ export default function AdminPage() {
             <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 40, letterSpacing: 3, color: 'var(--text)', marginBottom: 4 }}>
               ADMIN PANEL
             </h1>
-            <p style={{ color: 'var(--muted)', fontSize: 14 }}>System management — fields & card backgrounds</p>
+            <p style={{ color: 'var(--muted)', fontSize: 14 }}>Manage fields, games and card backgrounds</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => navigate('/manager')} style={{
@@ -233,7 +233,7 @@ export default function AdminPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
             { label: 'Total Fields', val: fields.length, icon: <MdOutlineStadium /> },
-            { label: 'Card Backgrounds', val: cardBgs.length, icon: '🎴' },
+            { label: 'Card Backgrounds', val: cardBgs.length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -301,7 +301,7 @@ export default function AdminPage() {
                     onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                   >
-                    <div style={{ fontSize: 24, marginBottom: 6 }}>📸</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><IoCamera size={24} color="var(--muted)" /></div>
                     <div style={{ fontSize: 13, color: 'var(--muted)' }}>{uploadingImage ? 'Uploading...' : 'Click to upload photos'}</div>
                   </div>
                   <input id="admin-field-img-input" type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageUpload} />
@@ -311,7 +311,7 @@ export default function AdminPage() {
                         <div key={i} style={{ position: 'relative' }}>
                           <img src={url} style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
                           <button onClick={() => setFieldForm(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }))}
-                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: 5, padding: '2px 7px', fontSize: 11 }}>✕</button>
+                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: 5, padding: '2px 7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IoClose size={11} /></button>
                         </div>
                       ))}
                     </div>
@@ -366,7 +366,7 @@ export default function AdminPage() {
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{field.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>📍 {field.area} · {field.address}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{field.area} · {field.address}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
                       {field.has_toilet && <LuToilet />}{field.has_parking && <FaSquareParking />}{field.has_shop && <CiShop />}{field.has_shoe_rent && <GiRunningShoe />}
                     </div>
