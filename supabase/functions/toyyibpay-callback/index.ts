@@ -5,16 +5,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // Reference format: bolahh_{userId}_{amount}_{timestamp}
 serve(async (req) => {
   try {
-    const body = await req.text();
-    const params = new URLSearchParams(body);
+    // ToyyibPay sends multipart/form-data — req.formData() handles both multipart and url-encoded.
+    const form      = await req.formData();
+    const status    = (form.get('status_id') ?? form.get('status')) as string | null;
+    // order_id is our billExternalReferenceNo (bolahh_userId_amount_timestamp)
+    const referenceNo = form.get('order_id') as string | null;
+    const billCode    = form.get('billcode') as string | null;
 
-    const status      = params.get('status_id') ?? params.get('status');
-    // ToyyibPay server-side callback sends our billExternalReferenceNo in 'refno'.
-    // 'order_id' in the callback is ToyyibPay's internal transaction ID, not ours.
-    const referenceNo = params.get('refno') ?? params.get('order_id');
-    const billCode    = params.get('billcode');
-
-    console.log('ToyyibPay callback received:', { status, referenceNo, billCode, body });
+    console.log('ToyyibPay callback received:', { status, referenceNo, billCode });
 
     if (status !== '1' || !referenceNo) return new Response('OK');
 
