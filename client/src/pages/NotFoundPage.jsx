@@ -28,7 +28,6 @@ export default function NotFoundPage() {
             background: 'rgba(240,157,81,0.1)', border: '2px solid rgba(240,157,81,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 24px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <GiSoccerBall size={32} color="var(--accent)" />
           </div>
@@ -64,7 +63,7 @@ export default function NotFoundPage() {
               style={{
                 background: 'var(--accent)', color: '#fff',
                 border: 'none', borderRadius: 10,
-                padding: '11px 24px', fontSize: 14, fontWeight: 700,
+                padding: '11px 24px', fontWeight: 700,
                 cursor: 'pointer', letterSpacing: 1,
                 fontFamily: "'Bebas Neue'", fontSize: 16,
               }}

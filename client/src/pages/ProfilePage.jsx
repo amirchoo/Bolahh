@@ -598,7 +598,6 @@ export default function ProfilePage() {
               border: isSubscribed ? '2px solid #4ade8066' : '2px solid rgba(255,255,255,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0, color: isSubscribed ? '#4ade80' : 'var(--muted)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}><IoCheckmark size={16} /></div>
             <div>
               <div style={{ fontSize: 10, color: isSubscribed ? 'rgba(74,222,128,0.7)' : 'rgba(240,157,81,0.65)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 3 }}>
