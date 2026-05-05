@@ -6,7 +6,7 @@ import { IoEye, IoEyeOff, IoMail } from 'react-icons/io5';
 export default function SignupPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    username: '', email: '', password: '', confirmPassword: '', position: '', gender: '', age: ''
+    username: '', email: '', password: '', confirmPassword: '', position: '', gender: '', age: '', area: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,6 +41,10 @@ export default function SignupPage() {
       setError('Please enter a valid age (10–70).');
       return;
     }
+    if (!form.area) {
+      setError('Please select your area.');
+      return;
+    }
     setLoading(true);
 
     const { data: existingUser } = await supabase
@@ -55,7 +59,7 @@ export default function SignupPage() {
       email: form.email,
       password: form.password,
       options: {
-        data: { username: form.username.trim(), position: form.position, gender: form.gender, age: parseInt(form.age) }
+        data: { username: form.username.trim(), position: form.position, gender: form.gender, age: parseInt(form.age), area: form.area }
       }
     });
 
@@ -78,6 +82,7 @@ export default function SignupPage() {
   };
 
   const positions = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
+  const areas = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
 
   const cardStyle = {
     background: 'var(--card)', border: '1px solid var(--border)',
@@ -249,6 +254,24 @@ export default function SignupPage() {
               value={form.age}
               onChange={e => setForm({ ...form, age: e.target.value })}
             />
+          </div>
+
+          <div>
+            <label style={{ ...labelStyle, marginBottom: 10 }}>YOUR AREA</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {areas.map(a => (
+                <button key={a}
+                  onClick={() => setForm({ ...form, area: form.area === a ? '' : a })}
+                  style={{
+                    background: form.area === a ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: form.area === a ? 'var(--accent)' : 'var(--muted)',
+                    border: `1px solid ${form.area === a ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 8, padding: '8px 16px',
+                    fontSize: 13, fontWeight: 500, transition: 'all 0.15s'
+                  }}
+                >{a}</button>
+              ))}
+            </div>
           </div>
         </div>
 

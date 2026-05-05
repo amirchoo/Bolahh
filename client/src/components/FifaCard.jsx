@@ -146,7 +146,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           <span style={{ fontWeight: 700, color: theme.text }}>{profile?.games_played || 0}</span> GAMES PLAYED
         </div>
         <div style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 5 : 8, color: theme.muted }}>
-          <span style={{ fontWeight: 700, color: theme.text }}>{profile?.total_points || 30}</span> OVR
+          <span style={{ fontWeight: 700, color: theme.text }}>{overall}</span> OVR
         </div>
       </div>
     </div>
