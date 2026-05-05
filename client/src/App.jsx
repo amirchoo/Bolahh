@@ -18,6 +18,7 @@ import GameCheckoutPage from './pages/GameCheckoutPage';
 import GameCancelPage from './pages/GameCancelPage';
 import GuidePage from './pages/GuidePage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import LeaderboardPage from './pages/LeaderboardPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 function PrivateRoute({ children }) {
@@ -86,6 +87,11 @@ function App() {
         <Route path="/friends" element={
           <PrivateRoute>
             <FriendsPage />
+          </PrivateRoute>
+        } />
+        <Route path="/leaderboard" element={
+          <PrivateRoute>
+            <LeaderboardPage />
           </PrivateRoute>
         } />
         <Route path="/guide" element={
