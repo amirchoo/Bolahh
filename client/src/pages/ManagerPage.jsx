@@ -4,10 +4,10 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { GiSoccerBall } from 'react-icons/gi';
-import { MdOutlineCalendarMonth, MdOutlineStadium } from 'react-icons/md';
-import { FaPeopleGroup } from 'react-icons/fa6';
+import { MdOutlineCalendarMonth, MdOutlineStadium, MdSave } from 'react-icons/md';
+import { FaPeopleGroup, FaLocationDot } from 'react-icons/fa6';
 import { LuMedal } from 'react-icons/lu';
-import { IoCheckmarkDoneCircleSharp } from "react-icons/io5";
+import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
 
 
@@ -164,7 +164,7 @@ export default function ManagerPage() {
           setForm({ ...form, field_id: e.target.value, area: selected?.area || '' });
         }}>
           <option value="">Select a field...</option>
-          {fields.map(f => <option key={f.id} value={f.id}>{f.name} — {f.area}</option>)}
+          {fields.map(f => <option key={f.id} value={f.id}>{f.name} ({f.area})</option>)}
         </select>
       </div>
       <div>
@@ -229,8 +229,9 @@ export default function ManagerPage() {
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={isEdit ? handleUpdateGame : handleAddGame} style={{
           flex: 1, padding: '12px', background: 'var(--accent)', color: '#fff',
-          border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14
-        }}>{isEdit ? '💾 Save Changes' : '+ Add Game'}</button>
+          border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+        }}>{isEdit ? <><MdSave size={15} />Save Changes</> : '+ Add Game'}</button>
         {isEdit && (
           <button onClick={() => { setEditingGame(null); setShowEditGameModal(false); resetEditGameForm(); }} style={{
             flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
@@ -322,7 +323,7 @@ export default function ManagerPage() {
                 }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{game.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>📍 {game.fields?.name} · 📅 {game.date} · {game.format}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{game.fields?.name} · <MdOutlineCalendarMonth size={12} />{game.date} · {game.format}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => navigate(`/game/${game.id}/rate`)} style={{
@@ -364,7 +365,7 @@ export default function ManagerPage() {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{game.title}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      📍 {game.fields?.name} · 📅 {game.date} · {game.time} · {game.format}
+                      <FaLocationDot size={11} />{game.fields?.name} · <MdOutlineCalendarMonth size={12} />{game.date} · {game.time} · {game.format}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -415,15 +416,16 @@ export default function ManagerPage() {
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{game.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>📍 {game.fields?.name} · 📅 {game.date} · {game.format}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{game.fields?.name} · <MdOutlineCalendarMonth size={12} />{game.date} · {game.format}</div>
                     <div style={{ fontSize: 12, color: 'var(--accent)', fontFamily: "'Space Mono'", marginTop: 2 }}>RM {game.price} · {game.slots} slots</div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button onClick={() => navigate(`/game/${game.id}/rate`)} style={{
                       background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
                       border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
-                      padding: '5px 10px', fontSize: 12, fontWeight: 600
-                    }}>🎖️</button>
+                      padding: '5px 10px', fontSize: 12, fontWeight: 600,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}><LuMedal size={14} /></button>
                     <button onClick={() => handleEditGame(game)} style={{
                       background: 'var(--card2)', color: 'var(--text)',
                       border: '1px solid var(--border)', borderRadius: 8,
@@ -455,7 +457,7 @@ export default function ManagerPage() {
               <button
                 onClick={() => { setShowEditGameModal(false); setEditingGame(null); resetEditGameForm(); }}
                 style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
-              >✕</button>
+              ><IoClose size={18} /></button>
             </div>
             {renderGameForm(true, editGameForm, setEditGameForm)}
           </div>

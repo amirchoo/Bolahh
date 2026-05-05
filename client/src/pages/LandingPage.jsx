@@ -559,13 +559,13 @@ export default function LandingPage() {
               YOUR <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>o</span>lahh</span><br />PLAYER CARD
             </h2>
             <p className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-2`} style={{ fontSize:15, color:'rgba(232,233,235,0.55)', lineHeight:1.8, fontFamily:"'DM Sans'", marginBottom:24 }}>
-              Every player gets a card that reflects their rank tier. Your 6 stats — PAC, SHO, PAS, DRI, DEF and PHY — are rated by the organiser after each game and build your OVR.
+              Every player gets a card that reflects their rank tier. Your 6 stats ,PAC, SHO, PAS, DRI, DEF and PHY are rated by the organiser after each game and build your OVR.
             </p>
             <div className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-3`} style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
                 [<GiUpgrade />,'Card theme upgrades with your rank from Novis to Emas'],
                 [<IoStatsChart />,'Get card based on your true potential'],
-                [<MdOutlineAutoMode />,'OVR updates after every rated game — up or down'],
+                [<MdOutlineAutoMode />,'OVR updates after every rated game'],
                 [<LiaUserFriendsSolid />,'Friends can view your card on your profile'],
               ].map(([icon,text]) => (
                 <div key={text} style={{ display:'flex', alignItems:'flex-start', gap:12, fontSize:13, color:'rgba(232,233,235,0.6)', fontFamily:"'DM Sans'" }}>

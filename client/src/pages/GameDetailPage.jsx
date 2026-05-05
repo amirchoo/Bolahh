@@ -10,6 +10,8 @@ import { LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { FaLocationDot, FaWhatsapp, FaTelegram } from "react-icons/fa6";
 import { FaLink } from "react-icons/fa";
+import { IoWallet, IoTimer, IoClose, IoCheckmark } from 'react-icons/io5';
+import { GiSoccerBall } from 'react-icons/gi';
 import { getRank, getRankColor } from '../lib/rankUtils';
 
 export default function GameDetailPage() {
@@ -169,8 +171,10 @@ export default function GameDetailPage() {
               width: 68, height: 68, borderRadius: '50%',
               background: 'rgba(224,62,26,0.1)', border: '1.5px solid rgba(224,62,26,0.3)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 18px', fontSize: 30
-            }}>💸</div>
+              margin: '0 auto 18px',
+            }}>
+              <IoWallet size={30} color="#e03e1a" />
+            </div>
 
             <div style={{
               fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 2,
@@ -353,7 +357,9 @@ export default function GameDetailPage() {
             )}
           </div>
         ) : (
-          <div className="fade-up" style={{ width: '100%', height: 200, borderRadius: 16, background: 'var(--card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, fontSize: 48 }}>⚽</div>
+          <div className="fade-up" style={{ width: '100%', height: 200, borderRadius: 16, background: 'var(--card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+            <GiSoccerBall size={48} color="var(--accent)" />
+          </div>
         )}
 
         {/* Title + tags */}
@@ -379,9 +385,9 @@ export default function GameDetailPage() {
             borderRadius: 10, padding: '10px 16px', marginBottom: 16,
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13
           }}>
-            <span style={{ color: 'var(--muted)' }}>💰 Wallet balance</span>
+            <span style={{ color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><IoWallet size={13} /> Wallet balance</span>
             <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: walletBalance >= game.price ? '#4ade80' : 'var(--red)' }}>
-              RM {walletBalance.toFixed(2)} {walletBalance >= game.price ? '✓' : `— need RM ${shortfall.toFixed(2)} more`}
+              RM {walletBalance.toFixed(2)} {walletBalance >= game.price ? <IoCheckmark size={13} style={{ verticalAlign: 'middle' }} /> : `— need RM ${shortfall.toFixed(2)} more`}
             </span>
           </div>
         )}
@@ -411,7 +417,7 @@ export default function GameDetailPage() {
               opacity: locked ? 0.7 : 1
             }}
           >
-            {hasJoined ? '✓ Already Joined' : full ? 'Game Full' : locked ? '⏱ Game Starting Soon' : 'Join Game'}
+            {hasJoined ? <><IoCheckmark size={15} style={{ verticalAlign: 'middle', marginRight: 4 }} />Already Joined</> : full ? 'Game Full' : locked ? <><IoTimer size={15} style={{ verticalAlign: 'middle', marginRight: 4 }} />Game Starting Soon</> : 'Join Game'}
           </button>
         </div>
 
@@ -427,7 +433,7 @@ export default function GameDetailPage() {
                 fontWeight: 700, fontSize: 14, cursor: 'pointer'
               }}
             >
-              ✕ Cancel Booking
+              <IoClose size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />Cancel Booking
             </button>
           </div>
         )}
@@ -442,7 +448,7 @@ export default function GameDetailPage() {
               return (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)' }}>
-                    PLAYERS JOINED — {players.length}/{game.slots}
+                    PLAYERS JOINED ({players.length}/{game.slots})
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontFamily: "'Space Mono'", fontSize: 10, color: 'var(--muted)' }}>AVG</span>
@@ -500,7 +506,7 @@ export default function GameDetailPage() {
                             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                             width: 14, height: 14, borderRadius: '50%',
                             background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff'
-                          }}>✓</span>
+                          }}><IoCheckmark size={9} /></span>
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -578,7 +584,7 @@ export default function GameDetailPage() {
         )}
 
         <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-          <div style={sectionTitle}>📍 LOCATION</div>
+          <div style={{ ...sectionTitle, display: 'flex', alignItems: 'center', gap: 6 }}><FaLocationDot size={16} /> LOCATION</div>
           <p style={{ color: 'var(--text)', fontSize: 14, opacity: 0.8 }}>{field?.address}</p>
         </div>
 

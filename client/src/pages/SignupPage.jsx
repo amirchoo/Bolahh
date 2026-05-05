@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { IoEye, IoEyeOff, IoMail } from 'react-icons/io5';
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    username: '', email: '', password: '', confirmPassword: '', position: ''
+    username: '', email: '', password: '', confirmPassword: '', position: '', gender: '', age: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,6 +32,15 @@ export default function SignupPage() {
       setError('Password must be at least 6 characters.');
       return;
     }
+    if (!form.gender) {
+      setError('Please select your gender.');
+      return;
+    }
+    const age = parseInt(form.age);
+    if (!form.age || isNaN(age) || age < 10 || age > 70) {
+      setError('Please enter a valid age (10–70).');
+      return;
+    }
     setLoading(true);
 
     const { data: existingUser } = await supabase
@@ -45,7 +55,7 @@ export default function SignupPage() {
       email: form.email,
       password: form.password,
       options: {
-        data: { username: form.username.trim(), position: form.position }
+        data: { username: form.username.trim(), position: form.position, gender: form.gender, age: parseInt(form.age) }
       }
     });
 
@@ -82,7 +92,7 @@ export default function SignupPage() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div className="fade-up" style={{ ...cardStyle, textAlign: 'center', padding: '48px 36px' }}>
-          <div style={{ fontSize: 56, marginBottom: 20 }}>📧</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}><IoMail size={56} color="var(--accent)" /></div>
           <h2 style={{
             fontFamily: "'Bebas Neue'", fontSize: 32,
             letterSpacing: 2, marginBottom: 10, color: 'var(--text)'
@@ -171,7 +181,7 @@ export default function SignupPage() {
                 background: 'none', border: 'none',
                 color: 'var(--muted)', fontSize: 16, padding: 0
               }}>
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <IoEyeOff size={16} /> : <IoEye size={16} />}
               </button>
             </div>
           </div>
@@ -190,7 +200,7 @@ export default function SignupPage() {
                 background: 'none', border: 'none',
                 color: 'var(--muted)', fontSize: 16, padding: 0
               }}>
-                {showConfirm ? '🙈' : '👁️'}
+                {showConfirm ? <IoEyeOff size={16} /> : <IoEye size={16} />}
               </button>
             </div>
           </div>
@@ -211,6 +221,34 @@ export default function SignupPage() {
                 >{p}</button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label style={{ ...labelStyle, marginBottom: 10 }}>GENDER</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['Male', 'Female', 'Rather not say'].map(g => (
+                <button key={g}
+                  onClick={() => setForm({ ...form, gender: form.gender === g ? '' : g })}
+                  style={{
+                    flex: 1,
+                    background: form.gender === g ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: form.gender === g ? 'var(--accent)' : 'var(--muted)',
+                    border: `1px solid ${form.gender === g ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 8, padding: '8px 16px',
+                    fontSize: 13, fontWeight: 500, transition: 'all 0.15s'
+                  }}
+                >{g}</button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>AGE</label>
+            <input
+              type="number" placeholder="e.g. 22" min="10" max="70"
+              value={form.age}
+              onChange={e => setForm({ ...form, age: e.target.value })}
+            />
           </div>
         </div>
 

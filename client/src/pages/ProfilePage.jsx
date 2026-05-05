@@ -8,6 +8,8 @@ import { calculateCardStats } from '../lib/cardUtils';
 import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { RiTeamLine } from 'react-icons/ri';
+import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload } from 'react-icons/io5';
+import { FaLocationDot } from 'react-icons/fa6';
 import FifaCard from '../components/FifaCard';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
@@ -19,7 +21,7 @@ export default function ProfilePage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', position: '' });
+  const [form, setForm] = useState({ name: '', position: '', gender: '', age: '' });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [upcomingGames, setUpcomingGames] = useState([]);
@@ -76,29 +78,33 @@ export default function ProfilePage() {
     if (error || !data) {
       const username = user.user_metadata?.username || '';
       const position = user.user_metadata?.position || '';
+      const gender = user.user_metadata?.gender || '';
+      const age = user.user_metadata?.age || null;
       const { data: newProfile } = await supabase
         .from('profiles')
-        .upsert({ id: user.id, name: username, position, is_admin: false })
+        .upsert({ id: user.id, name: username, position, gender, age, is_admin: false })
         .select().single();
       if (newProfile) {
         setProfile(newProfile);
         setWalletBalance(newProfile?.wallet_balance || 0);
-        setForm({ name: newProfile.name || '', position: newProfile.position || '' });
+        setForm({ name: newProfile.name || '', position: newProfile.position || '', gender: newProfile.gender || '', age: newProfile.age?.toString() || '' });
         fetchCard();
       }
     } else {
       if (!data.name && user.user_metadata?.username) {
         const username = user.user_metadata.username;
         const position = user.user_metadata?.position || data.position || '';
-        await supabase.from('profiles').update({ name: username, position }).eq('id', user.id);
-        setProfile({ ...data, name: username, position });
+        const gender = user.user_metadata?.gender || data.gender || '';
+        const age = user.user_metadata?.age || data.age || null;
+        await supabase.from('profiles').update({ name: username, position, gender, age }).eq('id', user.id);
+        setProfile({ ...data, name: username, position, gender, age });
         setWalletBalance(data?.wallet_balance || 0);
-        setForm({ name: username, position });
+        setForm({ name: username, position, gender: gender || '', age: age?.toString() || '' });
         fetchCard();
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
-        setForm({ name: data.name || '', position: data.position || '' });
+        setForm({ name: data.name || '', position: data.position || '', gender: data.gender || '', age: data.age?.toString() || '' });
         fetchCard();
       }
     }
@@ -171,7 +177,7 @@ export default function ProfilePage() {
     const allowed = subscribed ? ['image/jpeg', 'image/png', 'image/gif'] : ['image/jpeg', 'image/png'];
     if (!allowed.includes(file.type)) {
       setSaveMsg(file.type === 'image/gif'
-        ? '✨ GIF avatars are exclusive to verified users.'
+        ? 'GIF avatars are exclusive to verified users.'
         : 'Only JPG and PNG images are allowed.');
       e.target.value = '';
       return;
@@ -190,10 +196,15 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { setSaveMsg('Username cannot be empty.'); return; }
+    const age = form.age ? parseInt(form.age) : null;
+    if (form.age && (isNaN(age) || age < 10 || age > 70)) { setSaveMsg('Age must be between 10 and 70.'); return; }
     setSaving(true); setSaveMsg('');
-    const { error } = await supabase.from('profiles').upsert({ id: user.id, name: form.name.trim(), position: form.position });
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id, name: form.name.trim(), position: form.position,
+      gender: form.gender || null, age: age || null,
+    });
     if (error) { setSaveMsg('Failed to save. Try again.'); }
-    else { setProfile({ ...profile, name: form.name.trim(), position: form.position }); setEditing(false); }
+    else { setProfile({ ...profile, name: form.name.trim(), position: form.position, gender: form.gender || null, age: age || null }); setEditing(false); }
     setSaving(false);
   };
 
@@ -316,9 +327,9 @@ export default function ProfilePage() {
             position: 'absolute', top: 16, right: 16,
             width: 36, height: 36, borderRadius: '50%',
             background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-            color: '#fff', fontSize: 20, cursor: 'pointer',
+            color: '#fff', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>×</button>
+          }}><IoClose size={20} /></button>
 
           {/* Card preview — canvas output as img */}
           <div onClick={e => e.stopPropagation()}>
@@ -363,7 +374,7 @@ export default function ProfilePage() {
               border: 'none', fontWeight: 700, fontSize: 14,
               cursor: sharing ? 'wait' : 'pointer', opacity: (sharing || !cardPreviewUrl) ? 0.6 : 1,
             }}>
-              {sharing ? 'Preparing...' : '↑ Share'}
+              {sharing ? 'Preparing...' : <><IoShareOutline size={16} style={{ verticalAlign: 'middle', marginRight: 4 }} />Share</>}
             </button>
             <button onClick={handleDownloadCard} disabled={sharing || !cardPreviewUrl} style={{
               padding: '12px 28px', borderRadius: 12,
@@ -371,8 +382,9 @@ export default function ProfilePage() {
               border: '1px solid rgba(255,255,255,0.25)',
               fontWeight: 700, fontSize: 14,
               cursor: sharing ? 'wait' : 'pointer', opacity: (sharing || !cardPreviewUrl) ? 0.6 : 1,
+              display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              ↓ Save
+              <IoDownload size={16} />Save
             </button>
           </div>
         </div>
@@ -421,6 +433,24 @@ export default function ProfilePage() {
         </div>
         <input ref={fileInputRef} type="file" accept={isSubscribed ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png'} style={{ display: 'none' }} onChange={handleAvatarUpload} />
 
+        {/* Nudge banner for missing gender/age */}
+        {!editing && profile && (!profile.gender || !profile.age) && (
+          <div style={{
+            background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.3)',
+            borderRadius: 12, padding: '12px 16px', marginBottom: 16,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          }}>
+            <span style={{ fontSize: 13, color: 'var(--accent)' }}>
+              Add your gender and age to finish setting up your profile.
+            </span>
+            <button onClick={() => setEditing(true)} style={{
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700,
+              cursor: 'pointer', flexShrink: 0,
+            }}>Update</button>
+          </div>
+        )}
+
         {/* Edit form */}
         {editing && (
           <div className="fade-up-2" style={{
@@ -449,9 +479,28 @@ export default function ProfilePage() {
                 ))}
               </div>
             </div>
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>GENDER</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {['Male', 'Female', 'Rather not say'].map(g => (
+                  <button key={g} onClick={() => setForm({ ...form, gender: form.gender === g ? '' : g })} style={{
+                    flex: 1,
+                    background: form.gender === g ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: form.gender === g ? 'var(--accent)' : 'var(--text)',
+                    border: `1px solid ${form.gender === g ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500
+                  }}>{g}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>AGE</label>
+              <input type="number" placeholder="e.g. 22" min="10" max="70"
+                value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} />
+            </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Save Changes'}</button>
-              <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '' }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
+              <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '' }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
                 Cancel
               </button>
             </div>
@@ -528,8 +577,9 @@ export default function ProfilePage() {
               background: isSubscribed ? '#4ade8033' : 'rgba(255,255,255,0.06)',
               border: isSubscribed ? '2px solid #4ade8066' : '2px solid rgba(255,255,255,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, flexShrink: 0, color: isSubscribed ? '#4ade80' : 'var(--muted)',
-            }}>✓</div>
+              flexShrink: 0, color: isSubscribed ? '#4ade80' : 'var(--muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}><IoCheckmark size={16} /></div>
             <div>
               <div style={{ fontSize: 10, color: isSubscribed ? 'rgba(74,222,128,0.7)' : 'rgba(240,157,81,0.65)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 3 }}>
                 BOLAHH VERIFIED
@@ -583,10 +633,10 @@ export default function ProfilePage() {
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.games?.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {entry.games?.fields?.name} · {entry.games?.area}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{entry.games?.fields?.name} · {entry.games?.area}</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{ background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'" }}>📅 {formatDate(entry.games?.date)}</span>
-                    <span style={{ background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'" }}>🕐 {entry.games?.time}</span>
+                    <span style={{ background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'", display: 'inline-flex', alignItems: 'center', gap: 4 }}><IoCalendar size={11} />{formatDate(entry.games?.date)}</span>
+                    <span style={{ background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'", display: 'inline-flex', alignItems: 'center', gap: 4 }}><IoTime size={11} />{entry.games?.time}</span>
                     <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontFamily: "'Space Mono'", fontWeight: 700 }}>{entry.games?.format}</span>
                   </div>
                 </div>
@@ -621,7 +671,7 @@ export default function ProfilePage() {
             }}>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.games?.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text)' }}>📍 {entry.games?.area} · {entry.games?.date}</div>
+                <div style={{ fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{entry.games?.area} · {entry.games?.date}</div>
               </div>
               <span style={{ background: 'rgba(240,157,81,0.1)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", flexShrink: 0, marginLeft: 8 }}>
                 {entry.games?.format}

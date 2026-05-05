@@ -6,8 +6,10 @@ import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
 import { LuRecycle } from "react-icons/lu";
 import { MdOutlineCancel } from "react-icons/md";
-import { IoWarningOutline } from "react-icons/io5";
+import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark } from "react-icons/io5";
 import { RiRefund2Line } from "react-icons/ri";
+import { LuPartyPopper } from 'react-icons/lu';
+import { GiSoccerBall } from 'react-icons/gi';
 
 
 
@@ -61,7 +63,7 @@ export default function GameCheckoutPage() {
     const [gh, gmin] = (game.time || '00:00').split(':').map(Number);
     const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
     if (new Date() >= new Date(gameStart.getTime() - 10 * 60 * 1000)) {
-      setError('Booking is now closed — game starts in less than 10 minutes.');
+      setError('Booking closed. Game starts in less than 10 minutes.');
       setConfirming(false);
       return;
     }
@@ -154,8 +156,10 @@ export default function GameCheckoutPage() {
             width: 80, height: 80, borderRadius: '50%',
             background: 'rgba(74,222,128,0.12)', border: '1.5px solid rgba(74,222,128,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 20px', fontSize: 36
-          }}>🎉</div>
+            margin: '0 auto 20px',
+          }}>
+            <LuPartyPopper size={36} color="#4ade80" />
+          </div>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 36, letterSpacing: 3, color: 'var(--text)', marginBottom: 8 }}>
             YOU'RE IN!
           </div>
@@ -218,11 +222,16 @@ export default function GameCheckoutPage() {
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>{field?.name} . {game.area}</div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}> {game.title}</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[`📅 ${formatDate(game.date)}`, `🕐 ${formatTime(game.time)}`, `⚽ ${game.format}`].map(t => (
-              <span key={t} style={{
+            {[
+              { icon: <IoCalendar size={11} />, text: formatDate(game.date) },
+              { icon: <IoTime size={11} />, text: formatTime(game.time) },
+              { icon: <GiSoccerBall size={11} />, text: game.format },
+            ].map((item, i) => (
+              <span key={i} style={{
                 background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)',
-                borderRadius: 6, padding: '3px 10px', fontSize: 12, fontFamily: "'Space Mono'"
-              }}>{t}</span>
+                borderRadius: 6, padding: '3px 10px', fontSize: 12, fontFamily: "'Space Mono'",
+                display: 'inline-flex', alignItems: 'center', gap: 5
+              }}>{item.icon}{item.text}</span>
             ))}
           </div>
         </div>
@@ -258,30 +267,30 @@ export default function GameCheckoutPage() {
           background: 'var(--card)', border: '1px solid var(--border)',
           borderRadius: 16, padding: '20px', marginBottom: 16
         }}>
-          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>
-            📋 REFUND & CANCELLATION POLICY
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IoDocumentText size={14} /> REFUND & CANCELLATION POLICY
           </div>
 
           {[
             {
               icon: <RiRefund2Line />,
-              title: 'Full Refund — Game Cancelled by Organiser',
-              desc: 'If the organiser cancels the game, 100% of the game fee will be refunded to your Bolahh wallet within 24 hours.',
+              title: 'Full Refund (game cancelled by organiser)',
+              desc: 'If the organiser cancels, you get 100% back to your Bolahh wallet within 24 hours.',
             },
             {
               icon: <RiRefund2Line />,
-              title: 'Full Refund — Cancelled 24hrs Before',
-              desc: 'You may cancel your booking up to 24 hours before the game start time for a full refund to your wallet.',
+              title: 'Full Refund (cancel 24hrs before)',
+              desc: 'Cancel at least 24 hours before kickoff and get a full refund to your wallet.',
             },
             {
               icon: <IoWarningOutline />,
-              title: '50% Refund — Cancelled 2–24hrs Before',
-              desc: 'Cancellations made between 2 and 24 hours before the game will receive a 50% refund to your wallet.',
+              title: '50% Refund (cancel 2–24hrs before)',
+              desc: 'Cancel between 2 and 24 hours before the game and get half your money back.',
             },
             {
               icon: <MdOutlineCancel />,
-              title: 'No Refund — Cancelled Under 2hrs / No-Show',
-              desc: 'Cancellations within 2 hours of the game or no-shows are not eligible for a refund.',
+              title: 'No Refund (under 2hrs or no-show)',
+              desc: 'Cancelling within 2 hours of the game or not showing up gets no refund.',
             },
             {
               icon: <LuRecycle />,
@@ -321,7 +330,7 @@ export default function GameCheckoutPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.15s', fontSize: 12, color: '#fff'
           }}>
-            {agreed && '✓'}
+            {agreed && <IoCheckmark size={12} />}
           </div>
           <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
             I have read and agree to the refund & cancellation policy. I understand that my wallet will be charged <strong>RM {Number(game.price).toFixed(2)}</strong> upon confirming.

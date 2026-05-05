@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { AiFillEyeInvisible as IconEyeHide, AiFillEye as IconEyeShow } from 'react-icons/ai';
+import { IoMail } from 'react-icons/io5';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -91,7 +92,7 @@ export default function LoginPage() {
         <div className="fade-up" style={cardStyle}>
           {forgotSent ? (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 56, marginBottom: 20 }}>📧</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}><IoMail size={56} color="var(--accent)" /></div>
               <h2 style={{
                 fontFamily: "'Bebas Neue'", fontSize: 32,
                 letterSpacing: 2, marginBottom: 10, color: 'var(--text)'

@@ -90,7 +90,7 @@ export default function GuidePage() {
             BOLAHH GUIDE
           </h1>
           <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7 }}>
-            Everything you need to know — from booking your first game to building your Bolahh card.
+            Everything you need to know, from booking your first game to building your Bolahh card.
           </p>
         </div>
 
@@ -118,7 +118,7 @@ export default function GuidePage() {
             {[
               {
                 num: '01', icon: <IoSearchCircleOutline size={22} />, title: 'Find a Game',
-                desc: 'Browse upcoming futsal sessions from the home screen. Filter by area, format (5v5, 6v6, 7v7), price, or date to find the right match.',
+                desc: 'Browse upcoming futsal sessions from the home screen. Filter by area, format (5v5, 6v6, 7v7) or date to find the right match.',
               },
               {
                 num: '02', icon: <IoWallet size={22} />, title: 'Join & Pay via Wallet',
@@ -126,7 +126,7 @@ export default function GuidePage() {
               },
               {
                 num: '03', icon: <GiSoccerBall size={22} />, title: 'Show Up & Play',
-                desc: 'Head to the field at the scheduled time. Play your match — goals, assists, and good plays all count towards your post-match rating.',
+                desc: 'Head to the field at the scheduled time. Play your match. Goals, assists, and good plays all count towards your post-match rating.',
               },
               {
                 num: '04', icon: <FaRankingStar size={22} />, title: 'Get Rated & Build Your OVR',
@@ -171,7 +171,7 @@ export default function GuidePage() {
 
           {/* Tier groups */}
           {[
-            { tier: 'Novis',  color: '#7088a0', desc: 'New players. No card customisation yet — unlock your card by playing your first game.' },
+            { tier: 'Novis',  color: '#7088a0', desc: 'New players. No card customisation yet. Unlock your card by playing your first game.' },
             { tier: 'Gangsa', color: '#cd7f32', desc: 'Bronze tier (31–60 OVR). You\'ve played and your card is unlocked. Build up your stats and start climbing.' },
             { tier: 'Perak',  color: '#c0c0c0', desc: 'Silver tier (61–79 OVR). Consistent performers. Your card reflects real skill at this point.' },
             { tier: 'Emas',   color: '#FFD700', desc: 'Gold tier (80–99 OVR). Top of the ladder. Near-max stats and the coveted gold card theme.' },
@@ -221,7 +221,7 @@ export default function GuidePage() {
         <section>
           <SectionHead id="card" sup="YOUR IDENTITY" title="BOLAHH CARD" />
           <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
-            Every player has a Bolahh Card — a FIFA-style card that reflects your rank and in-game performance across 6 attributes. The card theme upgrades automatically as you climb tiers.
+            Every player has a Bolahh Card, a gamified-style card that reflects your rank and in-game performance across 6 attributes. The card theme upgrades automatically as you climb tiers.
           </p>
 
           {/* Theme overview */}
@@ -230,7 +230,7 @@ export default function GuidePage() {
               { tier: 'Novis',  style: RANK_TIER_STYLE.novis,  note: 'Locked until first game' },
               { tier: 'Gangsa', style: RANK_TIER_STYLE.gangsa, note: 'Bronze theme' },
               { tier: 'Perak',  style: RANK_TIER_STYLE.perak,  note: 'Silver theme' },
-              { tier: 'Emas',   style: RANK_TIER_STYLE.emas,   note: 'Gold theme — max tier' },
+              { tier: 'Emas',   style: RANK_TIER_STYLE.emas,   note: 'Gold theme, max tier' },
             ].map(({ tier, style, note }) => (
               <div key={tier} style={{
                 background: style.bg, border: `1.5px solid ${style.border}`,
