@@ -38,17 +38,36 @@ serve(async (req) => {
       .like('description', `%${referenceNo}%`)
       .maybeSingle();
 
-    if (existing) return new Response('OK');
+    if (existing) {
+      console.log('Idempotency: already credited for', referenceNo);
+      return new Response('OK');
+    }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileFetchErr } = await supabase
       .from('profiles')
       .select('wallet_balance')
       .eq('id', userId)
       .single();
 
-    const newBalance = (profile?.wallet_balance ?? 0) + amount;
+    if (profileFetchErr || !profile) {
+      console.error('Profile not found for userId:', userId, profileFetchErr);
+      return new Response('ERROR', { status: 404 });
+    }
 
-    await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', userId);
+    const newBalance = (profile.wallet_balance ?? 0) + amount;
+
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({ wallet_balance: newBalance })
+      .eq('id', userId);
+
+    if (updateErr) {
+      console.error('Profile update failed:', updateErr);
+      return new Response('ERROR', { status: 500 });
+    }
+
+    console.log(`Wallet credited: userId=${userId} +${amount} => ${newBalance}`);
+
     await supabase.from('wallet_transactions').insert({
       user_id:      userId,
       type:         'topup',
