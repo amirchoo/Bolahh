@@ -10,9 +10,10 @@ import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { RiTeamLine } from 'react-icons/ri';
 import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
-import FifaCard from '../components/FifaCard';
+import FifaCard, { calcOverall } from '../components/FifaCard';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
+const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
 
 export default function ProfilePage() {
   const { user, isAdmin } = useAuth();
@@ -21,7 +22,7 @@ export default function ProfilePage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', position: '', gender: '', age: '' });
+  const [form, setForm] = useState({ name: '', position: '', gender: '', age: '', area: '' });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [upcomingGames, setUpcomingGames] = useState([]);
@@ -67,7 +68,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!showCardModal || !profile) return;
-    drawCardImage({ profile, cardStats, rank: getRank(profile.total_points || 0), bgUrl: selectedBg.src })
+    drawCardImage({ profile, cardStats, rank: getRank(calcOverall(cardStats)), bgUrl: selectedBg.src })
       .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
   }, [showCardModal, selectedBg, cardStats]);
 
@@ -80,14 +81,15 @@ export default function ProfilePage() {
       const position = user.user_metadata?.position || '';
       const gender = user.user_metadata?.gender || '';
       const age = user.user_metadata?.age || null;
+      const area = user.user_metadata?.area || '';
       const { data: newProfile } = await supabase
         .from('profiles')
-        .upsert({ id: user.id, name: username, position, gender, age, is_admin: false })
+        .upsert({ id: user.id, name: username, position, gender, age, area, is_admin: false })
         .select().single();
       if (newProfile) {
         setProfile(newProfile);
         setWalletBalance(newProfile?.wallet_balance || 0);
-        setForm({ name: newProfile.name || '', position: newProfile.position || '', gender: newProfile.gender || '', age: newProfile.age?.toString() || '' });
+        setForm({ name: newProfile.name || '', position: newProfile.position || '', gender: newProfile.gender || '', age: newProfile.age?.toString() || '', area: newProfile.area || '' });
         fetchCard();
       }
     } else {
@@ -96,15 +98,16 @@ export default function ProfilePage() {
         const position = user.user_metadata?.position || data.position || '';
         const gender = user.user_metadata?.gender || data.gender || '';
         const age = user.user_metadata?.age || data.age || null;
-        await supabase.from('profiles').update({ name: username, position, gender, age }).eq('id', user.id);
-        setProfile({ ...data, name: username, position, gender, age });
+        const area = user.user_metadata?.area || data.area || '';
+        await supabase.from('profiles').update({ name: username, position, gender, age, area }).eq('id', user.id);
+        setProfile({ ...data, name: username, position, gender, age, area });
         setWalletBalance(data?.wallet_balance || 0);
-        setForm({ name: username, position, gender: gender || '', age: age?.toString() || '' });
+        setForm({ name: username, position, gender: gender || '', age: age?.toString() || '', area: area || '' });
         fetchCard();
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
-        setForm({ name: data.name || '', position: data.position || '', gender: data.gender || '', age: data.age?.toString() || '' });
+        setForm({ name: data.name || '', position: data.position || '', gender: data.gender || '', age: data.age?.toString() || '', area: data.area || '' });
         fetchCard();
       }
     }
@@ -127,6 +130,8 @@ export default function ProfilePage() {
         dri: stats.dri, def: stats.def, phy: stats.phy,
         overall: stats.overall,
       });
+      // Keep total_points in sync so FriendsPage/GameDetailPage (which read total_points) stay accurate
+      await supabase.from('profiles').update({ total_points: stats.overall }).eq('id', user.id);
     } else {
       // Fall back to player_cards (written by the admin's rating submission)
       const { data: cardData } = await supabase
@@ -201,10 +206,10 @@ export default function ProfilePage() {
     setSaving(true); setSaveMsg('');
     const { error } = await supabase.from('profiles').upsert({
       id: user.id, name: form.name.trim(), position: form.position,
-      gender: form.gender || null, age: age || null,
+      gender: form.gender || null, age: age || null, area: form.area || null,
     });
     if (error) { setSaveMsg('Failed to save. Try again.'); }
-    else { setProfile({ ...profile, name: form.name.trim(), position: form.position, gender: form.gender || null, age: age || null }); setEditing(false); }
+    else { setProfile({ ...profile, name: form.name.trim(), position: form.position, gender: form.gender || null, age: age || null, area: form.area || null }); setEditing(false); }
     setSaving(false);
   };
 
@@ -289,7 +294,7 @@ export default function ProfilePage() {
     );
   }
 
-  const rank = getRank(profile?.total_points || 0);
+  const rank = getRank(calcOverall(cardStats));
   const rankColor = getRankColor(rank);
   const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
 
@@ -434,14 +439,16 @@ export default function ProfilePage() {
         <input ref={fileInputRef} type="file" accept={isSubscribed ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png'} style={{ display: 'none' }} onChange={handleAvatarUpload} />
 
         {/* Nudge banner for missing gender/age */}
-        {!editing && profile && (!profile.gender || !profile.age) && (
+        {!editing && profile && (!profile.gender || !profile.age || !profile.area) && (
           <div style={{
             background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.3)',
             borderRadius: 12, padding: '12px 16px', marginBottom: 16,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
           }}>
             <span style={{ fontSize: 13, color: 'var(--accent)' }}>
-              Add your gender and age to finish setting up your profile.
+              {!profile.area
+                ? 'Add your area so players nearby can find you.'
+                : 'Add your gender and age to finish setting up your profile.'}
             </span>
             <button onClick={() => setEditing(true)} style={{
               background: 'var(--accent)', color: '#fff', border: 'none',
@@ -498,9 +505,22 @@ export default function ProfilePage() {
               <input type="number" placeholder="e.g. 22" min="10" max="70"
                 value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} />
             </div>
+            <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>AREA</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {AREAS.map(a => (
+                  <button key={a} onClick={() => setForm({ ...form, area: form.area === a ? '' : a })} style={{
+                    background: form.area === a ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: form.area === a ? 'var(--accent)' : 'var(--text)',
+                    border: `1px solid ${form.area === a ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500
+                  }}>{a}</button>
+                ))}
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Save Changes'}</button>
-              <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '' }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
+              <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '' }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
                 Cancel
               </button>
             </div>
