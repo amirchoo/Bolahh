@@ -147,6 +147,8 @@ export default function ManagerPage() {
   const upcomingGames = games.filter(g => isUpcoming(g));
   const pastGames = games.filter(g => !isUpcoming(g)).sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
 
+  const todayMYT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
   const labelStyle = { fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' };
   const sectionCard = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 20 };
 
@@ -183,7 +185,7 @@ export default function ManagerPage() {
       <div style={{ display: 'flex', gap: 12 }}>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>DATE *</label>
-          <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+          <input type="date" value={form.date} min={todayMYT} onChange={e => setForm({ ...form, date: e.target.value })} />
         </div>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>TIME *</label>

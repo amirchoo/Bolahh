@@ -29,28 +29,21 @@ export default function LeaderboardPage() {
     // total_points is the authoritative OVR — synced every time a user visits their profile
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points')
+      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats')
       .gt('total_points', 0)
       .order('total_points', { ascending: false });
 
     if (error || !profiles || profiles.length === 0) { setLoading(false); return; }
 
-    const userIds = profiles.map(p => p.id);
-    const { data: cards } = await supabase
-      .from('player_cards')
-      .select('user_id, pac, sho, pas, dri, def, phy')
-      .in('user_id', userIds);
-
-    const cardMap = Object.fromEntries((cards || []).map(c => [c.user_id, c]));
     const enriched = profiles.map(p => ({
       ...p,
       overall: p.total_points,
-      pac: cardMap[p.id]?.pac || 30,
-      sho: cardMap[p.id]?.sho || 30,
-      pas: cardMap[p.id]?.pas || 30,
-      dri: cardMap[p.id]?.dri || 30,
-      def: cardMap[p.id]?.def || 30,
-      phy: cardMap[p.id]?.phy || 30,
+      pac: p.card_stats?.pac || 30,
+      sho: p.card_stats?.sho || 30,
+      pas: p.card_stats?.pas || 30,
+      dri: p.card_stats?.dri || 30,
+      def: p.card_stats?.def || 30,
+      phy: p.card_stats?.phy || 30,
     }));
     setPlayers(enriched);
     setLoading(false);
