@@ -312,19 +312,16 @@ export default function GameRatingPage() {
 
         const { data: updateData, error: updateError } = await supabase
           .from('profiles')
-          .update({ total_points: cardStats.overall, games_played: newGamesPlayed })
+          .update({
+            total_points: cardStats.overall,
+            games_played: newGamesPlayed,
+            card_stats: { pac: cardStats.pac, sho: cardStats.sho, pas: cardStats.pas, dri: cardStats.dri, def: cardStats.def, phy: cardStats.phy },
+          })
           .eq('id', uid)
           .select();
 
         if (updateError) throw new Error('Profile update failed: ' + updateError.message);
         if (!updateData || updateData.length === 0) throw new Error('Profile update matched no rows for ' + uid);
-
-        await supabase.from('player_cards').upsert({
-          user_id: uid,
-          pac: cardStats.pac, sho: cardStats.sho, pas: cardStats.pas,
-          dri: cardStats.dri, def: cardStats.def, phy: cardStats.phy,
-          overall: cardStats.overall,
-        });
       }
 
       setSuccess('Ratings submitted!');

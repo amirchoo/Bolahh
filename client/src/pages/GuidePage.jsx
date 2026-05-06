@@ -27,7 +27,7 @@ const STATS = [
 const RANK_TIER_STYLE = {
   novis:  { bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    tc: '#e8e9eb', muted: '#888' },
   gangsa: { bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', tc: '#2a1400', muted: '#5a3010' },
-  perak:  { bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', tc: '#1a1a1a', muted: '#444' },
+  perak:  { bg: 'linear-gradient(145deg,#3a7a96,#aadaef)', border: '#6ec8e8', tc: '#0b1e2b', muted: '#1a3c50' },
   emas:   { bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', tc: '#3a2a00', muted: '#6b4e00' },
 };
 
@@ -41,7 +41,7 @@ function getTierStyle(name) {
 function getRankColor(name) {
   if (name === 'Novis')          return '#7088a0';
   if (name.startsWith('Gangsa')) return '#cd7f32';
-  if (name.startsWith('Perak'))  return '#c0c0c0';
+  if (name.startsWith('Perak'))  return '#6ec8e8';
   return '#FFD700';
 }
 
@@ -173,7 +173,7 @@ export default function GuidePage() {
           {[
             { tier: 'Novis',  color: '#7088a0', desc: 'New players. No card customisation yet. Unlock your card by playing your first game.' },
             { tier: 'Gangsa', color: '#cd7f32', desc: 'Bronze tier (31–60 OVR). You\'ve played and your card is unlocked. Build up your stats and start climbing.' },
-            { tier: 'Perak',  color: '#c0c0c0', desc: 'Silver tier (61–79 OVR). Consistent performers. Your card reflects real skill at this point.' },
+            { tier: 'Perak',  color: '#6ec8e8', desc: 'Silver tier (61–79 OVR). Consistent performers. Your card reflects real skill at this point.' },
             { tier: 'Emas',   color: '#FFD700', desc: 'Gold tier (80–99 OVR). Top of the ladder. Near-max stats and the coveted gold card theme.' },
           ].map(group => {
             const groupRanks = RANKS.filter(r =>

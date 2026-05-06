@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
-import { calculateCardStats } from '../lib/cardUtils';
 import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { RiTeamLine } from 'react-icons/ri';
@@ -90,7 +89,7 @@ export default function ProfilePage() {
         setProfile(newProfile);
         setWalletBalance(newProfile?.wallet_balance || 0);
         setForm({ name: newProfile.name || '', position: newProfile.position || '', gender: newProfile.gender || '', age: newProfile.age?.toString() || '', area: newProfile.area || '' });
-        fetchCard();
+        fetchCard(newProfile.card_stats);
       }
     } else {
       if (!data.name && user.user_metadata?.username) {
@@ -103,52 +102,21 @@ export default function ProfilePage() {
         setProfile({ ...data, name: username, position, gender, age, area });
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: username, position, gender: gender || '', age: age?.toString() || '', area: area || '' });
-        fetchCard();
+        fetchCard(data.card_stats);
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: data.name || '', position: data.position || '', gender: data.gender || '', age: data.age?.toString() || '', area: data.area || '' });
-        fetchCard();
+        fetchCard(data.card_stats);
       }
     }
     setLoading(false);
   };
 
-  const fetchCard = async () => {
-    // Try to recompute from game_ratings (admin-readable; user may get empty due to RLS)
-    const { data: gameRatings } = await supabase
-      .from('game_ratings')
-      .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
-      .eq('user_id', user.id);
-
-    if (gameRatings && gameRatings.length > 0) {
-      const stats = calculateCardStats(gameRatings);
-      setCardStats(stats);
-      await supabase.from('player_cards').upsert({
-        user_id: user.id,
-        pac: stats.pac, sho: stats.sho, pas: stats.pas,
-        dri: stats.dri, def: stats.def, phy: stats.phy,
-        overall: stats.overall,
-      });
-      // Sync total_points and card_stats to profiles so leaderboard can read them without RLS issues
-      await supabase.from('profiles').update({
-        total_points: stats.overall,
-        card_stats: { pac: stats.pac, sho: stats.sho, pas: stats.pas, dri: stats.dri, def: stats.def, phy: stats.phy },
-      }).eq('id', user.id);
-    } else {
-      // Fall back to player_cards (written by the admin's rating submission)
-      const { data: cardData } = await supabase
-        .from('player_cards')
-        .select('pac, sho, pas, dri, def, phy, overall')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (cardData && (cardData.pac > 30 || cardData.overall > 30)) {
-        setCardStats(cardData);
-        await supabase.from('profiles').update({
-          card_stats: { pac: cardData.pac, sho: cardData.sho, pas: cardData.pas, dri: cardData.dri, def: cardData.def, phy: cardData.phy },
-        }).eq('id', user.id);
-      }
-    }
+  const fetchCard = (cachedCardStats) => {
+    // card_stats is written by GameRatingPage at submission time for all rated players.
+    // ProfilePage just reads what's already in profiles — no extra queries needed.
+    if (cachedCardStats) setCardStats(cachedCardStats);
   };
 
   const fetchGames = async () => {

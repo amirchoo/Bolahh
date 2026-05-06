@@ -17,9 +17,9 @@ const RANKS = [
   { name: 'Gangsa III', color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', ovr: '31–39' },
   { name: 'Gangsa II',  color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', ovr: '40–49' },
   { name: 'Gangsa I',   color: '#cd7f32', bg: 'linear-gradient(145deg,#7c4a1a,#cd7f32)', border: '#cd7f32', ovr: '50–60' },
-  { name: 'Perak III',  color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', ovr: '61–69' },
-  { name: 'Perak II',   color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', ovr: '70–74' },
-  { name: 'Perak I',    color: '#c0c0c0', bg: 'linear-gradient(145deg,#6e7275,#c0c0c0)', border: '#c0c0c0', ovr: '75–79' },
+  { name: 'Perak III',  color: '#6ec8e8', bg: 'linear-gradient(145deg,#3a7a96,#aadaef)', border: '#6ec8e8', ovr: '61–69' },
+  { name: 'Perak II',   color: '#6ec8e8', bg: 'linear-gradient(145deg,#3a7a96,#aadaef)', border: '#6ec8e8', ovr: '70–74' },
+  { name: 'Perak I',    color: '#6ec8e8', bg: 'linear-gradient(145deg,#3a7a96,#aadaef)', border: '#6ec8e8', ovr: '75–79' },
   { name: 'Emas III',   color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', ovr: '80–85' },
   { name: 'Emas II',    color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', ovr: '86–94' },
   { name: 'Emas I',     color: '#FFD700', bg: 'linear-gradient(145deg,#b8860b,#ffd700)', border: '#ffd700', ovr: '95–99' },
@@ -559,7 +559,7 @@ export default function LandingPage() {
               YOUR <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>o</span>lahh</span><br />PLAYER CARD
             </h2>
             <p className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-2`} style={{ fontSize:15, color:'rgba(232,233,235,0.55)', lineHeight:1.8, fontFamily:"'DM Sans'", marginBottom:24 }}>
-              Every player gets a card that reflects their rank tier. Your 6 stats ,PAC, SHO, PAS, DRI, DEF and PHY are rated by the organiser after each game and build your OVR.
+              Every player gets a card that reflects their rank tier. Your 6 stats ,PAC, SHO, PAS, DRI, DEF and PHY are rated by our trusted manager after each game and build your OVR.
             </p>
             <div className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-3`} style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
