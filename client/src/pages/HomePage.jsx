@@ -473,15 +473,28 @@ function HomeFooter() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8,
       }}>
         <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Sans'" }}>© 2026 Bolahh. All rights reserved.</span>
-        <button
-          onClick={() => navigate('/guide')}
-          style={{
-            background: 'rgba(240,157,81,0.08)', color: 'var(--accent)',
-            border: '1px solid rgba(240,157,81,0.2)', borderRadius: 8,
-            padding: '5px 14px', fontSize: 11, fontFamily: "'Space Mono'",
-            cursor: 'pointer', letterSpacing: 1,
-          }}
-        >GUIDE & HELP →</button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <a
+            href="https://forms.gle/cxzP7ifzdMfpA1D17"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: 'rgba(224,62,26,0.08)', color: '#e03e1a',
+              border: '1px solid rgba(224,62,26,0.2)', borderRadius: 8,
+              padding: '5px 14px', fontSize: 11, fontFamily: "'Space Mono'",
+              cursor: 'pointer', letterSpacing: 1, textDecoration: 'none',
+            }}
+          >🐛 REPORT BUG</a>
+          <button
+            onClick={() => navigate('/guide')}
+            style={{
+              background: 'rgba(240,157,81,0.08)', color: 'var(--accent)',
+              border: '1px solid rgba(240,157,81,0.2)', borderRadius: 8,
+              padding: '5px 14px', fontSize: 11, fontFamily: "'Space Mono'",
+              cursor: 'pointer', letterSpacing: 1,
+            }}
+          >GUIDE & HELP →</button>
+        </div>
       </div>
     </div>
   );
