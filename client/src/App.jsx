@@ -20,6 +20,7 @@ import GuidePage from './pages/GuidePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import NotFoundPage from './pages/NotFoundPage';
+import WIPBanner from './components/WIPBanner';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -106,6 +107,7 @@ function App() {
         } />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      <WIPBanner />
       <Analytics />
     </BrowserRouter>
   );
