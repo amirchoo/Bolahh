@@ -96,6 +96,8 @@ export default function GameRatingPage() {
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get('preview') === '1';
 
+  const storageKey = `bolahh_rating_${id}`;
+
   const [game, setGame] = useState(null);
   const [players, setPlayers] = useState([]);
   const [profiles, setProfiles] = useState({});
@@ -121,6 +123,12 @@ export default function GameRatingPage() {
   const [baseRatings, setBaseRatings] = useState({});
 
   useEffect(() => { fetchData(); }, [id]);
+
+  // Persist progress to localStorage so a phone screen-off / tab refresh doesn't lose work
+  useEffect(() => {
+    if (loading || isPreview) return;
+    localStorage.setItem(storageKey, JSON.stringify({ step, duration, teamMode, teamAssign, ratings, currentMatch }));
+  }, [step, duration, teamMode, teamAssign, ratings, currentMatch, loading]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -194,6 +202,20 @@ export default function GameRatingPage() {
     const { data: existing } = await supabase
       .from('game_ratings').select('user_id').eq('game_id', id).limit(1);
     if (existing && existing.length > 0) setAlreadyRated(true);
+
+    // Restore saved progress if the admin was interrupted mid-session
+    try {
+      const saved = localStorage.getItem(`bolahh_rating_${id}`);
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.step)              setStep(p.step);
+        if (p.duration)          setDuration(p.duration);
+        if (p.teamMode)          setTeamMode(p.teamMode);
+        if (p.teamAssign)        setTeamAssign(p.teamAssign);
+        if (p.ratings)           setRatings(p.ratings);
+        if (p.currentMatch != null) setCurrentMatch(p.currentMatch);
+      }
+    } catch {}
 
     setLoading(false);
   };
@@ -324,6 +346,7 @@ export default function GameRatingPage() {
         if (!updateData || updateData.length === 0) throw new Error('Profile update matched no rows for ' + uid);
       }
 
+      localStorage.removeItem(storageKey);
       setSuccess('Ratings submitted!');
       setAlreadyRated(true);
       setStep('setup');
