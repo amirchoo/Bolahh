@@ -130,8 +130,11 @@ export default function ProfilePage() {
         dri: stats.dri, def: stats.def, phy: stats.phy,
         overall: stats.overall,
       });
-      // Keep total_points in sync so FriendsPage/GameDetailPage (which read total_points) stay accurate
-      await supabase.from('profiles').update({ total_points: stats.overall }).eq('id', user.id);
+      // Sync total_points and card_stats to profiles so leaderboard can read them without RLS issues
+      await supabase.from('profiles').update({
+        total_points: stats.overall,
+        card_stats: { pac: stats.pac, sho: stats.sho, pas: stats.pas, dri: stats.dri, def: stats.def, phy: stats.phy },
+      }).eq('id', user.id);
     } else {
       // Fall back to player_cards (written by the admin's rating submission)
       const { data: cardData } = await supabase
@@ -141,6 +144,9 @@ export default function ProfilePage() {
         .maybeSingle();
       if (cardData && (cardData.pac > 30 || cardData.overall > 30)) {
         setCardStats(cardData);
+        await supabase.from('profiles').update({
+          card_stats: { pac: cardData.pac, sho: cardData.sho, pas: cardData.pas, dri: cardData.dri, def: cardData.def, phy: cardData.phy },
+        }).eq('id', user.id);
       }
     }
   };
