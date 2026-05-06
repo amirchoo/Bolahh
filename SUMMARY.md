@@ -60,12 +60,12 @@ Rank tier controls the visual theme of a player's Bolahh Card and any rank-relat
 |------|-----------|-----------------|-----------------|------|
 | **Novis** | 0–30 | `linear-gradient(145deg, #2a2d30, #3d4144)` | `#555` | `#e8e9eb` |
 | **Gangsa** (III–I) | 31–60 | `linear-gradient(145deg, #7c4a1a, #cd7f32)` | `#cd7f32` | `#2a1400` |
-| **Perak** (III–I) | 61–79 | `linear-gradient(145deg, #6e7275, #c0c0c0)` | `#c0c0c0` | `#1a1a1a` |
+| **Perak** (III–I) | 61–79 | `linear-gradient(145deg, #3a7a96, #aadaef)` | `#6ec8e8` | `#0b1e2b` |
 | **Emas** (III–I) | 80–99 | `linear-gradient(145deg, #b8860b, #ffd700)` | `#ffd700` | `#3a2a00` |
 
 - **Novis** — dark grey, muted. Card stats are hidden with `—` until the first rated game.
 - **Gangsa** — warm bronze gradient. Dark text on a copper-brown background.
-- **Perak** — silver gradient. Dark text on a steel/chrome background.
+- **Perak** — bright icy silver-blue gradient. Dark navy text on a teal-to-sky background.
 - **Emas** — gold gradient. Dark amber text on a rich gold background. Glow effects applied.
 
 Cards also carry a `linear-gradient(135deg, rgba(255,255,255,0.12), transparent 55%)` shine overlay on all tiers except Novis.

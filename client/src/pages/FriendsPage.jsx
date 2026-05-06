@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getRank, getRankColor } from '../lib/rankUtils';
-import { calculateCardStats } from '../lib/cardUtils';
 import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoSearch, IoPeople, IoMailOpen, IoCheckmark } from 'react-icons/io5';
 
@@ -17,7 +16,7 @@ const STATS = [
 
 function getCardTheme(rank) {
   if (rank.startsWith('Emas'))   return { bg: 'linear-gradient(145deg, #b8860b, #ffd700, #b8860b)', border: '#ffd700', text: '#3a2a00', muted: '#6b4e00', statBg: 'rgba(0,0,0,0.2)' };
-  if (rank.startsWith('Perak'))  return { bg: 'linear-gradient(145deg, #6e7275, #c0c0c0, #6e7275)', border: '#c0c0c0', text: '#1a1a1a', muted: '#444', statBg: 'rgba(0,0,0,0.2)' };
+  if (rank.startsWith('Perak'))  return { bg: 'linear-gradient(145deg, #3a7a96, #aadaef, #3a7a96)', border: '#6ec8e8', text: '#0b1e2b', muted: '#1a3c50', statBg: 'rgba(0,0,0,0.15)' };
   if (rank.startsWith('Gangsa')) return { bg: 'linear-gradient(145deg, #7c4a1a, #cd7f32, #7c4a1a)', border: '#cd7f32', text: '#2a1400', muted: '#5a3010', statBg: 'rgba(0,0,0,0.2)' };
   return { bg: 'linear-gradient(145deg, #2a2d30, #3d4144, #2a2d30)', border: '#555', text: '#e8e9eb', muted: '#aaa', statBg: 'rgba(255,255,255,0.1)' };
 }
@@ -102,7 +101,7 @@ export default function FriendsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats')
       .in('id', friendIds);
 
     setFriends(profiles || []);
@@ -121,7 +120,7 @@ export default function FriendsPage() {
     const senderIds = data.map(f => f.sender_id);
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats')
       .in('id', senderIds);
 
     setPending(profiles || []);
@@ -146,7 +145,7 @@ export default function FriendsPage() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats')
       .ilike('name', `%${q}%`)
       .neq('id', user.id)
       .limit(10);
@@ -200,12 +199,11 @@ export default function FriendsPage() {
     return 'none';
   };
 
-  const openPlayerCard = async (profile) => {
-    const { data: gameRatings } = await supabase
-      .from('game_ratings')
-      .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
-      .eq('user_id', profile.id);
-    const cardStats = calculateCardStats(gameRatings || []);
+  const openPlayerCard = (profile) => {
+    const cs = profile.card_stats;
+    const cardStats = cs
+      ? { pac: cs.pac || 30, sho: cs.sho || 30, pas: cs.pas || 30, dri: cs.dri || 30, def: cs.def || 30, phy: cs.phy || 30, overall: profile.total_points || 30 }
+      : { pac: 30, sho: 30, pas: 30, dri: 30, def: 30, phy: 30, overall: 30 };
     setViewingPlayer({ profile, cardStats });
   };
 

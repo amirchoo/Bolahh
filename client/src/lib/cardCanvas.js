@@ -19,7 +19,7 @@ export const DEFAULT_BG = { id: 'dark', label: 'Dark', src: null };
 
 function getTheme(rank) {
   if (rank.startsWith('Emas'))   return { stops: ['#b8860b','#ffd700','#b8860b'], border: '#ffd700', text: '#3a2a00', muted: '#6b4e00', statBg: 'rgba(0,0,0,0.2)' };
-  if (rank.startsWith('Perak'))  return { stops: ['#6e7275','#c0c0c0','#6e7275'], border: '#c0c0c0', text: '#1a1a1a', muted: '#444',    statBg: 'rgba(0,0,0,0.2)' };
+  if (rank.startsWith('Perak'))  return { stops: ['#3a7a96','#aadaef','#3a7a96'], border: '#6ec8e8', text: '#0b1e2b', muted: '#1a3c50', statBg: 'rgba(0,0,0,0.15)' };
   if (rank.startsWith('Gangsa')) return { stops: ['#7c4a1a','#cd7f32','#7c4a1a'], border: '#cd7f32', text: '#2a1400', muted: '#5a3010', statBg: 'rgba(0,0,0,0.2)' };
   return                                { stops: ['#2a2d30','#3d4144','#2a2d30'], border: '#555',    text: '#e8e9eb', muted: '#aaa',    statBg: 'rgba(255,255,255,0.1)' };
 }
