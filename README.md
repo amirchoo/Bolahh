@@ -28,6 +28,7 @@ A futsal match booking and player progression platform for Malaysia. Find open g
 - Join a game → wallet deducted → slot reserved instantly
 - Games lock (unclickable) 10 minutes before start
 - Games with too few players are auto-deleted at start time
+- Player list visible on game detail page
 
 ### Bolahh Card (FIFA-style)
 - Every player has a card with 6 stats: **PAC / SHO / PAS / DRI / DEF / PHY**
@@ -37,21 +38,29 @@ A futsal match booking and player progression platform for Malaysia. Find open g
 
 ### Rank System (10 tiers, OVR-based)
 
-| Rank | OVR |
-|------|-----|
-| Novis | 0–30 |
-| Gangsa III / II / I | 31–60 |
-| Perak III / II / I | 61–79 |
-| Emas III / II / I | 80–99 |
+| Rank | OVR | Colour |
+|------|-----|--------|
+| Novis | 0–30 | Steel blue-grey |
+| Gangsa III / II / I | 31–60 | Bronze |
+| Perak III / II / I | 61–79 | Bright icy silver |
+| Emas III / II / I | 80–99 | Gold |
+
+### Leaderboard
+- Global ranking of all players sorted by OVR, highest first
+- Top 3 earn gold / silver / bronze medals
+- Filterable by area and position
 
 ### Post-Match Rating (Admin)
-4-step flow: session setup → team assignment → match schedule → per-player stat rating.
+4-step flow: session setup → team assignment → match schedule → per-player stat rating. Progress is auto-saved to `localStorage` so a phone screen-off or browser refresh does not lose work.
 
 ### Friends System
 Send / accept / reject friend requests and view friends' Bolahh Cards.
 
 ### Wallet
 Top-up via ToyyibPay (RM 5 – RM 100). Balance deducted on game join; all transactions logged.
+
+### Verified Badge
+Players with an active Bolahh subscription get a blue verified badge next to their name across the leaderboard, game player list, and friends page.
 
 ### Manager Dashboard
 Create and delete fields (with image uploads) and games. Navigate to the rating page per game.
@@ -69,10 +78,12 @@ Create and delete fields (with image uploads) and games. Navigate to the rating 
 | `/home` | Home (game browser) | Auth required |
 | `/game/:id` | Game Detail | Auth required |
 | `/game/:id/checkout` | Checkout | Auth required |
+| `/game/:id/cancel` | Cancel Booking | Auth required |
 | `/profile` | Profile & Bolahh Card | Auth required |
 | `/friends` | Friends | Auth required |
 | `/wallet/topup` | Wallet Top-Up | Auth required |
-| `/guide` | Guide | Auth required |
+| `/leaderboard` | Leaderboard | Auth required |
+| `/guide` | Guide & Help | Auth required |
 | `/subscription` | Subscription | Auth required |
 | `/game/:id/rate` | Post-Match Rating | Admin only |
 | `/manager` | Manager Dashboard | Admin only |
@@ -151,8 +162,6 @@ UPDATE profiles SET total_points = 0, games_played = 0 WHERE email = 'player@exa
 
 ## Roadmap
 
-- [ ] Game summary screen after rating submission
-- [ ] Player list visible on game detail page
 - [ ] Edit games from manager panel
 - [ ] Notifications (game full, reminders)
 - [ ] Mobile app
