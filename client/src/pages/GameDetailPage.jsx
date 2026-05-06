@@ -499,7 +499,7 @@ export default function GameDetailPage() {
                           fontWeight: 700, fontSize: 14, color: isMe ? rankColor : 'var(--text)',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                         }}>
-                          {name}{isMe ? ' (you)' : ''}
+                          {name}
                         </span>
                         {isVerified && (
                           <span style={{
