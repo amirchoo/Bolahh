@@ -5,7 +5,7 @@ import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import { getCardTheme, STATS, POSITION_ABBR } from '../components/FifaCard';
 import { IconLoading } from '../components/Icons';
-import { IoTrophyOutline } from 'react-icons/io5';
+import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
 
 const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
@@ -165,11 +165,8 @@ export default function LeaderboardPage() {
                       <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
                         {player.name || 'Unknown'}
                       </span>
-                      {isSelf && (
-                        <span style={{ fontSize: 10, background: 'rgba(240,157,81,0.15)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.3)', borderRadius: 4, padding: '1px 6px', fontFamily: "'Space Mono'", flexShrink: 0 }}>YOU</span>
-                      )}
                       {isSubscribed && (
-                        <span style={{ fontSize: 10, color: '#4ade80', flexShrink: 0 }}>✓</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff' }}><IoCheckmark size={9} /></span>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

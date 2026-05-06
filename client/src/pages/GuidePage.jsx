@@ -2,17 +2,18 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { RANKS } from '../lib/rankUtils';
-import { IoWallet } from 'react-icons/io5';
-import { FaRankingStar } from 'react-icons/fa6';
+import { IoWallet, IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
+import { FaRankingStar, FaLocationDot } from 'react-icons/fa6';
 import { TbPlayCard7Filled } from 'react-icons/tb';
 import { IoSearchCircleOutline } from 'react-icons/io5';
 import { GiSoccerBall } from 'react-icons/gi';
 
 const SECTIONS = [
-  { id: 'flow',   label: 'How It Works' },
-  { id: 'ranks',  label: 'Ranks'        },
-  { id: 'card',   label: 'Bolahh Card'  },
-  { id: 'wallet', label: 'Wallet'       },
+  { id: 'flow',        label: 'How It Works' },
+  { id: 'ranks',       label: 'Ranks'        },
+  { id: 'leaderboard', label: 'Leaderboard'  },
+  { id: 'card',        label: 'Bolahh Card'  },
+  { id: 'wallet',      label: 'Wallet'       },
 ];
 
 const STATS = [
@@ -184,7 +185,7 @@ export default function GuidePage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: group.color, boxShadow: `0 0 8px ${group.color}`, flexShrink: 0 }} />
                   <span style={{ fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 1.5, color: group.color }}>{group.tier.toUpperCase()}</span>
-                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>— {group.desc}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>{group.desc}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingLeft: 20 }}>
                   {groupRanks.map(r => {
@@ -213,6 +214,78 @@ export default function GuidePage() {
             <span style={{ color: 'var(--text)', fontWeight: 600 }}>Note: </span>
             You must have played at least 1 game to move out of Novis.
           </div>
+        </section>
+
+        {divider}
+
+        {/* ── SECTION 3: LEADERBOARD ── */}
+        <section>
+          <SectionHead id="leaderboard" sup="GLOBAL RANKINGS" title="LEADERBOARD" />
+          <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
+            The leaderboard ranks every Bolahh player by OVR, highest first. Play games, get rated, and watch your position climb.
+          </p>
+
+          {/* How ranking works */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+            {[
+              {
+                icon: <IoTrophyOutline size={20} />,
+                title: 'OVR-Based Ranking',
+                desc: 'Players are sorted by their overall rating (OVR). The top 3 earn gold, silver, and bronze medals. Everyone else is shown by position number.',
+                color: '#FFD700',
+              },
+              {
+                icon: <FaLocationDot size={18} />,
+                title: 'Filter by Area',
+                desc: 'Narrow the board to players from your area. Subang, Petaling Jaya, KL, Shah Alam, Cheras, Ampang, and more.',
+                color: 'var(--accent)',
+              },
+              {
+                icon: <FaRankingStar size={20} />,
+                title: 'Filter by Position',
+                desc: 'Compare within your position. Filter by Attacker, Midfielder, Defender, or Goalkeeper to see where you stack up among players who play your role.',
+                color: '#a78bfa',
+              },
+            ].map(item => (
+              <div key={item.title} style={{
+                background: 'var(--card)', border: '1px solid var(--border)',
+                borderRadius: 14, padding: '16px 20px',
+                display: 'flex', alignItems: 'flex-start', gap: 14,
+              }}>
+                <div style={{
+                  flexShrink: 0, width: 38, height: 38, borderRadius: 10,
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: item.color,
+                }}>{item.icon}</div>
+                <div>
+                  <div style={{ fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 4 }}>{item.title}</div>
+                  <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: 0 }}>{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          
+          {/* How to climb */}
+          <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 12, padding: '14px 18px', fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 20,
+          }}>
+            <span style={{ color: 'var(--text)', fontWeight: 600 }}>How to climb: </span>
+            Join more games and perform well. Our trusted manager rates your stats after each match. Goals, assists, and good plays push your stats up. Higher stats raise your OVR, which moves you up the board.
+          </div>
+
+          <button
+            onClick={() => navigate('/leaderboard')}
+            style={{
+              width: '100%', padding: '13px',
+              background: 'var(--card)', color: 'var(--text)',
+              border: '1px solid var(--border)',
+              borderRadius: 12, fontFamily: "'Bebas Neue'", fontSize: 17, letterSpacing: 2,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            }}
+          ><IoTrophyOutline size={18} /> VIEW LEADERBOARD</button>
         </section>
 
         {divider}
