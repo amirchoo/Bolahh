@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { getCached, setCached } from '../lib/dataCache';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
@@ -38,7 +39,21 @@ export default function ProfilePage() {
   const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
 
   useEffect(() => {
-    if (user) { fetchProfile(); fetchGames(); }
+    if (!user) return;
+    const cachedProfile = getCached(`profile_${user.id}`);
+    const cachedGames = getCached(`profile_games_${user.id}`);
+    if (cachedProfile) {
+      setProfile(cachedProfile.profile); setWalletBalance(cachedProfile.walletBalance);
+      setForm(cachedProfile.form); setCardStats(cachedProfile.cardStats);
+      setLoading(false);
+    }
+    if (cachedGames) {
+      setUpcomingGames(cachedGames.upcomingGames);
+      setRecentGames(cachedGames.recentGames);
+      setDeletedGameCount(cachedGames.deletedGameCount);
+    }
+    fetchProfile(!!cachedProfile);
+    fetchGames(!!cachedGames);
   }, [user]);
 
   useEffect(() => {
@@ -48,6 +63,12 @@ export default function ProfilePage() {
       setProfile(prev => ({ ...prev, is_subscribed: false }));
     }
   }, [profile?.is_subscribed, profile?.subscription_expires_at]);
+
+  useEffect(() => {
+    if (profile && user) {
+      setCached(`profile_${user.id}`, { profile, walletBalance, form, cardStats });
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (!showCardModal) return;
@@ -71,8 +92,8 @@ export default function ProfilePage() {
       .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
   }, [showCardModal, selectedBg, cardStats]);
 
-  const fetchProfile = async () => {
-    setLoading(true);
+  const fetchProfile = async (silent = false) => {
+    if (!silent) setLoading(true);
     const { data, error } = await supabase
       .from('profiles').select('*, wallet_balance').eq('id', user.id).single();
     if (error || !data) {
@@ -119,7 +140,7 @@ export default function ProfilePage() {
     if (cachedCardStats) setCardStats(cachedCardStats);
   };
 
-  const fetchGames = async () => {
+  const fetchGames = async (silent = false) => {
     const { data: playerData, error: playerError } = await supabase
       .from('game_players').select('id, game_id').eq('user_id', user.id);
     if (playerError || !playerData || playerData.length === 0) return;
@@ -145,8 +166,11 @@ export default function ProfilePage() {
       const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
       return now < gameStart;
     };
-    setUpcomingGames(valid.filter(e => isUpcoming(e.games)).sort((a, b) => a.games.date.localeCompare(b.games.date) || a.games.time.localeCompare(b.games.time)));
-    setRecentGames(valid.filter(e => !isUpcoming(e.games)).sort((a, b) => b.games.date.localeCompare(a.games.date) || b.games.time.localeCompare(a.games.time)));
+    const upcoming = valid.filter(e => isUpcoming(e.games)).sort((a, b) => a.games.date.localeCompare(b.games.date) || a.games.time.localeCompare(b.games.time));
+    const recent = valid.filter(e => !isUpcoming(e.games)).sort((a, b) => b.games.date.localeCompare(a.games.date) || b.games.time.localeCompare(a.games.time));
+    setUpcomingGames(upcoming);
+    setRecentGames(recent);
+    setCached(`profile_games_${user.id}`, { upcomingGames: upcoming, recentGames: recent, deletedGameCount: orphaned });
   };
 
   const handleAvatarUpload = async (e) => {

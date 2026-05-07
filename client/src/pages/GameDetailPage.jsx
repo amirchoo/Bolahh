@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { getCached, setCached } from '../lib/dataCache';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
@@ -31,37 +32,58 @@ export default function GameDetailPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => { fetchGame(); }, [id]);
+  useEffect(() => {
+    const cached = getCached(`game_${id}`);
+    if (cached) {
+      setGame(cached.game); setField(cached.field);
+      setPlayerCount(cached.playerCount); setHasJoined(cached.hasJoined);
+      setPlayers(cached.players); setIsOwner(cached.isOwner);
+      setWalletBalance(cached.walletBalance);
+      setLoading(false);
+    }
+    fetchGame(!!cached);
+  }, [id]);
 
-  const fetchGame = async () => {
-    setLoading(true);
+  const fetchGame = async (silent = false) => {
+    if (!silent) setLoading(true);
     const [gameRes, profileRes] = await Promise.all([
       supabase.from('games').select('*, fields(*)').eq('id', id).single(),
       supabase.from('profiles').select('wallet_balance').eq('id', user.id).single(),
     ]);
     if (gameRes.error || !gameRes.data) { navigate('/home'); return; }
-    setGame(gameRes.data);
-    setField(gameRes.data.fields);
-    setIsOwner(gameRes.data.created_by === user?.id);
-    setWalletBalance(profileRes.data?.wallet_balance || 0);
+    const gameData = gameRes.data;
+    const fieldData = gameRes.data.fields;
+    const isOwnerVal = gameRes.data.created_by === user?.id;
+    const walletBal = profileRes.data?.wallet_balance || 0;
+    setGame(gameData); setField(fieldData);
+    setIsOwner(isOwnerVal); setWalletBalance(walletBal);
 
     const { count } = await supabase
       .from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', id);
-    setPlayerCount(count || 0);
+    const countVal = count || 0;
+    setPlayerCount(countVal);
 
     const { data: existing } = await supabase
       .from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle();
-    setHasJoined(!!existing);
+    const joinedVal = !!existing;
+    setHasJoined(joinedVal);
 
     const { data: gamePlayers } = await supabase
       .from('game_players').select('user_id').eq('game_id', id);
+    let playersVal = [];
     if (gamePlayers?.length) {
       const { data: profilesData } = await supabase
         .from('profiles').select('id, name, avatar_url, position, total_points, is_subscribed, subscription_expires_at')
         .in('id', gamePlayers.map(p => p.user_id));
-      setPlayers(profilesData || []);
+      playersVal = profilesData || [];
+      setPlayers(playersVal);
     }
 
+    setCached(`game_${id}`, {
+      game: gameData, field: fieldData, isOwner: isOwnerVal,
+      walletBalance: walletBal, playerCount: countVal,
+      hasJoined: joinedVal, players: playersVal,
+    });
     setLoading(false);
   };
 

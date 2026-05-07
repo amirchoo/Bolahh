@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { getCached, setCached } from '../lib/dataCache';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
@@ -21,10 +22,14 @@ export default function LeaderboardPage() {
   const [areaFilter, setAreaFilter] = useState('All Areas');
   const [posFilter, setPosFilter] = useState('All');
 
-  useEffect(() => { fetchLeaderboard(); }, []);
+  useEffect(() => {
+    const cached = getCached('leaderboard');
+    if (cached) { setPlayers(cached); setLoading(false); }
+    fetchLeaderboard(!!cached);
+  }, []);
 
-  const fetchLeaderboard = async () => {
-    setLoading(true);
+  const fetchLeaderboard = async (silent = false) => {
+    if (!silent) setLoading(true);
 
     // total_points is the authoritative OVR — synced every time a user visits their profile
     const { data: profiles, error } = await supabase
@@ -46,6 +51,7 @@ export default function LeaderboardPage() {
       phy: p.card_stats?.phy || 30,
     }));
     setPlayers(enriched);
+    setCached('leaderboard', enriched);
     setLoading(false);
   };
 
