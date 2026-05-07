@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { getCached, setCached, clearCached } from '../lib/dataCache';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { calculateCardStats } from '../lib/cardUtils';
@@ -122,7 +123,22 @@ export default function GameRatingPage() {
   // Base taps before this game — used to compute the per-game delta on submit
   const [baseRatings, setBaseRatings] = useState({});
 
-  useEffect(() => { fetchData(); }, [id]);
+  useEffect(() => {
+    if (!isPreview) {
+      const cached = getCached(`rating_data_${id}`);
+      if (cached) {
+        setGame(cached.game); setPlayers(cached.players);
+        setProfiles(cached.profiles); setBaseRatings(cached.baseRatings);
+        const initRatings = {};
+        cached.players.forEach(uid => { initRatings[uid] = { ...(cached.baseRatings[uid] || defaultStats()) }; });
+        setRatings(initRatings);
+        const formatNum = parseInt(cached.game?.format) || 5;
+        setTeamMode(cached.players.length <= formatNum * 2 ? 2 : 3);
+        setLoading(false);
+      }
+    }
+    fetchData(isPreview ? false : !!getCached(`rating_data_${id}`));
+  }, [id]);
 
   // Persist progress to localStorage so a phone screen-off / tab refresh doesn't lose work
   useEffect(() => {
@@ -130,8 +146,8 @@ export default function GameRatingPage() {
     localStorage.setItem(storageKey, JSON.stringify({ step, duration, teamMode, teamAssign, ratings, currentMatch }));
   }, [step, duration, teamMode, teamAssign, ratings, currentMatch, loading]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
 
     if (isPreview) {
       setGame(MOCK_GAME);
@@ -202,6 +218,8 @@ export default function GameRatingPage() {
     const { data: existing } = await supabase
       .from('game_ratings').select('user_id').eq('game_id', id).limit(1);
     if (existing && existing.length > 0) setAlreadyRated(true);
+
+    setCached(`rating_data_${id}`, { game: gameData, players: userIds, profiles: profileMap, baseRatings: baseMap });
 
     // Restore saved progress if the admin was interrupted mid-session
     try {
@@ -347,6 +365,7 @@ export default function GameRatingPage() {
       }
 
       localStorage.removeItem(storageKey);
+      clearCached(`rating_data_${id}`);
       setSuccess('Ratings submitted!');
       setAlreadyRated(true);
       setStep('setup');

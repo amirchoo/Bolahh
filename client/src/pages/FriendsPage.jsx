@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
+import { getCached, setCached } from '../lib/dataCache';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoSearch, IoPeople, IoMailOpen, IoCheckmark } from 'react-icons/io5';
@@ -78,11 +79,20 @@ export default function FriendsPage() {
   const [activeTab, setActiveTab] = useState('friends');
   const [viewingPlayer, setViewingPlayer] = useState(null); // { profile, cardStats }
 
-  useEffect(() => { if (user) fetchAll(); }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    const cached = getCached(`friends_${user.id}`);
+    if (cached) {
+      setFriends(cached.friends); setPending(cached.pending); setSent(cached.sent);
+      setLoading(false);
+    }
+    fetchAll(!!cached);
+  }, [user]);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchFriends(), fetchPending(), fetchSent()]);
+  const fetchAll = async (silent = false) => {
+    if (!silent) setLoading(true);
+    const [friendsData, pendingData, sentData] = await Promise.all([fetchFriends(), fetchPending(), fetchSent()]);
+    setCached(`friends_${user.id}`, { friends: friendsData ?? [], pending: pendingData ?? [], sent: sentData ?? [] });
     setLoading(false);
   };
 
@@ -97,7 +107,7 @@ export default function FriendsPage() {
     if (!data) return;
 
     const friendIds = data.map(f => f.sender_id === user.id ? f.receiver_id : f.sender_id);
-    if (friendIds.length === 0) { setFriends([]); return; }
+    if (friendIds.length === 0) { setFriends([]); return []; }
 
     const { data: profiles } = await supabase
       .from('profiles')
@@ -105,6 +115,7 @@ export default function FriendsPage() {
       .in('id', friendIds);
 
     setFriends(profiles || []);
+    return profiles || [];
   };
 
   const fetchPending = async () => {
@@ -115,7 +126,7 @@ export default function FriendsPage() {
       .eq('receiver_id', user.id)
       .eq('status', 'pending');
 
-    if (!data || data.length === 0) { setPending([]); return; }
+    if (!data || data.length === 0) { setPending([]); return []; }
 
     const senderIds = data.map(f => f.sender_id);
     const { data: profiles } = await supabase
@@ -124,6 +135,7 @@ export default function FriendsPage() {
       .in('id', senderIds);
 
     setPending(profiles || []);
+    return profiles || [];
   };
 
   const fetchSent = async () => {
@@ -134,8 +146,10 @@ export default function FriendsPage() {
       .eq('sender_id', user.id)
       .eq('status', 'pending');
 
-    if (!data) { setSent([]); return; }
-    setSent(data.map(f => f.receiver_id));
+    if (!data) { setSent([]); return []; }
+    const sentIds = data.map(f => f.receiver_id);
+    setSent(sentIds);
+    return sentIds;
   };
 
   const handleSearch = async (q) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { getCached, setCached } from '../lib/dataCache';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
 import { GiSoccerBall } from 'react-icons/gi';
@@ -68,7 +69,11 @@ export default function HomePage() {
     el.scrollBy({ left: dir * pillW, behavior: 'smooth' });
   };
 
-  useEffect(() => { fetchGames(); }, []);
+  useEffect(() => {
+    const cached = getCached('home_games');
+    if (cached) { setGames(cached); setLoading(false); }
+    fetchGames(!!cached);
+  }, []);
 
   const isGameVisible = (game, playerCount) => {
     const now = new Date();
@@ -82,8 +87,8 @@ export default function HomePage() {
     return now < gameStart;
   };
 
-  const fetchGames = async () => {
-    setLoading(true);
+  const fetchGames = async (silent = false) => {
+    if (!silent) setLoading(true);
     const today = toDateStr(new Date());
     const { data, error } = await supabase
       .from('games')
@@ -113,7 +118,9 @@ export default function HomePage() {
     const deletedIds = new Set(gamesToDelete.map(g => g.id));
 
     // Pre-filter expired games and deleted games
-    setGames(gamesWithCounts.filter(g => !deletedIds.has(g.id) && isGameVisible(g, g._playerCount)));
+    const result = gamesWithCounts.filter(g => !deletedIds.has(g.id) && isGameVisible(g, g._playerCount));
+    setGames(result);
+    setCached('home_games', result);
     setLoading(false);
   };
 

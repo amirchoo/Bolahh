@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
+import { getCached, setCached, clearCached } from '../lib/dataCache';
 import { GiSoccerBall } from 'react-icons/gi';
 import { MdOutlineCalendarMonth, MdOutlineStadium, MdSave } from 'react-icons/md';
 import { FaPeopleGroup, FaLocationDot } from 'react-icons/fa6';
@@ -40,17 +41,26 @@ export default function ManagerPage() {
     description: '', game_rules: '', shoes_type: []
   });
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    const cached = getCached('manager_data');
+    if (cached) {
+      setFields(cached.fields); setGames(cached.games); setPlayers(cached.players);
+      setLoading(false);
+    }
+    fetchAll(!!cached);
+  }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
+  const fetchAll = async (silent = false) => {
+    if (!silent) setLoading(true);
+    const [fieldsData, gamesData, playersData] = await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
+    setCached('manager_data', { fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [] });
     setLoading(false);
   };
 
   const fetchFields = async () => {
     const { data } = await supabase.from('fields').select('*').order('name');
     if (data) setFields(data);
+    return data ?? [];
   };
 
   const fetchGames = async () => {
@@ -61,11 +71,13 @@ export default function ManagerPage() {
       .eq('created_by', currentUser?.id)
       .order('date', { ascending: true });
     if (data) setGames(data);
+    return data ?? [];
   };
 
   const fetchPlayers = async () => {
     const { data } = await supabase.from('profiles').select('*').order('username');
     if (data) setPlayers(data);
+    return data ?? [];
   };
 
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
@@ -97,7 +109,7 @@ export default function ManagerPage() {
       created_by: (await supabase.auth.getUser()).data.user?.id,
     });
     if (error) { showError(error.message); return; }
-    showSuccess('Game added!'); resetGameForm(); fetchGames();
+    showSuccess('Game added!'); resetGameForm(); clearCached('manager_data'); fetchGames();
   };
 
   const handleEditGame = (game) => {
@@ -127,6 +139,7 @@ export default function ManagerPage() {
     if (error) { showError(error.message); return; }
     if (!updated || updated.length === 0) { showError('Update failed — no rows matched. Check Supabase RLS policies.'); return; }
     setGames(prev => prev.map(g => g.id === editingGame ? updated[0] : g));
+    clearCached('manager_data');
     showSuccess('Game updated!'); setEditingGame(null); setShowEditGameModal(false); resetEditGameForm();
   };
 
@@ -134,7 +147,7 @@ export default function ManagerPage() {
     if (!confirm('Delete this game?')) return;
     const { error } = await supabase.from('games').delete().eq('id', id);
     if (error) { showError(error.message); return; }
-    showSuccess('Game deleted.'); fetchGames();
+    showSuccess('Game deleted.'); clearCached('manager_data'); fetchGames();
   };
 
   const isUpcoming = (g) => {
