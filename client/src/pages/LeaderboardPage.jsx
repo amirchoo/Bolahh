@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached } from '../lib/dataCache';
+import { usePersistedState } from '../lib/usePersistedState';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
@@ -19,8 +20,8 @@ export default function LeaderboardPage() {
   const { user } = useAuth();
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [areaFilter, setAreaFilter] = useState('All Areas');
-  const [posFilter, setPosFilter] = useState('All');
+  const [areaFilter, setAreaFilter] = usePersistedState('lb_area', 'All Areas');
+  const [posFilter, setPosFilter] = usePersistedState('lb_pos', 'All');
 
   useEffect(() => {
     const cached = getCached('leaderboard');

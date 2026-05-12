@@ -22,23 +22,75 @@ export function calcOverall(stats) {
   return Math.round(STATS.map(s => stats[s.key] || 0).reduce((a, b) => a + b, 0) / 6);
 }
 
-export default function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick }) {
-  const theme = getCardTheme(rank);
-  const overall = calcOverall(cardStats);
+export function buildCustomTheme(form) {
+  const text   = form.textDark ? '#1a1200' : '#f0f0f0';
+  const muted  = form.textDark ? '#5a4800' : '#999999';
+  const statBg = form.textDark ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.12)';
+  return {
+    bg:          `linear-gradient(145deg, ${form.gradFrom}, ${form.gradMid}, ${form.gradTo})`,
+    border:      form.borderColor,
+    text,
+    muted,
+    statBg,
+    glowColor:   form.glowColor,
+    glowEnabled: form.glowEnabled,
+    foilEnabled: form.foilEnabled,
+    badgeColor:  form.badgeColor,
+    textDark:    form.textDark,
+  };
+}
+
+export default function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick, customTheme, badge }) {
+  const rankTheme = getCardTheme(rank);
+  const theme = customTheme
+    ? { bg: customTheme.bg, border: customTheme.border, text: customTheme.text, muted: customTheme.muted, statBg: customTheme.statBg }
+    : rankTheme;
+
   const isSmall = size === 'small';
   const w = isSmall ? 140 : 220;
   const h = isSmall ? 210 : 330;
   const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
+
+  const glowEnabled = customTheme?.glowEnabled;
+  const glowColor   = customTheme?.glowColor || theme.border;
+  const foilEnabled = customTheme?.foilEnabled;
+  const badgeColor  = customTheme?.badgeColor || theme.border;
+
+  const boxShadow = glowEnabled
+    ? `0 0 ${isSmall ? 14 : 28}px ${glowColor}cc, 0 0 ${isSmall ? 32 : 64}px ${glowColor}55, 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)`
+    : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)';
 
   return (
     <div style={{
       width: w, height: h, borderRadius: isSmall ? 10 : 16,
       background: theme.bg,
       border: `2px solid ${theme.border}`,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)',
+      boxShadow,
       position: 'relative', overflow: 'hidden', flexShrink: 0,
       fontFamily: "'DM Sans'",
     }}>
+
+      {/* Foil shimmer */}
+      {foilEnabled && (
+        <>
+          <style>{`
+            @keyframes foilShimmer {
+              0%   { background-position: 0% 50%;   }
+              50%  { background-position: 100% 50%; }
+              100% { background-position: 0% 50%;   }
+            }
+          `}</style>
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: 'inherit', zIndex: 5,
+            background: 'linear-gradient(135deg, rgba(255,0,0,0.12), rgba(255,150,0,0.12), rgba(255,255,0,0.12), rgba(0,255,100,0.12), rgba(0,150,255,0.12), rgba(150,0,255,0.12), rgba(255,0,150,0.12))',
+            backgroundSize: '300% 300%',
+            animation: 'foilShimmer 4s ease infinite',
+            pointerEvents: 'none',
+            mixBlendMode: 'overlay',
+          }} />
+        </>
+      )}
+
       {/* Shine overlay */}
       <div style={{
         position: 'absolute', inset: 0, borderRadius: 'inherit',
@@ -49,18 +101,39 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
       {/* Overall + position — top left */}
       <div style={{ position: 'absolute', top: isSmall ? 8 : 12, left: isSmall ? 8 : 14, zIndex: 3 }}>
         <div style={{ fontFamily: "'Bebas Neue'", fontSize: isSmall ? 28 : 44, color: theme.text, lineHeight: 1, letterSpacing: 1 }}>
-          {overall}
+          {calcOverall(cardStats)}
         </div>
         <div style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 7 : 11, color: theme.text, fontWeight: 700, letterSpacing: 1, marginTop: isSmall ? 1 : 2 }}>
           {POSITION_ABBR[profile?.position] || profile?.position || 'POS'}
         </div>
       </div>
 
-      {/* Rank — top right */}
-      <div style={{ position: 'absolute', top: isSmall ? 8 : 12, right: isSmall ? 8 : 12, zIndex: 3 }}>
-        <div style={{ fontFamily: "'Bebas Neue'", fontSize: isSmall ? 7 : 10, color: theme.muted, letterSpacing: 1, textAlign: 'right' }}>
-          {rank}
-        </div>
+      {/* Top right — badge label + rank, or rank alone */}
+      <div style={{ position: 'absolute', top: isSmall ? 8 : 12, right: isSmall ? 8 : 12, zIndex: 3, textAlign: 'right' }}>
+        {badge ? (
+          <div>
+            <div style={{
+              fontFamily: "'Bebas Neue'",
+              fontSize: isSmall ? 9 : 14,
+              letterSpacing: 1.5,
+              color: badgeColor,
+              background: `${badgeColor}22`,
+              border: `1px solid ${badgeColor}70`,
+              borderRadius: 3,
+              padding: isSmall ? '1px 4px' : '2px 8px',
+              marginBottom: isSmall ? 1 : 3,
+              lineHeight: 1.2,
+              display: 'inline-block',
+            }}>{badge}</div>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: isSmall ? 6 : 9, color: theme.muted, letterSpacing: 1 }}>
+              {rank}
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: isSmall ? 7 : 10, color: theme.muted, letterSpacing: 1 }}>
+            {rank}
+          </div>
+        )}
       </div>
 
       {/* Avatar */}
@@ -79,7 +152,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
         }}
       >
         {profile?.avatar_url
-          ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
           : <span style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 18 : 28, fontWeight: 700, color: theme.text }}>
               {(profile?.name?.[0] || '?').toUpperCase()}
             </span>
@@ -109,7 +182,9 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           {profile?.name || 'PLAYER'}
         </span>
         {isSubscribed && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: isSmall ? 9 : 14, height: isSmall ? 9 : 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: isSmall ? 5 : 9, color: '#fff', lineHeight: 1 }}><IoCheckmark size={isSmall ? 5 : 9} /></span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: isSmall ? 9 : 14, height: isSmall ? 9 : 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, color: '#fff', lineHeight: 1 }}>
+            <IoCheckmark size={isSmall ? 5 : 9} />
+          </span>
         )}
       </div>
 
@@ -124,7 +199,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
         gap: isSmall ? 2 : 4, zIndex: 3,
       }}>
         {STATS.map(s => (
-          <div key={s.key} style={{ background: theme.statBg, borderRadius: isSmall ? 3 : 5, padding: isSmall ? '2px 2px' : '4px 4px', textAlign: 'center' }}>
+          <div key={s.key} style={{ background: theme.statBg, borderRadius: isSmall ? 3 : 5, padding: isSmall ? '2px' : '4px', textAlign: 'center' }}>
             <div style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 9 : 14, fontWeight: 700, color: theme.text, lineHeight: 1 }}>
               {cardStats[s.key] || 0}
             </div>
@@ -146,7 +221,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           <span style={{ fontWeight: 700, color: theme.text }}>{profile?.games_played || 0}</span> GAMES PLAYED
         </div>
         <div style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 5 : 8, color: theme.muted }}>
-          <span style={{ fontWeight: 700, color: theme.text }}>{overall}</span> OVR
+          <span style={{ fontWeight: 700, color: theme.text }}>{calcOverall(cardStats)}</span> OVR
         </div>
       </div>
     </div>

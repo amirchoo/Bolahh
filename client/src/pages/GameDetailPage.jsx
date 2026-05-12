@@ -31,6 +31,7 @@ export default function GameDetailPage() {
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isRated, setIsRated] = useState(false);
 
   useEffect(() => {
     const cached = getCached(`game_${id}`);
@@ -39,6 +40,7 @@ export default function GameDetailPage() {
       setPlayerCount(cached.playerCount); setHasJoined(cached.hasJoined);
       setPlayers(cached.players); setIsOwner(cached.isOwner);
       setWalletBalance(cached.walletBalance);
+      setIsRated(cached.isRated || false);
       setLoading(false);
     }
     fetchGame(!!cached);
@@ -79,10 +81,15 @@ export default function GameDetailPage() {
       setPlayers(playersVal);
     }
 
+    const { data: ratingCheck } = await supabase
+      .from('game_ratings').select('user_id').eq('game_id', id).limit(1);
+    const ratedVal = !!(ratingCheck && ratingCheck.length > 0);
+    setIsRated(ratedVal);
+
     setCached(`game_${id}`, {
       game: gameData, field: fieldData, isOwner: isOwnerVal,
       walletBalance: walletBal, playerCount: countVal,
-      hasJoined: joinedVal, players: playersVal,
+      hasJoined: joinedVal, players: playersVal, isRated: ratedVal,
     });
     setLoading(false);
   };
@@ -552,6 +559,21 @@ export default function GameDetailPage() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Match summary button — visible to players once rated */}
+        {hasJoined && isRated && (
+          <div className="fade-up-2" style={{ marginBottom: 16 }}>
+            <button onClick={() => navigate(`/game/${id}/summary`)} style={{
+              width: '100%', padding: '13px',
+              background: 'rgba(255,215,0,0.1)', color: '#FFD700',
+              border: '1.5px solid rgba(255,215,0,0.35)', borderRadius: 10,
+              fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              <FaRankingStar size={16} /> View Match Summary
+            </button>
           </div>
         )}
 

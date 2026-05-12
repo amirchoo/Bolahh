@@ -60,7 +60,7 @@ function rrect(ctx, x, y, w, h, r) {
   }
 }
 
-export async function drawCardImage({ profile, cardStats, rank, bgUrl }) {
+export async function drawCardImage({ profile, cardStats, rank, bgUrl, customTheme }) {
   await document.fonts.ready;
 
   const DPR = Math.min(window.devicePixelRatio || 1, 3);
@@ -69,10 +69,18 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl }) {
   canvas.height = CH * DPR;
   const ctx = canvas.getContext('2d');
   ctx.scale(DPR, DPR);
-  const t   = getTheme(rank);
+  const t = customTheme
+    ? {
+        stops:  [customTheme.gradFrom, customTheme.gradMid, customTheme.gradTo],
+        border: customTheme.borderColor,
+        text:   customTheme.textDark ? '#1a1200' : '#f0f0f0',
+        muted:  customTheme.textDark ? '#5a4800' : '#999999',
+        statBg: customTheme.textDark ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.12)',
+      }
+    : getTheme(rank);
   const cx  = CARD_X, cy = CARD_Y, cw = CARD_W, ch = CARD_H;
 
-  // ── Background ────────────────────────────────────────
+  // ── Canvas background ─────────────────────────────────
   ctx.fillStyle = '#111213';
   ctx.fillRect(0, 0, CW, CH);
 
@@ -89,6 +97,18 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl }) {
     }
   }
 
+  // ── Glow effect ───────────────────────────────────────
+  if (customTheme?.glowEnabled && customTheme?.glowColor) {
+    ctx.save();
+    ctx.shadowColor = customTheme.glowColor;
+    ctx.shadowBlur  = 50;
+    rrect(ctx, cx, cy, cw, ch, 20);
+    ctx.strokeStyle = customTheme.glowColor + '80';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // ── Card background + shine ───────────────────────────
   ctx.save();
   rrect(ctx, cx, cy, cw, ch, 20); ctx.clip();
@@ -99,6 +119,20 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl }) {
   shine.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = shine;
   ctx.fillRect(cx, cy, cw, ch);
+
+  // Foil rainbow overlay
+  if (customTheme?.foilEnabled) {
+    const foil = ctx.createLinearGradient(cx, cy, cx + cw, cy + ch);
+    foil.addColorStop(0,    'rgba(255,0,0,0.09)');
+    foil.addColorStop(0.17, 'rgba(255,165,0,0.09)');
+    foil.addColorStop(0.33, 'rgba(255,255,0,0.09)');
+    foil.addColorStop(0.5,  'rgba(0,255,100,0.09)');
+    foil.addColorStop(0.67, 'rgba(0,150,255,0.09)');
+    foil.addColorStop(0.83, 'rgba(150,0,255,0.09)');
+    foil.addColorStop(1,    'rgba(255,0,150,0.09)');
+    ctx.fillStyle = foil;
+    ctx.fillRect(cx, cy, cw, ch);
+  }
   ctx.restore();
 
   // Card border
@@ -119,11 +153,35 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl }) {
   ctx.font = `700 14px 'Space Mono', monospace`;
   ctx.fillText(POS_ABBR[profile?.position] || profile?.position || 'POS', cx + 16, cy + 86);
 
-  // ── Rank (top-right) ──────────────────────────────────
-  ctx.font = `700 13px 'Space Mono', monospace`;
-  ctx.textAlign = 'right';
-  ctx.fillStyle = t.muted;
-  ctx.fillText(rank, cx + cw - 14, cy + 16);
+  // ── Top-right: badge label (if set) or rank ───────────
+  if (customTheme?.badgeLabel) {
+    const bc  = customTheme.badgeColor || t.border;
+    const txt = customTheme.badgeLabel;
+    ctx.save();
+    ctx.font = `700 13px 'Bebas Neue', sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(txt).width;
+    const bPad = 10, bH = 20;
+    const bW = tw + bPad * 2;
+    const bx = cx + cw - 14 - bW;
+    const by = cy + 14;
+    ctx.fillStyle = bc + '25';
+    rrect(ctx, bx, by, bW, bH, 3); ctx.fill();
+    ctx.strokeStyle = bc + '70'; ctx.lineWidth = 1;
+    rrect(ctx, bx, by, bW, bH, 3); ctx.stroke();
+    ctx.fillStyle = bc;
+    ctx.fillText(txt, bx + bW / 2, by + bH / 2);
+    ctx.font = `700 9px 'Space Mono', monospace`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillStyle = t.muted;
+    ctx.fillText(rank, cx + cw - 14, by + bH + 3);
+    ctx.restore();
+  } else {
+    ctx.font = `700 13px 'Space Mono', monospace`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillStyle = t.muted;
+    ctx.fillText(rank, cx + cw - 14, cy + 16);
+  }
 
   // ── Avatar ────────────────────────────────────────────
   const avR = 72;

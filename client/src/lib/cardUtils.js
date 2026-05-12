@@ -19,12 +19,12 @@ export function calculateCardStats(gameRatings) {
   }
 
   const s = {
-    pac: Math.min(99, 30 + taps.pac),
-    sho: Math.min(99, 30 + taps.sho),
-    pas: Math.min(99, 30 + taps.pas),
-    dri: Math.min(99, 30 + taps.dri),
-    def: Math.min(99, 30 + taps.def),
-    phy: Math.min(99, 30 + taps.phy),
+    pac: Math.max(30, Math.min(99, 30 + taps.pac)),
+    sho: Math.max(30, Math.min(99, 30 + taps.sho)),
+    pas: Math.max(30, Math.min(99, 30 + taps.pas)),
+    dri: Math.max(30, Math.min(99, 30 + taps.dri)),
+    def: Math.max(30, Math.min(99, 30 + taps.def)),
+    phy: Math.max(30, Math.min(99, 30 + taps.phy)),
   };
   s.overall = Math.round((s.pac + s.sho + s.pas + s.dri + s.def + s.phy) / 6);
   return s;
