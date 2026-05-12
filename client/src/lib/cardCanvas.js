@@ -3,6 +3,7 @@
 //  to an off-screen canvas via Canvas 2D API.
 //  No html2canvas: avoids CORS/border-radius bugs.
 // ─────────────────────────────────────────────
+import { STICKER_ICONS, getStickerPos } from '../components/FifaCard';
 
 const CW = 520;   // output canvas width
 const CH = 720;   // output canvas height
@@ -44,6 +45,117 @@ function loadImg(src) {
     img.onerror = () => resolve(null);
     img.src = src;
   });
+}
+
+function drawPattern(ctx, pattern, color, opacity, cx, cy, cw, ch) {
+  if (!pattern || pattern === 'none') return;
+  ctx.save();
+  rrect(ctx, cx, cy, cw, ch, 20); ctx.clip();
+  ctx.globalAlpha = opacity ?? 0.15;
+  ctx.strokeStyle = color || '#ffffff';
+  ctx.fillStyle   = color || '#ffffff';
+
+  switch (pattern) {
+    case 'dots': {
+      const sp = 12;
+      for (let x = cx + sp / 2; x < cx + cw; x += sp)
+        for (let y = cy + sp / 2; y < cy + ch; y += sp) {
+          ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+      break;
+    }
+    case 'diagonal': {
+      ctx.lineWidth = 1;
+      const sp = 9;
+      for (let i = -(ch); i < cw + ch; i += sp) {
+        ctx.beginPath();
+        ctx.moveTo(cx + i, cy);
+        ctx.lineTo(cx + i + ch, cy + ch);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'grid': {
+      ctx.lineWidth = 1;
+      const sp = 16;
+      for (let x = cx; x <= cx + cw; x += sp) { ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x, cy + ch); ctx.stroke(); }
+      for (let y = cy; y <= cy + ch; y += sp) { ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx + cw, y); ctx.stroke(); }
+      break;
+    }
+    case 'crosshatch': {
+      ctx.lineWidth = 1;
+      const sp = 9;
+      for (let i = -(ch); i < cw + ch; i += sp) {
+        ctx.beginPath(); ctx.moveTo(cx + i, cy); ctx.lineTo(cx + i + ch, cy + ch); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx + cw - i, cy); ctx.lineTo(cx + cw - i - ch, cy + ch); ctx.stroke();
+      }
+      break;
+    }
+    case 'carbon': {
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = (opacity ?? 0.15) * 0.5;
+      const sp = 8;
+      for (let x = cx; x <= cx + cw; x += sp) { ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x, cy + ch); ctx.stroke(); }
+      for (let y = cy; y <= cy + ch; y += sp) { ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx + cw, y); ctx.stroke(); }
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+function drawElements(ctx, ct, cx, cy, cw, ch) {
+  const { elemCorners, elemSideBars, elemCenterDiamond, elemFrame, elemColor, elemOpacity } = ct;
+  if (!elemCorners && !elemSideBars && !elemCenterDiamond && !elemFrame) return;
+  const c  = elemColor   || '#ffffff';
+  const op = elemOpacity ?? 0.3;
+  const arm = 24, pad = 17, sw = 2.5;
+
+  ctx.save();
+  ctx.strokeStyle = c; ctx.fillStyle = c; ctx.globalAlpha = op; ctx.lineCap = 'round';
+
+  if (elemCorners) {
+    ctx.lineWidth = sw;
+    const corners = [
+      [[cx + pad + arm, cy + pad], [cx + pad, cy + pad], [cx + pad, cy + pad + arm]],
+      [[cx + cw - pad - arm, cy + pad], [cx + cw - pad, cy + pad], [cx + cw - pad, cy + pad + arm]],
+      [[cx + pad + arm, cy + ch - pad], [cx + pad, cy + ch - pad], [cx + pad, cy + ch - pad - arm]],
+      [[cx + cw - pad - arm, cy + ch - pad], [cx + cw - pad, cy + ch - pad], [cx + cw - pad, cy + ch - pad - arm]],
+    ];
+    for (const pts of corners) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      ctx.lineTo(pts[1][0], pts[1][1]);
+      ctx.lineTo(pts[2][0], pts[2][1]);
+      ctx.stroke();
+    }
+  }
+
+  if (elemSideBars) {
+    ctx.lineWidth = sw * 0.7;
+    ctx.setLineDash([6, 10]);
+    const bx1 = cx + pad - 4, bx2 = cx + cw - pad + 4;
+    const by1 = cy + ch * 0.22, by2 = cy + ch * 0.78;
+    ctx.beginPath(); ctx.moveTo(bx1, by1); ctx.lineTo(bx1, by2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx2, by1); ctx.lineTo(bx2, by2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  if (elemCenterDiamond) {
+    const dy = cy + ch * 0.552, ds = 8;
+    ctx.beginPath();
+    ctx.moveTo(cx + cw / 2, dy - ds);
+    ctx.lineTo(cx + cw / 2 + ds, dy);
+    ctx.lineTo(cx + cw / 2, dy + ds);
+    ctx.lineTo(cx + cw / 2 - ds, dy);
+    ctx.closePath(); ctx.fill();
+  }
+
+  if (elemFrame) {
+    ctx.lineWidth = sw * 0.7;
+    rrect(ctx, cx + 9, cy + 9, cw - 18, ch - 18, 14); ctx.stroke();
+  }
+
+  ctx.restore();
 }
 
 function rrect(ctx, x, y, w, h, r) {
@@ -134,6 +246,10 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl, customThe
     ctx.fillRect(cx, cy, cw, ch);
   }
   ctx.restore();
+
+  // ── Pattern overlay ───────────────────────────────────
+  if (customTheme?.pattern && customTheme.pattern !== 'none')
+    drawPattern(ctx, customTheme.pattern, customTheme.patternColor, customTheme.patternOpacity, cx, cy, cw, ch);
 
   // Card border
   ctx.save();
@@ -305,6 +421,31 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl, customThe
   ctx.font = `700 16px 'Bebas Neue', sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillText('BOLAHH.COM', CW / 2, CH - 16);
+
+  // ── Decorative elements (topmost layer) ──────────────
+  if (customTheme) drawElements(ctx, customTheme, cx, cy, cw, ch);
+
+  // ── Icon sticker ──────────────────────────────────────
+  if (customTheme?.stickerIcon && customTheme.stickerIcon !== 'none') {
+    const icon = STICKER_ICONS.find(i => i.key === customTheme.stickerIcon);
+    if (icon) {
+      const rel  = getStickerPos(customTheme.stickerPos, cw, ch);
+      const sx   = cx + rel.x;
+      const sy   = cy + rel.y;
+      const size = customTheme.stickerSize ?? 36;
+      const col  = customTheme.stickerColor || '#ffffff';
+      const op   = customTheme.stickerOpacity ?? 0.9;
+      const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${icon.d}" fill="${col}"/></svg>`;
+      const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
+      const sImg = await loadImg(svgUrl);
+      if (sImg) {
+        ctx.save();
+        ctx.globalAlpha = op;
+        ctx.drawImage(sImg, sx - size / 2, sy - size / 2, size, size);
+        ctx.restore();
+      }
+    }
+  }
 
   return canvas;
 }

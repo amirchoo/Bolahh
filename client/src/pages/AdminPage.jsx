@@ -9,9 +9,9 @@ import { LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave } from 'react-icons/md';
-import FifaCard, { buildCustomTheme } from '../components/FifaCard';
+import FifaCard, { buildCustomTheme, getCardTheme, POSITION_ABBR, STATS, STICKER_ICONS } from '../components/FifaCard';
 import { drawCardImage } from '../lib/cardCanvas';
-import { RANKS } from '../lib/rankUtils';
+import { RANKS, getRankColor } from '../lib/rankUtils';
 
 const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
 
@@ -24,6 +24,20 @@ const DEFAULT_DESIGN = {
   glowEnabled: true,
   glowColor: '#ffd700',
   foilEnabled: false,
+  pattern: 'none',
+  patternColor: '#ffffff',
+  patternOpacity: 0.15,
+  elemCorners: false,
+  elemSideBars: false,
+  elemCenterDiamond: false,
+  elemFrame: false,
+  elemColor: '#ffffff',
+  elemOpacity: 0.3,
+  stickerIcon: 'none',
+  stickerPos: 'top-center',
+  stickerSize: 36,
+  stickerColor: '#ffffff',
+  stickerOpacity: 0.9,
 };
 
 const CARD_PRESETS = [
@@ -795,6 +809,184 @@ export default function AdminPage() {
                         </div>
                       </div>
 
+                      {/* Pattern */}
+                      <div>
+                        <label style={labelStyle}>CARD PATTERN</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                          {[
+                            { key: 'none',       label: 'None'       },
+                            { key: 'dots',       label: 'Dots'       },
+                            { key: 'diagonal',   label: 'Diagonal'   },
+                            { key: 'grid',       label: 'Grid'       },
+                            { key: 'crosshatch', label: 'Crosshatch' },
+                            { key: 'carbon',     label: 'Carbon'     },
+                          ].map(p => (
+                            <button
+                              key={p.key}
+                              onClick={() => setCardForm(prev => ({ ...prev, pattern: p.key }))}
+                              style={{
+                                padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                                background: cardForm.pattern === p.key ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                                color: cardForm.pattern === p.key ? 'var(--accent)' : 'var(--muted)',
+                                border: `1px solid ${cardForm.pattern === p.key ? 'var(--accent)' : 'var(--border)'}`,
+                                cursor: 'pointer', transition: 'all 0.1s',
+                              }}
+                            >{p.label}</button>
+                          ))}
+                        </div>
+                        {cardForm.pattern !== 'none' && (
+                          <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+                            {colorRow('Pattern Color', 'patternColor')}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                              <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, flexShrink: 0 }}>Opacity</span>
+                              <input
+                                type="range" min={0.03} max={0.5} step={0.01}
+                                value={cardForm.patternOpacity}
+                                onChange={e => setCardForm(prev => ({ ...prev, patternOpacity: parseFloat(e.target.value) }))}
+                                style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                              />
+                              <span style={{ width: 34, fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', textAlign: 'right', flexShrink: 0 }}>
+                                {Math.round(cardForm.patternOpacity * 100)}%
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Decorative elements */}
+                      <div>
+                        <label style={labelStyle}>DECORATIVE ELEMENTS</label>
+                        <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+                          {toggle('Corner Ornaments', 'elemCorners')}
+                          {toggle('Side Accent Bars', 'elemSideBars')}
+                          {toggle('Center Diamond', 'elemCenterDiamond')}
+                          {toggle('Inner Frame', 'elemFrame')}
+                          {(cardForm.elemCorners || cardForm.elemSideBars || cardForm.elemCenterDiamond || cardForm.elemFrame) && (
+                            <div style={{ marginTop: 4 }}>
+                              {colorRow('Element Color', 'elemColor')}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                                <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, flexShrink: 0 }}>Opacity</span>
+                                <input
+                                  type="range" min={0.05} max={0.9} step={0.01}
+                                  value={cardForm.elemOpacity}
+                                  onChange={e => setCardForm(prev => ({ ...prev, elemOpacity: parseFloat(e.target.value) }))}
+                                  style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                                />
+                                <span style={{ width: 34, fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', textAlign: 'right', flexShrink: 0 }}>
+                                  {Math.round(cardForm.elemOpacity * 100)}%
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Icon sticker */}
+                      <div>
+                        <label style={labelStyle}>ICON STICKER</label>
+
+                        {/* Icon grid */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                          {/* None button */}
+                          <button
+                            onClick={() => setCardForm(prev => ({ ...prev, stickerIcon: 'none' }))}
+                            style={{
+                              padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                              background: cardForm.stickerIcon === 'none' ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                              color: cardForm.stickerIcon === 'none' ? 'var(--accent)' : 'var(--muted)',
+                              border: `1px solid ${cardForm.stickerIcon === 'none' ? 'var(--accent)' : 'var(--border)'}`,
+                              cursor: 'pointer',
+                            }}
+                          >None</button>
+
+                          {STICKER_ICONS.map(icon => {
+                            const active = cardForm.stickerIcon === icon.key;
+                            return (
+                              <button
+                                key={icon.key}
+                                onClick={() => setCardForm(prev => ({ ...prev, stickerIcon: icon.key }))}
+                                title={icon.label}
+                                style={{
+                                  width: 44, height: 44, borderRadius: 10,
+                                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+                                  background: active ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                                  border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                                  cursor: 'pointer', transition: 'all 0.1s',
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" width={20} height={20} fill={active ? 'var(--accent)' : 'var(--muted)'}>
+                                  <path d={icon.d} />
+                                </svg>
+                                <span style={{ fontSize: 7, fontFamily: "'Space Mono'", color: active ? 'var(--accent)' : 'var(--muted)', letterSpacing: 0 }}>{icon.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {cardForm.stickerIcon !== 'none' && (
+                          <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+                            {/* Position picker */}
+                            <div>
+                              <span style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>Position</span>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, maxWidth: 180 }}>
+                                {[
+                                  { key: 'top-left', label: '↖' }, { key: 'top-center', label: '↑' }, { key: 'top-right', label: '↗' },
+                                  { key: 'bottom-left', label: '↙' }, { key: 'bottom-center', label: '↓' }, { key: 'bottom-right', label: '↘' },
+                                ].map(p => {
+                                  const active = cardForm.stickerPos === p.key;
+                                  return (
+                                    <button
+                                      key={p.key}
+                                      onClick={() => setCardForm(prev => ({ ...prev, stickerPos: p.key }))}
+                                      style={{
+                                        height: 32, borderRadius: 7,
+                                        background: active ? 'rgba(240,157,81,0.18)' : 'var(--card)',
+                                        color: active ? 'var(--accent)' : 'var(--muted)',
+                                        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                                        fontSize: 16, cursor: 'pointer',
+                                      }}
+                                    >{p.label}</button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Size */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, flexShrink: 0 }}>Size</span>
+                              <input
+                                type="range" min={16} max={72} step={2}
+                                value={cardForm.stickerSize}
+                                onChange={e => setCardForm(prev => ({ ...prev, stickerSize: parseInt(e.target.value) }))}
+                                style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                              />
+                              <span style={{ width: 34, fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', textAlign: 'right', flexShrink: 0 }}>
+                                {cardForm.stickerSize}px
+                              </span>
+                            </div>
+
+                            {/* Color */}
+                            {colorRow('Color', 'stickerColor')}
+
+                            {/* Opacity */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, flexShrink: 0 }}>Opacity</span>
+                              <input
+                                type="range" min={0.1} max={1} step={0.01}
+                                value={cardForm.stickerOpacity}
+                                onChange={e => setCardForm(prev => ({ ...prev, stickerOpacity: parseFloat(e.target.value) }))}
+                                style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                              />
+                              <span style={{ width: 34, fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', textAlign: 'right', flexShrink: 0 }}>
+                                {Math.round(cardForm.stickerOpacity * 100)}%
+                              </span>
+                            </div>
+
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   )}
                 </div>
@@ -854,6 +1046,108 @@ export default function AdminPage() {
                     OVR {cardOverall} · {cardForm.rank}
                   </div>
                 </div>
+
+                {/* Leaderboard strip preview */}
+                {(() => {
+                  const lbTheme = activeCustomTheme
+                    ? { bg: activeCustomTheme.bg, border: activeCustomTheme.border, text: activeCustomTheme.text }
+                    : getCardTheme(cardForm.rank);
+                  const lbRankColor = getRankColor(cardForm.rank);
+                  const posAbbr = POSITION_ABBR[cardForm.position] || cardForm.position;
+                  return (
+                    <div style={{ width: '100%', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 11, letterSpacing: 2, color: 'var(--muted)', marginBottom: 10 }}>LEADERBOARD ROW</div>
+                      <div style={{
+                        background: 'rgba(240,157,81,0.04)', border: '1px solid rgba(240,157,81,0.2)',
+                        borderRadius: 12, padding: '10px 12px',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                      }}>
+                        <div style={{ width: 24, textAlign: 'center', flexShrink: 0, fontFamily: "'Bebas Neue'", fontSize: 16, color: 'var(--muted)', letterSpacing: 1 }}>#1</div>
+                        {/* Mini card swatch */}
+                        <div style={{
+                          width: 36, height: 50, borderRadius: 6, flexShrink: 0,
+                          background: lbTheme.bg, border: `1.5px solid ${lbTheme.border}`,
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.35)', position: 'relative', overflow: 'hidden',
+                        }}>
+                          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%)', pointerEvents: 'none' }} />
+                          {cardAvatarPreview
+                            ? <img src={cardAvatarPreview} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                            : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: lbTheme.text }}>
+                                {(cardForm.name || 'P')[0].toUpperCase()}
+                              </div>
+                          }
+                          <div style={{ fontFamily: "'Space Mono'", fontSize: 6, color: lbTheme.text, fontWeight: 700, marginTop: 2, letterSpacing: 0.5 }}>{posAbbr}</div>
+                        </div>
+                        {/* Name + rank + stats */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>
+                            {cardForm.name || 'PLAYER'}
+                          </div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: lbRankColor, fontFamily: "'Space Mono'", marginBottom: 4 }}>{cardForm.rank}</div>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {STATS.map(s => (
+                              <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                <div style={{ fontSize: 8, color: 'var(--muted)', fontFamily: "'Space Mono'" }}>{s.label}</div>
+                                <div style={{ fontSize: 8, fontWeight: 700, color: 'var(--text)', fontFamily: "'Space Mono'" }}>{cardForm[s.key] || 30}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* OVR */}
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: lbRankColor, lineHeight: 1, letterSpacing: 1 }}>{cardOverall}</div>
+                          <div style={{ fontSize: 8, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
+                          {cardForm.games_played > 0 && <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 1 }}>{cardForm.games_played}g</div>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Game detail strip preview */}
+                {(() => {
+                  const gdRankColor = cardForm.useCustomTheme && activeCustomTheme ? activeCustomTheme.border : getRankColor(cardForm.rank);
+                  const initials = (cardForm.name || 'P').slice(0, 2).toUpperCase();
+                  return (
+                    <div style={{ width: '100%', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 11, letterSpacing: 2, color: 'var(--muted)', marginBottom: 10 }}>GAME DETAIL ROW</div>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 14px',
+                        background: 'rgba(240,157,81,0.04)',
+                        border: `1px solid ${gdRankColor}33`,
+                        borderLeft: `3px solid ${gdRankColor}`,
+                        borderRadius: 10,
+                      }}>
+                        <div style={{
+                          width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
+                          border: `2px solid ${gdRankColor}`,
+                          overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'var(--card)',
+                        }}>
+                          {cardAvatarPreview
+                            ? <img src={cardAvatarPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <span style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: gdRankColor }}>{initials}</span>
+                          }
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
+                            {cardForm.name || 'PLAYER'}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: gdRankColor }}>{cardForm.rank}</span>
+                            {cardForm.position && <span style={{ fontSize: 11, color: 'var(--muted)' }}>· {cardForm.position}</span>}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, color: gdRankColor, lineHeight: 1 }}>{cardOverall}</div>
+                          <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, marginTop: 1 }}>OVR</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div style={{ display: 'flex', gap: 8, width: '100%' }}>
                   <button
