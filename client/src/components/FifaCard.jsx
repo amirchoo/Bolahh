@@ -32,12 +32,71 @@ export function buildCustomTheme(form) {
     text,
     muted,
     statBg,
-    glowColor:   form.glowColor,
-    glowEnabled: form.glowEnabled,
-    foilEnabled: form.foilEnabled,
-    badgeColor:  form.badgeColor,
-    textDark:    form.textDark,
+    glowColor:       form.glowColor,
+    glowEnabled:     form.glowEnabled,
+    foilEnabled:     form.foilEnabled,
+    badgeColor:      form.badgeColor,
+    textDark:        form.textDark,
+    pattern:         form.pattern      || 'none',
+    patternColor:    form.patternColor || '#ffffff',
+    patternOpacity:  form.patternOpacity  ?? 0.15,
+    elemCorners:      form.elemCorners      || false,
+    elemSideBars:     form.elemSideBars     || false,
+    elemCenterDiamond:form.elemCenterDiamond|| false,
+    elemFrame:        form.elemFrame        || false,
+    elemColor:        form.elemColor        || '#ffffff',
+    elemOpacity:      form.elemOpacity      ?? 0.3,
+    stickerIcon:      form.stickerIcon      || 'none',
+    stickerPos:       form.stickerPos       || 'top-center',
+    stickerSize:      form.stickerSize      ?? 36,
+    stickerColor:     form.stickerColor     || '#ffffff',
+    stickerOpacity:   form.stickerOpacity   ?? 0.9,
   };
+}
+
+export const STICKER_ICONS = [
+  { key: 'star',    label: 'Star',    d: 'M12 2L14.3 8.9L21.7 9.1L16 13.2L18.1 20.2L12 16.1L5.9 20.2L8 13.2L2.3 9.1L9.7 8.9Z' },
+  { key: 'burst',   label: 'Burst',   d: 'M22 12L16.6 13.9L19.1 19.1L13.9 16.6L12 22L10.1 16.6L4.9 19.1L7.4 13.9L2 12L7.4 10.1L4.9 4.9L10.1 7.4L12 2L13.9 7.4L19.1 4.9L16.6 10.1Z' },
+  { key: 'diamond', label: 'Diamond', d: 'M12 2L22 12L12 22L2 12Z' },
+  { key: 'shield',  label: 'Shield',  d: 'M12 2L4 5V12C4 17 7.6 21.5 12 23C16.4 21.5 20 17 20 12V5Z' },
+  { key: 'bolt',    label: 'Bolt',    d: 'M13 2L4 14H11L10 22L19 10H12Z' },
+  { key: 'crown',   label: 'Crown',   d: 'M2 19H22V21H2ZM4.5 17.5L2 9L6.5 13.5L12 3L17.5 13.5L22 9L19.5 17.5Z' },
+  { key: 'heart',   label: 'Heart',   d: 'M12 21C12 21 2.5 15 2.5 8.5C2.5 5.5 5 3 8 3C9.8 3 11.4 4 12 5.5C12.6 4 14.2 3 16 3C19 3 21.5 5.5 21.5 8.5C21.5 15 12 21 12 21Z' },
+  { key: 'fire',    label: 'Fire',    d: 'M12 2C9.5 6 8 9 9.5 13C8 11 8.5 8 10 9C8.5 13 10.5 17 12 19.5C13.5 17 15.5 13 14 9C15.5 8 16 11 14.5 13C16 9 14.5 6 12 2ZM9.5 18.5C9.5 20.4 10.6 22 12 22C13.4 22 14.5 20.4 14.5 18.5C14.5 16.8 13 15 12 13C11 15 9.5 16.8 9.5 18.5Z' },
+];
+
+export function getStickerPos(posKey, w, h) {
+  switch (posKey) {
+    case 'top-left':      return { x: w * 0.18, y: h * 0.08 };
+    case 'top-right':     return { x: w * 0.82, y: h * 0.08 };
+    case 'center':        return { x: w * 0.5,  y: h * 0.45 };
+    case 'bottom-left':   return { x: w * 0.18, y: h * 0.9  };
+    case 'bottom-right':  return { x: w * 0.82, y: h * 0.9  };
+    case 'bottom-center': return { x: w * 0.5,  y: h * 0.9  };
+    case 'top-center':
+    default:              return { x: w * 0.5,  y: h * 0.08 };
+  }
+}
+
+// Bakes the pattern + opacity directly into the card's background layers so it
+// is structurally behind all positioned children and can never overlap content.
+function patternBgStyle(pattern, hexColor, opacity, gradientBg) {
+  const aa = Math.round((opacity ?? 0.15) * 255).toString(16).padStart(2, '0');
+  const c  = `${hexColor || '#ffffff'}${aa}`;
+  switch (pattern) {
+    case 'dots':
+      return { backgroundImage: `radial-gradient(circle, ${c} 1.5px, transparent 1.5px), ${gradientBg}`, backgroundSize: '12px 12px, 100% 100%' };
+    case 'diagonal':
+      return { backgroundImage: `repeating-linear-gradient(45deg, ${c} 0, ${c} 1px, transparent 0, transparent 9px), ${gradientBg}` };
+    case 'grid':
+      return { backgroundImage: `linear-gradient(${c} 1px, transparent 1px), linear-gradient(90deg, ${c} 1px, transparent 1px), ${gradientBg}`, backgroundSize: '16px 16px, 16px 16px, 100% 100%' };
+    case 'crosshatch':
+      return { backgroundImage: `repeating-linear-gradient(45deg, ${c} 0, ${c} 1px, transparent 0, transparent 9px), repeating-linear-gradient(-45deg, ${c} 0, ${c} 1px, transparent 0, transparent 9px), ${gradientBg}` };
+    case 'carbon':
+      return { backgroundImage: `repeating-linear-gradient(0deg, ${c} 0, ${c} 1px, transparent 0, transparent 8px), repeating-linear-gradient(90deg, ${c} 0, ${c} 1px, transparent 0, transparent 8px), ${gradientBg}`, backgroundSize: '8px 8px, 8px 8px, 100% 100%' };
+    default:
+      return null;
+  }
 }
 
 export default function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick, customTheme, badge }) {
@@ -60,10 +119,14 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
     ? `0 0 ${isSmall ? 14 : 28}px ${glowColor}cc, 0 0 ${isSmall ? 32 : 64}px ${glowColor}55, 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)`
     : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)';
 
+  const patternStyle = customTheme?.pattern && customTheme.pattern !== 'none'
+    ? patternBgStyle(customTheme.pattern, customTheme.patternColor, customTheme.patternOpacity, theme.bg)
+    : null;
+
   return (
     <div style={{
       width: w, height: h, borderRadius: isSmall ? 10 : 16,
-      background: theme.bg,
+      ...(patternStyle || { background: theme.bg }),
       border: `2px solid ${theme.border}`,
       boxShadow,
       position: 'relative', overflow: 'hidden', flexShrink: 0,
@@ -90,6 +153,76 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           }} />
         </>
       )}
+
+      {/* Decorative element overlay — topmost layer */}
+      {customTheme && (customTheme.elemCorners || customTheme.elemSideBars || customTheme.elemCenterDiamond || customTheme.elemFrame) && (() => {
+        const c   = customTheme.elemColor   || '#ffffff';
+        const op  = customTheme.elemOpacity ?? 0.3;
+        const arm = isSmall ? 10 : 16;
+        const pad = isSmall ?  7 : 11;
+        const sw  = isSmall ?  1 :  1.5;
+        const ds  = isSmall ?  3 :  5;
+        const divY = h * 0.552;
+        return (
+          <svg
+            viewBox={`0 0 ${w} ${h}`}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 6, pointerEvents: 'none', opacity: op }}
+            fill="none" strokeLinecap="round"
+          >
+            {customTheme.elemCorners && (
+              <g stroke={c} strokeWidth={sw}>
+                <path d={`M ${pad + arm} ${pad} H ${pad} V ${pad + arm}`} />
+                <path d={`M ${w - pad - arm} ${pad} H ${w - pad} V ${pad + arm}`} />
+                <path d={`M ${pad + arm} ${h - pad} H ${pad} V ${h - pad - arm}`} />
+                <path d={`M ${w - pad - arm} ${h - pad} H ${w - pad} V ${h - pad - arm}`} />
+              </g>
+            )}
+            {customTheme.elemSideBars && (
+              <g stroke={c} strokeWidth={sw * 0.7} strokeDasharray={isSmall ? '3 5' : '4 7'}>
+                <line x1={pad - 2} y1={h * 0.22} x2={pad - 2} y2={h * 0.78} />
+                <line x1={w - pad + 2} y1={h * 0.22} x2={w - pad + 2} y2={h * 0.78} />
+              </g>
+            )}
+            {customTheme.elemCenterDiamond && (
+              <polygon
+                fill={c}
+                points={`${w/2},${divY - ds} ${w/2 + ds},${divY} ${w/2},${divY + ds} ${w/2 - ds},${divY}`}
+              />
+            )}
+            {customTheme.elemFrame && (
+              <rect x={6} y={6} width={w - 12} height={h - 12} rx={isSmall ? 6 : 10} stroke={c} strokeWidth={sw * 0.7} />
+            )}
+          </svg>
+        );
+      })()}
+
+      {/* Icon sticker */}
+      {customTheme?.stickerIcon && customTheme.stickerIcon !== 'none' && (() => {
+        const icon = STICKER_ICONS.find(i => i.key === customTheme.stickerIcon);
+        if (!icon) return null;
+        const pos  = getStickerPos(customTheme.stickerPos, w, h);
+        const size = customTheme.stickerSize ?? 36;
+        const col  = customTheme.stickerColor || '#ffffff';
+        const op   = customTheme.stickerOpacity ?? 0.9;
+        return (
+          <svg
+            viewBox="0 0 24 24"
+            style={{
+              position: 'absolute',
+              left: pos.x - size / 2,
+              top:  pos.y - size / 2,
+              width: size, height: size,
+              zIndex: 7, pointerEvents: 'none',
+              opacity: op,
+              filter: `drop-shadow(0 1px ${Math.round(size * 0.18)}px ${col}77)`,
+              overflow: 'visible',
+            }}
+            fill={col}
+          >
+            <path d={icon.d} />
+          </svg>
+        );
+      })()}
 
       {/* Shine overlay */}
       <div style={{

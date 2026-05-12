@@ -273,7 +273,7 @@ export default function GuidePage() {
             borderRadius: 12, padding: '14px 18px', fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 20,
           }}>
             <span style={{ color: 'var(--text)', fontWeight: 600 }}>How to climb: </span>
-            Join more games and perform well. Our trusted manager rates your stats after each match. Goals, assists, and good plays push your stats up. Higher stats raise your OVR, which moves you up the board.
+             Join more games and perform well. Our trusted manager rates your stats after each match. Goals, assists, and good plays push your stats up. Higher stats raise your OVR, which moves you up the board.
           </div>
 
           <button
