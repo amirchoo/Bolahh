@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getCached, setCached } from '../lib/dataCache';
+import { usePersistedState } from '../lib/usePersistedState';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoSearch, IoPeople, IoMailOpen, IoCheckmark } from 'react-icons/io5';
@@ -76,7 +77,7 @@ export default function FriendsPage() {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('friends');
+  const [activeTab, setActiveTab] = usePersistedState('friends_tab', 'friends');
   const [viewingPlayer, setViewingPlayer] = useState(null); // { profile, cardStats }
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached } from '../lib/dataCache';
+import { usePersistedState } from '../lib/usePersistedState';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
 import { GiSoccerBall } from 'react-icons/gi';
@@ -55,10 +56,10 @@ const toDateStr = (d) => {
 export default function HomePage() {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [areaFilter, setAreaFilter] = useState('All Areas');
-  const [formatFilter, setFormatFilter] = useState('All Formats');
+  const [areaFilter, setAreaFilter] = usePersistedState('home_area', 'All Areas');
+  const [formatFilter, setFormatFilter] = usePersistedState('home_format', 'All Formats');
   const [search, setSearch] = useState('');
-  const [dateFilter, setDateFilter] = useState(null);
+  const [dateFilter, setDateFilter] = usePersistedState('home_date', null);
   const days14 = get14Days();
   const dateScrollRef = useRef(null);
   const scrollDates = (dir) => {

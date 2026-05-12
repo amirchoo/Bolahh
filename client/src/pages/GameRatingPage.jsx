@@ -178,30 +178,26 @@ export default function GameRatingPage() {
 
     const userIds = playerData.map(p => p.user_id);
     const { data: profileData } = await supabase
-      .from('profiles').select('id, name, avatar_url, total_points, games_played').in('id', userIds);
+      .from('profiles').select('id, name, avatar_url, total_points, games_played, card_stats').in('id', userIds);
 
     const profileMap = {};
     profileData?.forEach(p => { profileMap[p.id] = p; });
     setProfiles(profileMap);
     setPlayers(userIds);
 
-    // Fetch lifetime game_ratings to compute each player's current base taps
-    const { data: lifetimeData } = await supabase
-      .from('game_ratings')
-      .select('user_id, goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
-      .in('user_id', userIds);
-
+    // Derive base taps from profiles.card_stats — the authoritative pre-computed source.
+    // card_stat = 30 + lifetime_taps  →  taps = card_stat - 30
     const baseMap = {};
-    userIds.forEach(uid => { baseMap[uid] = defaultStats(); });
-    lifetimeData?.forEach(r => {
-      if (baseMap[r.user_id]) {
-        baseMap[r.user_id].goals              += r.goals              || 0;
-        baseMap[r.user_id].assists            += r.assists            || 0;
-        baseMap[r.user_id].good_defending     += r.good_defending     || 0;
-        baseMap[r.user_id].good_keeping       += r.good_keeping       || 0;
-        baseMap[r.user_id].successful_dribble += r.successful_dribble || 0;
-        baseMap[r.user_id].good_chance        += r.good_chance        || 0;
-      }
+    userIds.forEach(uid => {
+      const cs = profileMap[uid]?.card_stats || {};
+      baseMap[uid] = {
+        goals:              Math.max(0, (cs.sho || 30) - 30),
+        assists:            Math.max(0, (cs.pas || 30) - 30),
+        good_defending:     Math.max(0, (cs.def || 30) - 30),
+        good_keeping:       Math.max(0, (cs.phy || 30) - 30),
+        successful_dribble: Math.max(0, (cs.dri || 30) - 30),
+        good_chance:        Math.max(0, (cs.pac || 30) - 30),
+      };
     });
     setBaseRatings(baseMap);
 
@@ -326,12 +322,12 @@ export default function GameRatingPage() {
           game_id: id,
           user_id: uid,
           rated_by: currentUser.id,
-          goals:              (stats.goals              || 0) - (base.goals              || 0),
-          assists:            (stats.assists            || 0) - (base.assists            || 0),
-          good_defending:     (stats.good_defending     || 0) - (base.good_defending     || 0),
-          good_keeping:       (stats.good_keeping       || 0) - (base.good_keeping       || 0),
-          successful_dribble: (stats.successful_dribble || 0) - (base.successful_dribble || 0),
-          good_chance:        (stats.good_chance        || 0) - (base.good_chance        || 0),
+          goals:              Math.max(0, (stats.goals              || 0) - (base.goals              || 0)),
+          assists:            Math.max(0, (stats.assists            || 0) - (base.assists            || 0)),
+          good_defending:     Math.max(0, (stats.good_defending     || 0) - (base.good_defending     || 0)),
+          good_keeping:       Math.max(0, (stats.good_keeping       || 0) - (base.good_keeping       || 0)),
+          successful_dribble: Math.max(0, (stats.successful_dribble || 0) - (base.successful_dribble || 0)),
+          good_chance:        Math.max(0, (stats.good_chance        || 0) - (base.good_chance        || 0)),
           good_manner: 0,
           admin_bonus: 0,
           total_points: 0,
@@ -440,8 +436,19 @@ export default function GameRatingPage() {
           </div>
         )}
         {success && (
-          <div style={{ background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: 'var(--accent)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IoCheckmarkCircle size={16} /> {success}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 10, color: 'var(--accent)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IoCheckmarkCircle size={16} /> {success}
+            </div>
+            <button onClick={() => navigate(`/game/${id}/summary`)} style={{
+              width: '100%', padding: '12px',
+              background: 'rgba(255,215,0,0.1)', color: '#FFD700',
+              border: '1.5px solid rgba(255,215,0,0.35)', borderRadius: 10,
+              fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              View Match Summary →
+            </button>
           </div>
         )}
         {error && (
@@ -790,9 +797,9 @@ export default function GameRatingPage() {
                             {CARD_STATS.map(({ key, label, color }) => {
                               const taps     = stats[key] || 0;
                               const baseTaps = base[key] || 0;
-                              const cardVal  = Math.min(99, 30 + taps);
+                              const cardVal  = Math.max(30, Math.min(99, 30 + taps));
                               const delta    = taps - baseTaps;
-                              const canDecrease = taps > 0;
+                              const canDecrease = taps > baseTaps;
                               return (
                                 <div key={key} style={{
                                   borderRadius: 8,

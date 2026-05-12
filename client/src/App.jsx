@@ -16,6 +16,7 @@ import FriendsPage from './pages/FriendsPage';
 import WalletTopupPage from './pages/WalletTopupPage';
 import GameCheckoutPage from './pages/GameCheckoutPage';
 import GameCancelPage from './pages/GameCancelPage';
+import GameSummaryPage from './pages/GameSummaryPage';
 import GuidePage from './pages/GuidePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -55,6 +56,7 @@ function App() {
         <Route path="/wallet/topup" element={<PrivateRoute><WalletTopupPage /></PrivateRoute>} />
         <Route path="/game/:id/checkout" element={<PrivateRoute><GameCheckoutPage /></PrivateRoute>} />
         <Route path="/game/:id/cancel" element={<PrivateRoute><GameCancelPage /></PrivateRoute>} />
+        <Route path="/game/:id/summary" element={<PrivateRoute><GameSummaryPage /></PrivateRoute>} />
         <Route path="/game/:id" element={
   <PrivateRoute>
     <GameDetailPage />

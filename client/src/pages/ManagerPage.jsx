@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getCached, setCached, clearCached } from '../lib/dataCache';
+import { usePersistedState } from '../lib/usePersistedState';
 import { GiSoccerBall } from 'react-icons/gi';
 import { MdOutlineCalendarMonth, MdOutlineStadium, MdSave } from 'react-icons/md';
 import { FaPeopleGroup, FaLocationDot } from 'react-icons/fa6';
@@ -19,7 +20,7 @@ const FORMATS = ['5v5', '6v6', '7v7'];
 export default function ManagerPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = usePersistedState('manager_tab', 'overview');
   const [fields, setFields] = useState([]);
   const [games, setGames] = useState([]);
   const [players, setPlayers] = useState([]);
