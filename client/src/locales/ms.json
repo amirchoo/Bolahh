@@ -1,0 +1,267 @@
+{
+  "navbar": {
+    "games": "Permainan",
+    "ranks": "Kedudukan",
+    "profile": "Profil",
+    "manager": "Pengurus",
+    "admin": "Admin",
+    "logout": "Log Keluar"
+  },
+  "landing": {
+    "badge": "PLATFORM BOLA SEPAK PERTAMA MALAYSIA",
+    "hero": {
+      "line1": "DI MANA SAHAJA.",
+      "line2": "SESIAPA SAHAJA.",
+      "line3": "BILA-BILA MASA.",
+      "desc": "Tempah perlawanan futsal, bina kad Bolahh anda, dan bersaing! dari Novis hingga Emas I.",
+      "getStarted": "MULAKAN PERCUMA",
+      "howItWorks": "Cara Ia Berfungsi ↓"
+    },
+    "stats": {
+      "courts": "Gelanggang",
+      "activePlayers": "Pemain Aktif",
+      "gamesOrganised": "Perlawanan Dianjurkan"
+    },
+    "nav": {
+      "howItWorks": "Cara Ia Berfungsi",
+      "ranks": "Kedudukan",
+      "features": "Ciri-Ciri",
+      "login": "Log Masuk",
+      "signup": "Daftar"
+    },
+    "steps": {
+      "label": "PROSES",
+      "title": "CARA IA BERFUNGSI",
+      "step1": { "title": "Cari Perlawanan", "desc": "Semak sesi futsal berdekatan. Tapis mengikut kawasan, format, dan harga." },
+      "step2": { "title": "Tambah Nilai & Sertai", "desc": "Tambah kredit ke dompet Bolahh anda dan tempah slot dengan satu ketukan. Tiada hassle bayaran setiap kali." },
+      "step3": { "title": "Main & Dapatkan Penilaian", "desc": "Selepas perlawanan, penganjur menilai statistik anda. OVR anda dikemas kini dan mendorong anda naik tangga kedudukan." }
+    },
+    "ranks": {
+      "label": "PERKEMBANGAN",
+      "title": "SISTEM KEDUDUKAN",
+      "desc": "Dinilai selepas setiap perlawanan. Statistik anda membina OVR anda dan menentukan mana dari 10 peringkat anda berada.",
+      "everyRank": "SETIAP KEDUDUKAN MEMPUNYAI KAD SENDIRI",
+      "scrollHint": "← skrol untuk lihat semua 10 kedudukan →"
+    },
+    "card": {
+      "label": "IDENTITI ANDA",
+      "title": "KAD PEMAIN BOLAHH ANDA",
+      "desc": "Setiap pemain mendapat kad yang mencerminkan peringkat kedudukan mereka. 6 statistik anda, PAC, SHO, PAS, DRI, DEF dan PHY dinilai oleh pengurus dipercayai kami selepas setiap perlawanan.",
+      "feat1": "Tema kad naik taraf mengikut kedudukan dari Novis ke Emas",
+      "feat2": "Dapatkan kad berdasarkan potensi sebenar anda",
+      "feat3": "OVR dikemas kini selepas setiap perlawanan dinilai",
+      "feat4": "Rakan boleh lihat kad anda di profil anda"
+    },
+    "features": {
+      "label": "SEMUA YANG ANDA PERLUKAN",
+      "title": "CIRI-CIRI",
+      "booking": { "title": "Tempahan Bijak", "desc": "Semak, tapis dan sertai perlawanan dalam beberapa saat. Penjejakan slot masa nyata." },
+      "wallet": { "title": "Dompet Bolahh", "desc": "Tambah nilai sekali, main bila-bila masa. Bayaran balik segera ke dompet anda jika perlawanan dibatalkan." },
+      "rank": { "title": "10 Peringkat", "desc": "Dari Novis ke Emas I, kedudukan anda mencerminkan prestasi sebenar anda di padang." },
+      "card": { "title": "Kad Bolahh", "desc": "Peribadikan kad bolahh anda dan tunjukkan kepada rakan-rakan." },
+      "friends": { "title": "Sistem Rakan", "desc": "Tambah rakan, lihat kad mereka, jejaki kemajuan kedudukan mereka." },
+      "manager": { "title": "Alat Pengurus", "desc": "Penganjur mendapat papan pemuka lengkap untuk mengurus tempat, perlawanan dan penilaian selepas perlawanan." }
+    },
+    "cta": {
+      "label": "BERSEDIA UNTUK BERMAIN?",
+      "title1": "MULAKAN",
+      "title2": "PERJALANAN",
+      "title3": "ANDA",
+      "desc": "Sertai komuniti futsal Malaysia. Tempah perlawanan pertama anda, dinilai, dan mula memanjat kedudukan.",
+      "createAccount": "BUAT AKAUN",
+      "login": "Log Masuk",
+      "freeNote": "Percuma untuk menyertai · Tiada kad kredit diperlukan"
+    },
+    "footer": {
+      "rights": "© 2026 Bolahh. Hak cipta terpelihara.",
+      "login": "Log Masuk",
+      "signup": "Daftar"
+    }
+  },
+  "login": {
+    "welcomeBack": "SELAMAT KEMBALI",
+    "subtitle": "Log masuk untuk cari perlawanan seterusnya",
+    "emailLabel": "E-MEL ATAU NAMA PENGGUNA",
+    "emailPlaceholder": "pemain@email.com atau nama pengguna",
+    "passwordLabel": "KATA LALUAN",
+    "forgotPassword": "Lupa kata laluan?",
+    "signingIn": "Sedang log masuk...",
+    "signIn": "Log Masuk",
+    "noAccount": "Tiada akaun?",
+    "signUp": "Daftar",
+    "errors": {
+      "fillAll": "Sila isi semua medan.",
+      "noAccount": "Tiada akaun dijumpai dengan nama pengguna itu.",
+      "invalid": "E-mel/nama pengguna atau kata laluan salah. Sila cuba lagi."
+    },
+    "forgot": {
+      "title": "TETAPKAN SEMULA KATA LALUAN",
+      "subtitle": "Masukkan e-mel anda dan kami akan hantar pautan tetapan semula",
+      "emailLabel": "E-MEL",
+      "sending": "Menghantar...",
+      "sendLink": "Hantar Pautan Tetapan Semula",
+      "backToSignIn": "Kembali ke Log Masuk",
+      "errorEmail": "Sila masukkan e-mel anda."
+    },
+    "checkEmail": {
+      "title": "SEMAK E-MEL ANDA",
+      "sent": "Kami telah menghantar pautan tetapan semula kata laluan ke",
+      "backToSignIn": "Kembali ke Log Masuk"
+    }
+  },
+  "signup": {
+    "title": "BUAT AKAUN",
+    "subtitle": "Sertai komuniti dan mula bermain",
+    "usernameLabel": "NAMA PENGGUNA",
+    "usernamePlaceholder": "cth. RonaldoSiu7",
+    "emailLabel": "E-MEL",
+    "passwordLabel": "KATA LALUAN",
+    "confirmPasswordLabel": "SAHKAN KATA LALUAN",
+    "positionLabel": "POSISI PILIHAN",
+    "genderLabel": "JANTINA",
+    "ageLabel": "UMUR",
+    "agePlaceholder": "cth. 22",
+    "areaLabel": "KAWASAN ANDA",
+    "creating": "Sedang membuat akaun...",
+    "createAccount": "Buat Akaun",
+    "hasAccount": "Sudah ada akaun?",
+    "signIn": "Log Masuk",
+    "positions": {
+      "Attacker": "Penyerang",
+      "Midfielder": "Pemain Tengah",
+      "Defender": "Pemain Bertahan",
+      "Goalkeeper": "Penjaga Gol"
+    },
+    "genders": {
+      "Male": "Lelaki",
+      "Female": "Perempuan",
+      "Rather not say": "Tidak mahu kongsi"
+    },
+    "errors": {
+      "fillAll": "Sila isi semua medan.",
+      "usernameShort": "Nama pengguna mestilah sekurang-kurangnya 3 aksara.",
+      "passwordMismatch": "Kata laluan tidak sepadan.",
+      "passwordShort": "Kata laluan mestilah sekurang-kurangnya 6 aksara.",
+      "noGender": "Sila pilih jantina anda.",
+      "invalidAge": "Sila masukkan umur yang sah (10–70).",
+      "noArea": "Sila pilih kawasan anda.",
+      "usernameTaken": "Nama pengguna telah digunakan.",
+      "emailRegistered": "E-mel ini telah berdaftar. Sila log masuk."
+    },
+    "success": {
+      "title": "SEMAK E-MEL ANDA",
+      "sent": "Kami telah menghantar pautan pengesahan ke",
+      "instructions": "Klik pautan dalam e-mel untuk mengaktifkan akaun anda, kemudian kembali dan log masuk.",
+      "goToSignIn": "Pergi ke Log Masuk"
+    }
+  },
+  "home": {
+    "title": "CARI PERLAWANAN ANDA",
+    "subtitle": "Semak perlawanan tersedia dan tempah slot anda",
+    "searchPlaceholder": "Cari perlawanan...",
+    "allAreas": "Semua Kawasan",
+    "allFormats": "Semua Format",
+    "loading": "Memuat...",
+    "loadingGames": "Memuat perlawanan...",
+    "noGames": "Tiada perlawanan dijumpai. Cuba ubah penapis anda.",
+    "gamesFound_one": "{{count}} perlawanan dijumpai",
+    "gamesFound_other": "{{count}} perlawanan dijumpai",
+    "timeOut": "TAMAT MASA",
+    "full": "PENUH",
+    "timeOutLabel": "Tamat Masa",
+    "gameFullLabel": "Perlawanan Penuh",
+    "viewDetails": "Lihat Butiran →",
+    "slotsLeft_one": "{{count}} slot tinggal",
+    "slotsLeft_other": "{{count}} slot tinggal",
+    "players": "pemain",
+    "today": "HARI INI",
+    "showAll": "TUNJUK",
+    "all": "SEMUA",
+    "footer": {
+      "tagline": "Platform tempahan futsal dan perkembangan Malaysia.",
+      "learn": "PELAJARI",
+      "howItWorks": "Cara Ia Berfungsi",
+      "rankSystem": "Sistem Kedudukan",
+      "bolahhCard": "Kad Bolahh",
+      "wallet": "Dompet",
+      "account": "AKAUN",
+      "myProfile": "Profil Saya",
+      "friends": "Rakan",
+      "topUp": "Tambah Nilai",
+      "contact": "HUBUNGI KAMI",
+      "reportBug": "🐛 LAPOR BUG",
+      "guideHelp": "PANDUAN & BANTUAN →",
+      "rights": "© 2026 Bolahh. Hak cipta terpelihara."
+    }
+  },
+  "profile": {
+    "title": "PROFIL SAYA",
+    "tapToShare": "KETUK UNTUK LIHAT & KONGSI",
+    "editProfile": "Edit Profil",
+    "cancelEdit": "Batal Edit",
+    "friends": "Rakan",
+    "loading": "Memuat profil...",
+    "nudge": {
+      "addArea": "Tambah kawasan anda supaya pemain berdekatan boleh jumpa anda.",
+      "addDetails": "Tambah jantina dan umur untuk lengkapkan profil anda.",
+      "update": "Kemaskini"
+    },
+    "form": {
+      "usernameLabel": "NAMA PENGGUNA",
+      "positionLabel": "POSISI",
+      "genderLabel": "JANTINA",
+      "ageLabel": "UMUR",
+      "areaLabel": "KAWASAN",
+      "saving": "Menyimpan...",
+      "saveChanges": "Simpan Perubahan",
+      "cancel": "Batal"
+    },
+    "positions": {
+      "Attacker": "Penyerang",
+      "Midfielder": "Pemain Tengah",
+      "Defender": "Pemain Bertahan",
+      "Goalkeeper": "Penjaga Gol"
+    },
+    "genders": {
+      "Male": "Lelaki",
+      "Female": "Perempuan",
+      "Rather not say": "Tidak mahu kongsi"
+    },
+    "stats": {
+      "gamesJoined": "Perlawanan Disertai",
+      "memberSince": "Ahli Sejak"
+    },
+    "wallet": {
+      "title": "DOMPET BOLAHH",
+      "balance": "Baki tersedia",
+      "topup": "+ TAMBAH NILAI"
+    },
+    "subscription": {
+      "title": "BOLAHH DISAHKAN",
+      "active": "AKTIF",
+      "get": "DAPATKAN TANDA DISAHKAN",
+      "expires": "Tamat",
+      "renew": "PERBAHARUI",
+      "price": "RM10/BULAN"
+    },
+    "upcoming": {
+      "title": "Perlawanan Akan Datang",
+      "empty": "Tiada perlawanan akan datang.",
+      "findOne": "Cari satu →"
+    },
+    "past": {
+      "title": "Perlawanan Lepas",
+      "empty": "Tiada perlawanan lepas lagi.",
+      "deleted_one": "+ {{count}} perlawanan tidak lagi tersedia",
+      "deleted_other": "+ {{count}} perlawanan tidak lagi tersedia"
+    },
+    "errors": {
+      "gif": "Avatar GIF adalah eksklusif untuk pengguna yang disahkan.",
+      "imageType": "Hanya imej JPG dan PNG dibenarkan.",
+      "uploadFailed": "Gagal memuat naik imej.",
+      "emptyUsername": "Nama pengguna tidak boleh kosong.",
+      "invalidAge": "Umur mestilah antara 10 dan 70.",
+      "saveFailed": "Gagal menyimpan. Cuba lagi."
+    }
+  }
+}

@@ -14,6 +14,7 @@ Bolahh is a futsal match booking and player progression platform for Malaysia, l
 | Icons | react-icons, Lucide React |
 | Styling | Custom CSS — dark theme, CSS variables |
 | Fonts | Bebas Neue, DM Sans, Space Mono |
+| i18n | react-i18next + i18next-browser-languagedetector |
 | Analytics | @vercel/analytics |
 | Hosting | Vercel (auto-deploy on push to `main`) |
 | Domain | bolahh.com (Cloudflare) |
@@ -179,6 +180,13 @@ A player must have played at least 1 rated game to move out of Novis regardless 
 2. **Assign Teams** — drag players into Team A / B / C
 3. **Schedule** — auto-generated match rotation shown with times
 4. **Rate Players** — per-player stat counters (SHO / PAS / DRI / DEF / PHY / PAC + bonus)
+
+### Multi-Language Support
+- EN / BM (Bahasa Malaysia) toggle persisted in localStorage
+- Language toggle button in Navbar, Landing page nav, Login, and Signup
+- Translation files: `client/src/locales/en.json` and `client/src/locales/ms.json`
+- Pages translated: Navbar, LandingPage, LoginPage, SignupPage, HomePage, ProfilePage
+- Remaining pages (GameDetailPage, GuidePage, etc.) use same `useTranslation()` pattern
 
 ### Friends System
 - Send / accept / reject friend requests

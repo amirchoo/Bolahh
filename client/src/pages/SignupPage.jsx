@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { IoEye, IoEyeOff, IoMail } from 'react-icons/io5';
+import { useTranslation } from 'react-i18next';
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const [form, setForm] = useState({
     username: '', email: '', password: '', confirmPassword: '', position: '', gender: '', age: '', area: ''
   });
@@ -17,32 +19,32 @@ export default function SignupPage() {
   const handleSignup = async () => {
     setError('');
     if (!form.username || !form.email || !form.password || !form.confirmPassword) {
-      setError('Please fill in all fields.');
+      setError(t('signup.errors.fillAll'));
       return;
     }
     if (form.username.length < 3) {
-      setError('Username must be at least 3 characters.');
+      setError(t('signup.errors.usernameShort'));
       return;
     }
     if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('signup.errors.passwordMismatch'));
       return;
     }
     if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError(t('signup.errors.passwordShort'));
       return;
     }
     if (!form.gender) {
-      setError('Please select your gender.');
+      setError(t('signup.errors.noGender'));
       return;
     }
     const age = parseInt(form.age);
     if (!form.age || isNaN(age) || age < 10 || age > 70) {
-      setError('Please enter a valid age (10–70).');
+      setError(t('signup.errors.invalidAge'));
       return;
     }
     if (!form.area) {
-      setError('Please select your area.');
+      setError(t('signup.errors.noArea'));
       return;
     }
     setLoading(true);
@@ -50,7 +52,7 @@ export default function SignupPage() {
     const { data: existingUser } = await supabase
       .from('profiles').select('name').ilike('name', form.username.trim()).single();
     if (existingUser) {
-      setError('Username has been used.');
+      setError(t('signup.errors.usernameTaken'));
       setLoading(false);
       return;
     }
@@ -69,7 +71,7 @@ export default function SignupPage() {
         signUpError.message.toLowerCase().includes('already been registered') ||
         signUpError.message.toLowerCase().includes('user already exists')
       ) {
-        setError('This email is already registered. Please sign in instead.');
+        setError(t('signup.errors.emailRegistered'));
       } else {
         setError(signUpError.message);
       }
@@ -81,7 +83,9 @@ export default function SignupPage() {
     setLoading(false);
   };
 
+  // DB values stay as English; display labels are translated
   const positions = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
+  const genders = ['Male', 'Female', 'Rather not say'];
   const areas = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
 
   const cardStyle = {
@@ -102,23 +106,23 @@ export default function SignupPage() {
             fontFamily: "'Bebas Neue'", fontSize: 32,
             letterSpacing: 2, marginBottom: 10, color: 'var(--text)'
           }}>
-            CHECK YOUR EMAIL
+            {t('signup.success.title')}
           </h2>
           <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, marginBottom: 8 }}>
-            We sent a confirmation link to
+            {t('signup.success.sent')}
           </p>
           <p style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 15, marginBottom: 20 }}>
             {form.email}
           </p>
           <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 32 }}>
-            Click the link in the email to activate your account, then come back and sign in.
+            {t('signup.success.instructions')}
           </p>
           <button onClick={() => navigate('/login')} style={{
             width: '100%', padding: '14px',
             background: 'var(--accent)', color: '#fff',
             border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15
           }}>
-            Go to Sign In
+            {t('signup.success.goToSignIn')}
           </button>
         </div>
       </div>
@@ -133,21 +137,34 @@ export default function SignupPage() {
     }}>
       <div className="fade-up" style={cardStyle}>
 
-        <div onClick={() => navigate('/')}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 32, cursor: 'pointer' }}>
-          <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3 }}>
-            <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+          <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3 }}>
+              <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
+            </span>
+          </div>
+          <button
+            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'ms' : 'en')}
+            style={{
+              background: 'transparent', color: 'var(--accent)',
+              border: '1px solid rgba(240,157,81,0.3)',
+              borderRadius: 8, padding: '4px 10px',
+              fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'",
+              cursor: 'pointer', letterSpacing: 0.5,
+            }}
+          >
+            {i18n.language === 'ms' ? 'EN' : 'BM'}
+          </button>
         </div>
 
         <h2 style={{
           fontFamily: "'Bebas Neue'", fontSize: 36,
           letterSpacing: 2, marginBottom: 6, color: 'var(--text)'
         }}>
-          CREATE ACCOUNT
+          {t('signup.title')}
         </h2>
         <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28 }}>
-          Join the community and start playing
+          {t('signup.subtitle')}
         </p>
 
         {error && (
@@ -162,19 +179,19 @@ export default function SignupPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={labelStyle}>USERNAME</label>
-            <input placeholder="e.g. RonaldoSiu7" value={form.username}
+            <label style={labelStyle}>{t('signup.usernameLabel')}</label>
+            <input placeholder={t('signup.usernamePlaceholder')} value={form.username}
               onChange={e => setForm({ ...form, username: e.target.value })} />
           </div>
 
           <div>
-            <label style={labelStyle}>EMAIL</label>
+            <label style={labelStyle}>{t('signup.emailLabel')}</label>
             <input type="email" placeholder="player@email.com" value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })} />
           </div>
 
           <div>
-            <label style={labelStyle}>PASSWORD</label>
+            <label style={labelStyle}>{t('signup.passwordLabel')}</label>
             <div style={{ position: 'relative' }}>
               <input type={showPassword ? 'text' : 'password'} placeholder="••••••••"
                 value={form.password}
@@ -192,7 +209,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label style={labelStyle}>CONFIRM PASSWORD</label>
+            <label style={labelStyle}>{t('signup.confirmPasswordLabel')}</label>
             <div style={{ position: 'relative' }}>
               <input type={showConfirm ? 'text' : 'password'} placeholder="••••••••"
                 value={form.confirmPassword}
@@ -211,7 +228,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label style={{ ...labelStyle, marginBottom: 10 }}>PREFERRED POSITION</label>
+            <label style={{ ...labelStyle, marginBottom: 10 }}>{t('signup.positionLabel')}</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {positions.map(p => (
                 <button key={p}
@@ -223,15 +240,15 @@ export default function SignupPage() {
                     borderRadius: 8, padding: '8px 16px',
                     fontSize: 13, fontWeight: 500, transition: 'all 0.15s'
                   }}
-                >{p}</button>
+                >{t(`signup.positions.${p}`)}</button>
               ))}
             </div>
           </div>
 
           <div>
-            <label style={{ ...labelStyle, marginBottom: 10 }}>GENDER</label>
+            <label style={{ ...labelStyle, marginBottom: 10 }}>{t('signup.genderLabel')}</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              {['Male', 'Female', 'Rather not say'].map(g => (
+              {genders.map(g => (
                 <button key={g}
                   onClick={() => setForm({ ...form, gender: form.gender === g ? '' : g })}
                   style={{
@@ -242,22 +259,22 @@ export default function SignupPage() {
                     borderRadius: 8, padding: '8px 16px',
                     fontSize: 13, fontWeight: 500, transition: 'all 0.15s'
                   }}
-                >{g}</button>
+                >{t(`signup.genders.${g}`)}</button>
               ))}
             </div>
           </div>
 
           <div>
-            <label style={labelStyle}>AGE</label>
+            <label style={labelStyle}>{t('signup.ageLabel')}</label>
             <input
-              type="number" placeholder="e.g. 22" min="10" max="70"
+              type="number" placeholder={t('signup.agePlaceholder')} min="10" max="70"
               value={form.age}
               onChange={e => setForm({ ...form, age: e.target.value })}
             />
           </div>
 
           <div>
-            <label style={{ ...labelStyle, marginBottom: 10 }}>YOUR AREA</label>
+            <label style={{ ...labelStyle, marginBottom: 10 }}>{t('signup.areaLabel')}</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {areas.map(a => (
                 <button key={a}
@@ -281,14 +298,14 @@ export default function SignupPage() {
           border: 'none', borderRadius: 10,
           fontWeight: 700, fontSize: 15, opacity: loading ? 0.6 : 1
         }}>
-          {loading ? 'Creating account...' : 'Create Account'}
+          {loading ? t('signup.creating') : t('signup.createAccount')}
         </button>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: 'var(--muted)' }}>
-          Already have an account?{' '}
+          {t('signup.hasAccount')}{' '}
           <span onClick={() => navigate('/login')}
             style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
-            Sign in
+            {t('signup.signIn')}
           </span>
         </p>
       </div>

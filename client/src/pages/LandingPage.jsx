@@ -11,6 +11,7 @@ import { GiUpgrade } from "react-icons/gi";
 import { MdOutlineAutoMode } from "react-icons/md";
 import { LiaUserFriendsSolid } from "react-icons/lia";
 import { supabase } from '../lib/supabaseClient';
+import { useTranslation } from 'react-i18next';
 
 const RANKS = [
   { name: 'Novis',      color: '#7088a0', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    ovr: '0–30'  },
@@ -39,20 +40,9 @@ const RANK_SAMPLE_STATS = [
   [97, 95, 96, 99, 94, 99],     // Emas I      → OVR 97
 ];
 
-const STEPS = [
-  { num: '01', icon: <IoSearchCircleOutline />, title: 'Find a Game', desc: 'Browse upcoming futsal sessions near you. Filter by area, format, and price.' },
-  { num: '02', icon: <IoWallet/>, title: 'Top Up & Join', desc: 'Add funds to your Bolahh wallet and book your slot in one tap. No payment hassle every time.' },
-  { num: '03', icon: <FaRankingStar />, title: 'Play & Get Rated', desc: 'After the match, the organiser rates your stats. Your OVR updates and pushes you up the rank ladder.' },
-];
-
-const FEATURES = [
-  { icon: <IoMdFootball/>,      title: 'Smart Booking',    desc: 'Browse, filter and join games in seconds. Real-time slot tracking.' },
-  { icon: <IoWallet/>,          title: 'Bolahh Wallet',    desc: 'Top up once, play anytime. Instant refunds to your wallet if a game is cancelled.' },
-  { icon: <FaRankingStar />,    title: '10-Tier Rank',     desc: 'From Novis to Emas I, your rank reflects your real performance on the pitch.' },
-  { icon: <TbPlayCard7Filled/>, title: 'Bolahh Card',      desc: 'Customise your bolahh card and flex to your friends.' },
-  { icon: <FaUserFriends/>,     title: 'Friends System',   desc: 'Add friends, view their cards, track their rank progress.' },
-  { icon: <FaClipboardList/>,   title: 'Manager Tools',    desc: 'Organisers get a full dashboard to manage venues, games and post-match ratings.' },
-];
+const STEP_ICONS = [<IoSearchCircleOutline />, <IoWallet/>, <FaRankingStar />];
+const FEATURE_ICONS = [<IoMdFootball/>, <IoWallet/>, <FaRankingStar />, <TbPlayCard7Filled/>, <FaUserFriends/>, <FaClipboardList/>];
+const FEATURE_KEYS = ['booking', 'wallet', 'rank', 'card', 'friends', 'manager'];
 
 // Inline demo card (no external imports needed)
 function DemoCard({ floatOffset }) {
@@ -115,9 +105,22 @@ function useScrollReveal() {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const [floatOffset, setFloatOffset] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [activeRank, setActiveRank] = useState(null);
+
+  const STEPS = [
+    { num: '01', icon: STEP_ICONS[0], title: t('landing.steps.step1.title'), desc: t('landing.steps.step1.desc') },
+    { num: '02', icon: STEP_ICONS[1], title: t('landing.steps.step2.title'), desc: t('landing.steps.step2.desc') },
+    { num: '03', icon: STEP_ICONS[2], title: t('landing.steps.step3.title'), desc: t('landing.steps.step3.desc') },
+  ];
+
+  const FEATURES = FEATURE_KEYS.map((key, i) => ({
+    icon: FEATURE_ICONS[i],
+    title: t(`landing.features.${key}.title`),
+    desc: t(`landing.features.${key}.desc`),
+  }));
 
   // Floating card animation
   useEffect(() => {
@@ -257,21 +260,33 @@ export default function LandingPage() {
           <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
         </div>
         <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <span className="nav-link" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>How It Works</span>
-          <span className="nav-link" onClick={() => document.getElementById('ranks')?.scrollIntoView({ behavior: 'smooth' })}>Ranks</span>
-          <span className="nav-link" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>Features</span>
+          <span className="nav-link" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>{t('landing.nav.howItWorks')}</span>
+          <span className="nav-link" onClick={() => document.getElementById('ranks')?.scrollIntoView({ behavior: 'smooth' })}>{t('landing.nav.ranks')}</span>
+          <span className="nav-link" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>{t('landing.nav.features')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'ms' : 'en')}
+            style={{
+              background: 'transparent', color: '#F09D51',
+              border: '1px solid rgba(240,157,81,0.4)',
+              borderRadius: 8, padding: '6px 10px',
+              fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'",
+              cursor: 'pointer', letterSpacing: 0.5,
+            }}
+          >
+            {i18n.language === 'ms' ? 'EN' : 'BM'}
+          </button>
           <button className="cta-btn" onClick={() => navigate('/login')} style={{
             background: 'transparent', color: '#F09D51', border: '1.5px solid #F09D51',
             borderRadius: 8, padding: '7px 18px', fontSize: 13, fontWeight: 600,
             fontFamily: "'DM Sans'"
-          }}>Log In</button>
+          }}>{t('landing.nav.login')}</button>
           <button className="cta-btn" onClick={() => navigate('/signup')} style={{
             background: '#F09D51', color: '#fff', border: 'none',
             borderRadius: 8, padding: '8px 18px', fontSize: 13, fontWeight: 700,
             fontFamily: "'DM Sans'"
-          }}>Sign Up</button>
+          }}>{t('landing.nav.signup')}</button>
         </div>
       </nav>
 
@@ -301,23 +316,23 @@ export default function LandingPage() {
               <span style={{ width:6, height:6, borderRadius:'50%', background:'#F09D51', display:'inline-block', position:'relative' }}>
                 <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#F09D51', animation:'pulse-ring 1.5s ease-out infinite' }} />
               </span>
-              MALAYSIA'S FIRST FOOTBALL PLATFORM
+              {t('landing.badge')}
             </div>
 
             <h1 className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-1 hero-title`} style={{
               fontFamily: "'Bebas Neue'", fontSize: 88, lineHeight: 0.9,
               letterSpacing: 3, marginBottom: 24, color: '#e8e9eb'
             }}>
-              ANYWHERE.<br />
-              <span className="shimmer-text">ANYONE.</span><br />
-              ANYTIME.
+              {t('landing.hero.line1')}<br />
+              <span className="shimmer-text">{t('landing.hero.line2')}</span><br />
+              {t('landing.hero.line3')}
             </h1>
 
             <p className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-2 hero-desc`} style={{
               fontSize: 17, color: 'rgba(232,233,235,0.6)', lineHeight: 1.7,
               maxWidth: 440, marginBottom: 36, fontFamily: "'DM Sans'"
             }}>
-              Book futsal games, build your Bolahh card, and compete! from Novis all the way to Emas I.
+              {t('landing.hero.desc')}
             </p>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 hero-btns`} style={{ display: 'flex', gap: 12 }}>
@@ -328,21 +343,21 @@ export default function LandingPage() {
                 fontFamily: "'Bebas Neue'", letterSpacing: 2,
                 boxShadow: '0 8px 32px rgba(240,157,81,0.3)',
                 flex: 1, minWidth: 160,
-              }}>GET STARTED FREE</button>
+              }}>{t('landing.hero.getStarted')}</button>
               <button className="cta-btn" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })} style={{
                 background: 'transparent', color: '#e8e9eb',
                 border: '1px solid rgba(232,233,235,0.2)', borderRadius: 12,
                 padding: '14px 0', fontSize: 14, fontWeight: 600,
                 fontFamily: "'DM Sans'",
                 flex: 1, minWidth: 160,
-              }}>How It Works ↓</button>
+              }}>{t('landing.hero.howItWorks')}</button>
             </div>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-4 hero-stats`} style={{ display: 'flex', gap: 32, marginTop: 40 }}>
               {[
-                [heroStats.courts === null ? '—' : heroStats.courts, 'Courts'],
-                [heroStats.players === null ? '—' : heroStats.players, 'Active Players'],
-                [heroStats.games === null ? '—' : heroStats.games, 'Games Organised'],
+                [heroStats.courts === null ? '—' : heroStats.courts, t('landing.stats.courts')],
+                [heroStats.players === null ? '—' : heroStats.players, t('landing.stats.activePlayers')],
+                [heroStats.games === null ? '—' : heroStats.games, t('landing.stats.gamesOrganised')],
               ].map(([num, label]) => (
                 <div key={label}>
                   <div style={{ fontFamily: "'Bebas Neue'", fontSize: 36, color: '#F09D51', lineHeight: 1, letterSpacing: 1 }}>{num}</div>
@@ -385,8 +400,8 @@ export default function LandingPage() {
         <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.55)', pointerEvents:'none' }} />
         <div ref={stepsRef} style={{ maxWidth: 1000, margin: '0 auto', position:'relative', zIndex:2 }}>
           <div className={`reveal ${stepsVisible ? 'visible' : ''}`} style={{ textAlign: 'center', marginBottom: 60 }}>
-            <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>THE PROCESS</div>
-            <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb' }}>HOW IT WORKS</h2>
+            <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>{t('landing.steps.label')}</div>
+            <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb' }}>{t('landing.steps.title')}</h2>
           </div>
 
           <div className="steps-grid" style={{ display:'flex', gap:24, alignItems:'stretch' }}>
@@ -429,10 +444,10 @@ export default function LandingPage() {
 
         <div ref={rankRef} style={{ maxWidth: 1000, margin: '0 auto', position:'relative', zIndex:2 }}>
           <div className={`reveal ${rankVisible ? 'visible' : ''}`} style={{ textAlign:'center', marginBottom:60 }}>
-            <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>PROGRESSION</div>
-            <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb', marginBottom:12 }}>THE RANK SYSTEM</h2>
+            <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>{t('landing.ranks.label')}</div>
+            <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb', marginBottom:12 }}>{t('landing.ranks.title')}</h2>
             <p style={{ fontSize:15, color:'rgba(232,233,235,0.5)', fontFamily:"'DM Sans'", maxWidth:480, margin:'0 auto' }}>
-              Get rated after every game. Your stats build your OVR and determine which of the 10 tiers you sit in.
+              {t('landing.ranks.desc')}
             </p>
           </div>
 
@@ -463,7 +478,7 @@ export default function LandingPage() {
 
           {/* Rank card showcase */}
           <div className={`reveal ${rankVisible ? 'visible' : ''} reveal-delay-2`}>
-            <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'rgba(232,233,235,0.35)', letterSpacing:3, marginBottom:20, textAlign:'center' }}>EVERY RANK HAS ITS OWN CARD</div>
+            <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'rgba(232,233,235,0.35)', letterSpacing:3, marginBottom:20, textAlign:'center' }}>{t('landing.ranks.everyRank')}</div>
             <div style={{
               display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16,
               scrollbarWidth: 'thin', scrollbarColor: 'rgba(240,157,81,0.3) transparent',
@@ -535,7 +550,7 @@ export default function LandingPage() {
                 );
               })}
             </div>
-            <div style={{ textAlign:'center', marginTop:12, fontSize:11, color:'rgba(232,233,235,0.25)', fontFamily:"'DM Sans'" }}>← scroll to see all 10 ranks →</div>
+            <div style={{ textAlign:'center', marginTop:12, fontSize:11, color:'rgba(232,233,235,0.25)', fontFamily:"'DM Sans'" }}>{t('landing.ranks.scrollHint')}</div>
           </div>
         </div>
       </section>
@@ -554,19 +569,19 @@ export default function LandingPage() {
 
           {/* Right — info */}
           <div style={{ flex:1, minWidth:260 }}>
-            <div className={`reveal ${cardVisible ? 'visible' : ''}`} style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>YOUR IDENTITY</div>
+            <div className={`reveal ${cardVisible ? 'visible' : ''}`} style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>{t('landing.card.label')}</div>
             <h2 className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-1`} style={{ fontFamily:"'Bebas Neue'", fontSize:48, letterSpacing:3, color:'#e8e9eb', lineHeight:1, marginBottom:20 }}>
-              YOUR <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>o</span>lahh</span><br />PLAYER CARD
+              {t('landing.card.title')}
             </h2>
             <p className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-2`} style={{ fontSize:15, color:'rgba(232,233,235,0.55)', lineHeight:1.8, fontFamily:"'DM Sans'", marginBottom:24 }}>
-              Every player gets a card that reflects their rank tier. Your 6 stats ,PAC, SHO, PAS, DRI, DEF and PHY are rated by our trusted manager after each game and build your OVR.
+              {t('landing.card.desc')}
             </p>
             <div className={`reveal ${cardVisible ? 'visible' : ''} reveal-delay-3`} style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
-                [<GiUpgrade />,'Card theme upgrades with your rank from Novis to Emas'],
-                [<IoStatsChart />,'Get card based on your true potential'],
-                [<MdOutlineAutoMode />,'OVR updates after every rated game'],
-                [<LiaUserFriendsSolid />,'Friends can view your card on your profile'],
+                [<GiUpgrade />, t('landing.card.feat1')],
+                [<IoStatsChart />, t('landing.card.feat2')],
+                [<MdOutlineAutoMode />, t('landing.card.feat3')],
+                [<LiaUserFriendsSolid />, t('landing.card.feat4')],
               ].map(([icon,text]) => (
                 <div key={text} style={{ display:'flex', alignItems:'flex-start', gap:12, fontSize:13, color:'rgba(232,233,235,0.6)', fontFamily:"'DM Sans'" }}>
                   <span style={{ fontSize:16, flexShrink:0 }}>{icon}</span>
@@ -584,8 +599,8 @@ export default function LandingPage() {
         <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.55)', pointerEvents:'none' }} />
         <div ref={featRef} style={{ maxWidth: 1000, margin: '0 auto', position:'relative', zIndex:2 }}>
           <div className={`reveal ${featVisible ? 'visible' : ''}`} style={{ textAlign:'center', marginBottom:60 }}>
-            <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>EVERYTHING YOU NEED</div>
-            <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb' }}>FEATURES</h2>
+            <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:12 }}>{t('landing.features.label')}</div>
+            <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:52, letterSpacing:3, color:'#e8e9eb' }}>{t('landing.features.title')}</h2>
           </div>
 
           <div className="feat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16 }}>
@@ -610,12 +625,12 @@ export default function LandingPage() {
         <div style={{ position:'absolute', inset:0, zIndex:1, background:'rgba(0,0,0,0.5)', pointerEvents:'none' }} />
         <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:700, height:400, background:'radial-gradient(ellipse, rgba(240,157,81,0.07) 0%, transparent 70%)', pointerEvents:'none', zIndex:1 }} />
         <div ref={ctaRef} className={`reveal ${ctaVisible ? 'visible' : ''}`} style={{ maxWidth:600, margin:'0 auto', textAlign:'center', position:'relative', zIndex:2 }}>
-          <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:16 }}>READY TO PLAY?</div>
+          <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#F09D51', letterSpacing:3, marginBottom:16 }}>{t('landing.cta.label')}</div>
           <h2 style={{ fontFamily:"'Bebas Neue'", fontSize:64, letterSpacing:3, color:'#e8e9eb', lineHeight:0.95, marginBottom:20 }}>
-            START YOUR<br /><span className="shimmer-text">JOURNEY</span><br />TODAY
+            {t('landing.cta.title1')}<br /><span className="shimmer-text">{t('landing.cta.title2')}</span><br />{t('landing.cta.title3')}
           </h2>
           <p style={{ fontSize:15, color:'rgba(232,233,235,0.5)', lineHeight:1.7, fontFamily:"'DM Sans'", marginBottom:36 }}>
-            Join Malaysia's futsal community. Book your first game, get rated, and start climbing the ranks.
+            {t('landing.cta.desc')}
           </p>
           <div style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap' }}>
             <button className="cta-btn" onClick={() => navigate('/signup')} style={{
@@ -624,15 +639,15 @@ export default function LandingPage() {
               padding:'16px 40px', fontSize:16, fontWeight:700,
               fontFamily:"'Bebas Neue'", letterSpacing:2,
               boxShadow:'0 8px 40px rgba(240,157,81,0.3)'
-            }}>CREATE ACCOUNT</button>
+            }}>{t('landing.cta.createAccount')}</button>
             <button className="cta-btn" onClick={() => navigate('/login')} style={{
               background:'transparent', color:'#e8e9eb',
               border:'1px solid rgba(232,233,235,0.2)', borderRadius:12,
               padding:'16px 32px', fontSize:16, fontWeight:600,
               fontFamily:"'DM Sans'"
-            }}>Log In</button>
+            }}>{t('landing.cta.login')}</button>
           </div>
-          <p style={{ marginTop:20, fontSize:12, color:'rgba(232,233,235,0.3)', fontFamily:"'DM Sans'" }}>Free to join · No credit card required</p>
+          <p style={{ marginTop:20, fontSize:12, color:'rgba(232,233,235,0.3)', fontFamily:"'DM Sans'" }}>{t('landing.cta.freeNote')}</p>
         </div>
       </section>
 
@@ -665,10 +680,10 @@ export default function LandingPage() {
             admin@bolahh.com
           </a>
         </div>
-        <div style={{ fontSize:12, color:'rgba(232,233,235,0.25)', fontFamily:"'DM Sans'" }}>© 2026 Bolahh. All rights reserved.</div>
+        <div style={{ fontSize:12, color:'rgba(232,233,235,0.25)', fontFamily:"'DM Sans'" }}>{t('landing.footer.rights')}</div>
         <div style={{ display:'flex', gap:20 }}>
-          <span className="nav-link" onClick={() => navigate('/login')}>Login</span>
-          <span className="nav-link" onClick={() => navigate('/signup')}>Sign Up</span>
+          <span className="nav-link" onClick={() => navigate('/login')}>{t('landing.footer.login')}</span>
+          <span className="nav-link" onClick={() => navigate('/signup')}>{t('landing.footer.signup')}</span>
         </div>
       </footer>
 

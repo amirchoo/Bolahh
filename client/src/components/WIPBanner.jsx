@@ -82,7 +82,7 @@ export default function WIPBanner() {
           color: 'var(--muted)', fontSize: 13, lineHeight: 1.75,
           textAlign: 'center', marginBottom: 22,
         }}>
-          This website is still a work in progress — please note that there will be bugs!
+          This website is still a work in progress.Please note that there will be bugs!
           <br />
           <span style={{ color: 'var(--accent)', fontFamily: "'Space Mono'", fontSize: 12 }}>— cho</span>
         </p>
