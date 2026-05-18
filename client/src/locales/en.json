@@ -1,0 +1,267 @@
+{
+  "navbar": {
+    "games": "Games",
+    "ranks": "Ranks",
+    "profile": "Profile",
+    "manager": "Manager",
+    "admin": "Admin",
+    "logout": "Logout"
+  },
+  "landing": {
+    "badge": "MALAYSIA'S FIRST FOOTBALL PLATFORM",
+    "hero": {
+      "line1": "ANYWHERE.",
+      "line2": "ANYONE.",
+      "line3": "ANYTIME.",
+      "desc": "Book futsal games, build your Bolahh card, and compete! from Novis all the way to Emas I.",
+      "getStarted": "GET STARTED FREE",
+      "howItWorks": "How It Works ↓"
+    },
+    "stats": {
+      "courts": "Courts",
+      "activePlayers": "Active Players",
+      "gamesOrganised": "Games Organised"
+    },
+    "nav": {
+      "howItWorks": "How It Works",
+      "ranks": "Ranks",
+      "features": "Features",
+      "login": "Log In",
+      "signup": "Sign Up"
+    },
+    "steps": {
+      "label": "THE PROCESS",
+      "title": "HOW IT WORKS",
+      "step1": { "title": "Find a Game", "desc": "Browse upcoming futsal sessions near you. Filter by area, format, and price." },
+      "step2": { "title": "Top Up & Join", "desc": "Add funds to your Bolahh wallet and book your slot in one tap. No payment hassle every time." },
+      "step3": { "title": "Play & Get Rated", "desc": "After the match, the organiser rates your stats. Your OVR updates and pushes you up the rank ladder." }
+    },
+    "ranks": {
+      "label": "PROGRESSION",
+      "title": "THE RANK SYSTEM",
+      "desc": "Get rated after every game. Your stats build your OVR and determine which of the 10 tiers you sit in.",
+      "everyRank": "EVERY RANK HAS ITS OWN CARD",
+      "scrollHint": "← scroll to see all 10 ranks →"
+    },
+    "card": {
+      "label": "YOUR IDENTITY",
+      "title": "YOUR BOLAHH PLAYER CARD",
+      "desc": "Every player gets a card that reflects their rank tier. Your 6 stats, PAC, SHO, PAS, DRI, DEF and PHY are rated by our trusted manager after each game and build your OVR.",
+      "feat1": "Card theme upgrades with your rank from Novis to Emas",
+      "feat2": "Get card based on your true potential",
+      "feat3": "OVR updates after every rated game",
+      "feat4": "Friends can view your card on your profile"
+    },
+    "features": {
+      "label": "EVERYTHING YOU NEED",
+      "title": "FEATURES",
+      "booking": { "title": "Smart Booking", "desc": "Browse, filter and join games in seconds. Real-time slot tracking." },
+      "wallet": { "title": "Bolahh Wallet", "desc": "Top up once, play anytime. Instant refunds to your wallet if a game is cancelled." },
+      "rank": { "title": "10-Tier Rank", "desc": "From Novis to Emas I, your rank reflects your real performance on the pitch." },
+      "card": { "title": "Bolahh Card", "desc": "Customise your bolahh card and flex to your friends." },
+      "friends": { "title": "Friends System", "desc": "Add friends, view their cards, track their rank progress." },
+      "manager": { "title": "Manager Tools", "desc": "Organisers get a full dashboard to manage venues, games and post-match ratings." }
+    },
+    "cta": {
+      "label": "READY TO PLAY?",
+      "title1": "START YOUR",
+      "title2": "JOURNEY",
+      "title3": "TODAY",
+      "desc": "Join Malaysia's futsal community. Book your first game, get rated, and start climbing the ranks.",
+      "createAccount": "CREATE ACCOUNT",
+      "login": "Log In",
+      "freeNote": "Free to join · No credit card required"
+    },
+    "footer": {
+      "rights": "© 2026 Bolahh. All rights reserved.",
+      "login": "Login",
+      "signup": "Sign Up"
+    }
+  },
+  "login": {
+    "welcomeBack": "WELCOME BACK",
+    "subtitle": "Sign in to find your next game",
+    "emailLabel": "EMAIL OR USERNAME",
+    "emailPlaceholder": "player@email.com or username",
+    "passwordLabel": "PASSWORD",
+    "forgotPassword": "Forgot password?",
+    "signingIn": "Signing in...",
+    "signIn": "Sign In",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign up",
+    "errors": {
+      "fillAll": "Please fill in all fields.",
+      "noAccount": "No account found with that username.",
+      "invalid": "Incorrect email/username or password. Please try again."
+    },
+    "forgot": {
+      "title": "RESET PASSWORD",
+      "subtitle": "Enter your email and we'll send you a reset link",
+      "emailLabel": "EMAIL",
+      "sending": "Sending...",
+      "sendLink": "Send Reset Link",
+      "backToSignIn": "Back to Sign In",
+      "errorEmail": "Please enter your email."
+    },
+    "checkEmail": {
+      "title": "CHECK YOUR EMAIL",
+      "sent": "We sent a password reset link to",
+      "backToSignIn": "Back to Sign In"
+    }
+  },
+  "signup": {
+    "title": "CREATE ACCOUNT",
+    "subtitle": "Join the community and start playing",
+    "usernameLabel": "USERNAME",
+    "usernamePlaceholder": "e.g. RonaldoSiu7",
+    "emailLabel": "EMAIL",
+    "passwordLabel": "PASSWORD",
+    "confirmPasswordLabel": "CONFIRM PASSWORD",
+    "positionLabel": "PREFERRED POSITION",
+    "genderLabel": "GENDER",
+    "ageLabel": "AGE",
+    "agePlaceholder": "e.g. 22",
+    "areaLabel": "YOUR AREA",
+    "creating": "Creating account...",
+    "createAccount": "Create Account",
+    "hasAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "positions": {
+      "Attacker": "Attacker",
+      "Midfielder": "Midfielder",
+      "Defender": "Defender",
+      "Goalkeeper": "Goalkeeper"
+    },
+    "genders": {
+      "Male": "Male",
+      "Female": "Female",
+      "Rather not say": "Rather not say"
+    },
+    "errors": {
+      "fillAll": "Please fill in all fields.",
+      "usernameShort": "Username must be at least 3 characters.",
+      "passwordMismatch": "Passwords do not match.",
+      "passwordShort": "Password must be at least 6 characters.",
+      "noGender": "Please select your gender.",
+      "invalidAge": "Please enter a valid age (10–70).",
+      "noArea": "Please select your area.",
+      "usernameTaken": "Username has been used.",
+      "emailRegistered": "This email is already registered. Please sign in instead."
+    },
+    "success": {
+      "title": "CHECK YOUR EMAIL",
+      "sent": "We sent a confirmation link to",
+      "instructions": "Click the link in the email to activate your account, then come back and sign in.",
+      "goToSignIn": "Go to Sign In"
+    }
+  },
+  "home": {
+    "title": "FIND YOUR GAME",
+    "subtitle": "Browse available matches and book your slot",
+    "searchPlaceholder": "Search games...",
+    "allAreas": "All Areas",
+    "allFormats": "All Formats",
+    "loading": "Loading...",
+    "loadingGames": "Loading games...",
+    "noGames": "No games found. Try adjusting your filters.",
+    "gamesFound_one": "{{count}} game found",
+    "gamesFound_other": "{{count}} games found",
+    "timeOut": "TIME OUT",
+    "full": "FULL",
+    "timeOutLabel": "Time Out",
+    "gameFullLabel": "Game Full",
+    "viewDetails": "View Details →",
+    "slotsLeft_one": "{{count}} slot left",
+    "slotsLeft_other": "{{count}} slots left",
+    "players": "players",
+    "today": "TODAY",
+    "showAll": "SHOW",
+    "all": "ALL",
+    "footer": {
+      "tagline": "Malaysia's futsal booking and progression platform.",
+      "learn": "LEARN",
+      "howItWorks": "How It Works",
+      "rankSystem": "Rank System",
+      "bolahhCard": "Bolahh Card",
+      "wallet": "Wallet",
+      "account": "ACCOUNT",
+      "myProfile": "My Profile",
+      "friends": "Friends",
+      "topUp": "Top Up",
+      "contact": "CONTACT US",
+      "reportBug": "🐛 REPORT BUG",
+      "guideHelp": "GUIDE & HELP →",
+      "rights": "© 2026 Bolahh. All rights reserved."
+    }
+  },
+  "profile": {
+    "title": "MY PROFILE",
+    "tapToShare": "TAP TO VIEW & SHARE",
+    "editProfile": "Edit Profile",
+    "cancelEdit": "Cancel Edit",
+    "friends": "Friends",
+    "loading": "Loading profile...",
+    "nudge": {
+      "addArea": "Add your area so players nearby can find you.",
+      "addDetails": "Add your gender and age to finish setting up your profile.",
+      "update": "Update"
+    },
+    "form": {
+      "usernameLabel": "USERNAME",
+      "positionLabel": "POSITION",
+      "genderLabel": "GENDER",
+      "ageLabel": "AGE",
+      "areaLabel": "AREA",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "cancel": "Cancel"
+    },
+    "positions": {
+      "Attacker": "Attacker",
+      "Midfielder": "Midfielder",
+      "Defender": "Defender",
+      "Goalkeeper": "Goalkeeper"
+    },
+    "genders": {
+      "Male": "Male",
+      "Female": "Female",
+      "Rather not say": "Rather not say"
+    },
+    "stats": {
+      "gamesJoined": "Games Joined",
+      "memberSince": "Member Since"
+    },
+    "wallet": {
+      "title": "BOLAHH WALLET",
+      "balance": "Available balance",
+      "topup": "+ TOPUP"
+    },
+    "subscription": {
+      "title": "BOLAHH VERIFIED",
+      "active": "ACTIVE",
+      "get": "GET VERIFIED TICK",
+      "expires": "Expires",
+      "renew": "RENEW",
+      "price": "RM10/MONTH"
+    },
+    "upcoming": {
+      "title": "Upcoming Games",
+      "empty": "No upcoming games.",
+      "findOne": "Find one →"
+    },
+    "past": {
+      "title": "Past Games",
+      "empty": "No past games yet.",
+      "deleted_one": "+ {{count}} game no longer available",
+      "deleted_other": "+ {{count}} games no longer available"
+    },
+    "errors": {
+      "gif": "GIF avatars are exclusive to verified users.",
+      "imageType": "Only JPG and PNG images are allowed.",
+      "uploadFailed": "Failed to upload image.",
+      "emptyUsername": "Username cannot be empty.",
+      "invalidAge": "Age must be between 10 and 70.",
+      "saveFailed": "Failed to save. Try again."
+    }
+  }
+}

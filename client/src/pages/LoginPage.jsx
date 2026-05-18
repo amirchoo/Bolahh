@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { AiFillEyeInvisible as IconEyeHide, AiFillEye as IconEyeShow } from 'react-icons/ai';
 import { IoMail } from 'react-icons/io5';
+import { useTranslation } from 'react-i18next';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const [form, setForm] = useState({ identifier: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,7 +22,7 @@ export default function LoginPage() {
     setError('');
     const identifier = form.identifier.trim();
     if (!identifier || !form.password) {
-      setError('Please fill in all fields.');
+      setError(t('login.errors.fillAll'));
       return;
     }
     setLoading(true);
@@ -33,7 +35,7 @@ export default function LoginPage() {
         .ilike('name', identifier)
         .single();
       if (!profile) {
-        setError('No account found with that username.');
+        setError(t('login.errors.noAccount'));
         setLoading(false);
         return;
       }
@@ -43,7 +45,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password: form.password });
     if (error) {
       if (error.message.toLowerCase().includes('invalid')) {
-        setError('Incorrect email/username or password. Please try again.');
+        setError(t('login.errors.invalid'));
       } else {
         setError(error.message);
       }
@@ -56,7 +58,7 @@ export default function LoginPage() {
   const handleForgotPassword = async () => {
     setForgotError('');
     if (!forgotEmail) {
-      setForgotError('Please enter your email.');
+      setForgotError(t('login.forgot.errorEmail'));
       return;
     }
     setForgotLoading(true);
@@ -97,10 +99,10 @@ export default function LoginPage() {
                 fontFamily: "'Bebas Neue'", fontSize: 32,
                 letterSpacing: 2, marginBottom: 10, color: 'var(--text)'
               }}>
-                CHECK YOUR EMAIL
+                {t('login.checkEmail.title')}
               </h2>
               <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, marginBottom: 8 }}>
-                We sent a password reset link to
+                {t('login.checkEmail.sent')}
               </p>
               <p style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 15, marginBottom: 24 }}>
                 {forgotEmail}
@@ -113,7 +115,7 @@ export default function LoginPage() {
                   border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15
                 }}
               >
-                Back to Sign In
+                {t('login.checkEmail.backToSignIn')}
               </button>
             </div>
           ) : (
@@ -129,15 +131,15 @@ export default function LoginPage() {
                 fontFamily: "'Bebas Neue'", fontSize: 36,
                 letterSpacing: 2, marginBottom: 6, color: 'var(--text)'
               }}>
-                RESET PASSWORD
+                {t('login.forgot.title')}
               </h2>
               <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28 }}>
-                Enter your email and we'll send you a reset link
+                {t('login.forgot.subtitle')}
               </p>
 
               {forgotError && <div style={errorBox}>{forgotError}</div>}
 
-              <label style={labelStyle}>EMAIL</label>
+              <label style={labelStyle}>{t('login.forgot.emailLabel')}</label>
               <input type="email" placeholder="player@email.com" value={forgotEmail}
                 onChange={e => setForgotEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleForgotPassword()} />
@@ -148,13 +150,13 @@ export default function LoginPage() {
                 border: 'none', borderRadius: 10,
                 fontWeight: 700, fontSize: 15, opacity: forgotLoading ? 0.6 : 1
               }}>
-                {forgotLoading ? 'Sending...' : 'Send Reset Link'}
+                {forgotLoading ? t('login.forgot.sending') : t('login.forgot.sendLink')}
               </button>
 
               <p style={{ textAlign: 'center', marginTop: 16, fontSize: 14, color: 'var(--muted)' }}>
                 <span onClick={() => setForgotMode(false)}
                   style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
-                  Back to Sign In
+                  {t('login.forgot.backToSignIn')}
                 </span>
               </p>
             </>
@@ -179,31 +181,45 @@ export default function LoginPage() {
           </span>
         </div>
 
-        <h2 style={{
-          fontFamily: "'Bebas Neue'", fontSize: 36,
-          letterSpacing: 2, marginBottom: 6, color: 'var(--text)'
-        }}>
-          WELCOME BACK
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <h2 style={{
+            fontFamily: "'Bebas Neue'", fontSize: 36,
+            letterSpacing: 2, color: 'var(--text)'
+          }}>
+            {t('login.welcomeBack')}
+          </h2>
+          <button
+            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'ms' : 'en')}
+            style={{
+              background: 'transparent', color: 'var(--accent)',
+              border: '1px solid rgba(240,157,81,0.3)',
+              borderRadius: 8, padding: '4px 10px',
+              fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'",
+              cursor: 'pointer', letterSpacing: 0.5,
+            }}
+          >
+            {i18n.language === 'ms' ? 'EN' : 'BM'}
+          </button>
+        </div>
         <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28 }}>
-          Sign in to find your next game
+          {t('login.subtitle')}
         </p>
 
         {error && <div style={errorBox}>{error}</div>}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={labelStyle}>EMAIL OR USERNAME</label>
-            <input placeholder="player@email.com or username" value={form.identifier}
+            <label style={labelStyle}>{t('login.emailLabel')}</label>
+            <input placeholder={t('login.emailPlaceholder')} value={form.identifier}
               onChange={e => setForm({ ...form, identifier: e.target.value })} />
           </div>
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1 }}>PASSWORD</label>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1 }}>{t('login.passwordLabel')}</label>
               <span onClick={() => setForgotMode(true)}
                 style={{ fontSize: 12, color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
-                Forgot password?
+                {t('login.forgotPassword')}
               </span>
             </div>
             <div style={{ position: 'relative' }}>
@@ -221,7 +237,7 @@ export default function LoginPage() {
                 background: 'none', border: 'none',
                 color: 'var(--muted)', fontSize: 16, padding: 0
               }}>
-                {showPassword ? <IconEyeHide size={16}/> : <IconEyeShow size ={16}/>}
+                {showPassword ? <IconEyeHide size={16}/> : <IconEyeShow size={16}/>}
               </button>
             </div>
           </div>
@@ -233,14 +249,14 @@ export default function LoginPage() {
           border: 'none', borderRadius: 10,
           fontWeight: 700, fontSize: 15, opacity: loading ? 0.6 : 1
         }}>
-          {loading ? 'Signing in...' : 'Sign In'}
+          {loading ? t('login.signingIn') : t('login.signIn')}
         </button>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: 'var(--muted)' }}>
-          Don't have an account?{' '}
+          {t('login.noAccount')}{' '}
           <span onClick={() => navigate('/signup')}
             style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
-            Sign up
+            {t('login.signUp')}
           </span>
         </p>
       </div>

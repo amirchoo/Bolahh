@@ -6,6 +6,7 @@ import { LogOut as IconLogout, ClipboardList as IconManager, ShieldCheck as Icon
 import { IoFootballOutline as IconBall, IoTrophyOutline as IconLeaderboard } from 'react-icons/io5';
 import { AiOutlineUser as IconProfile } from 'react-icons/ai';
 import { GiSoccerKick as IconGames} from "react-icons/gi";
+import { useTranslation } from 'react-i18next';
 
 
 
@@ -13,6 +14,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { t, i18n } = useTranslation();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -20,6 +22,7 @@ export default function Navbar() {
   };
 
   const isActive = (path) => location.pathname === path;
+  const toggleLang = () => i18n.changeLanguage(i18n.language === 'en' ? 'ms' : 'en');
 
   return (
     <>
@@ -38,7 +41,7 @@ export default function Navbar() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between'
       }}>
 
-        {/* Tittle */}
+        {/* Title */}
         <div
           onClick={() => navigate('/home')}
           style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flexShrink: 0 }}
@@ -54,11 +57,11 @@ export default function Navbar() {
         {/* Nav links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {[
-            { path: '/home', label: 'Games', icon: <IconGames size={22} /> },
-            { path: '/leaderboard', label: 'Ranks', icon: <IconLeaderboard size={20} /> },
-            { path: '/profile', label: 'Profile', icon: <IconProfile size={20} /> },
-            ...(isAdmin ? [{ path: '/manager', label: 'Manager', icon: <IconManager size={20} /> }] : []),
-            ...(isSuperAdmin ? [{ path: '/admin', label: 'Admin', icon: <IconAdmin size={20} /> }] : []),
+            { path: '/home', label: t('navbar.games'), icon: <IconGames size={22} /> },
+            { path: '/leaderboard', label: t('navbar.ranks'), icon: <IconLeaderboard size={20} /> },
+            { path: '/profile', label: t('navbar.profile'), icon: <IconProfile size={20} /> },
+            ...(isAdmin ? [{ path: '/manager', label: t('navbar.manager'), icon: <IconManager size={20} /> }] : []),
+            ...(isSuperAdmin ? [{ path: '/admin', label: t('navbar.admin'), icon: <IconAdmin size={20} /> }] : []),
           ].map(({ path, label, icon }) => (
             <button
               key={path}
@@ -77,6 +80,22 @@ export default function Navbar() {
             </button>
           ))}
 
+          {/* Language toggle */}
+          <button
+            onClick={toggleLang}
+            style={{
+              background: 'transparent',
+              color: 'var(--accent)',
+              border: '1px solid rgba(240,157,81,0.3)',
+              borderRadius: 8, padding: '6px 10px',
+              fontSize: 11, fontWeight: 700,
+              fontFamily: "'Space Mono'",
+              transition: 'all 0.15s', whiteSpace: 'nowrap', letterSpacing: 0.5,
+            }}
+          >
+            {i18n.language === 'ms' ? 'EN' : 'BM'}
+          </button>
+
           <button
             onClick={handleLogout}
             style={{
@@ -89,7 +108,7 @@ export default function Navbar() {
             }}
           >
             <span className="nav-icon" style={{ display: 'none' }}><IconLogout size={20}/></span>
-            <span className="nav-label">Logout</span>
+            <span className="nav-label">{t('navbar.logout')}</span>
           </button>
         </div>
 

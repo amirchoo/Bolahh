@@ -11,13 +11,16 @@ import { RiTeamLine } from 'react-icons/ri';
 import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
 import FifaCard, { calcOverall } from '../components/FifaCard';
+import { useTranslation } from 'react-i18next';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
 const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
+const GENDERS = ['Male', 'Female', 'Rather not say'];
 
 export default function ProfilePage() {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -135,8 +138,6 @@ export default function ProfilePage() {
   };
 
   const fetchCard = (cachedCardStats) => {
-    // card_stats is written by GameRatingPage at submission time for all rated players.
-    // ProfilePage just reads what's already in profiles — no extra queries needed.
     if (cachedCardStats) setCardStats(cachedCardStats);
   };
 
@@ -156,13 +157,11 @@ export default function ProfilePage() {
     const valid = merged.filter(e => e.games !== null);
     const orphaned = merged.length - valid.length;
     setDeletedGameCount(orphaned);
-    // Sync games_played from valid game count (games that still exist)
     setProfile(prev => prev ? { ...prev, games_played: playerData.length } : prev);
     const now = new Date();
     const isUpcoming = (g) => {
       const [year, month, day] = g.date.split('-').map(Number);
       const [hour, minute] = (g.time || '00:00').split(':').map(Number);
-      // Malaysia UTC+8
       const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
       return now < gameStart;
     };
@@ -180,8 +179,8 @@ export default function ProfilePage() {
     const allowed = subscribed ? ['image/jpeg', 'image/png', 'image/gif'] : ['image/jpeg', 'image/png'];
     if (!allowed.includes(file.type)) {
       setSaveMsg(file.type === 'image/gif'
-        ? 'GIF avatars are exclusive to verified users.'
-        : 'Only JPG and PNG images are allowed.');
+        ? t('profile.errors.gif')
+        : t('profile.errors.imageType'));
       e.target.value = '';
       return;
     }
@@ -189,7 +188,7 @@ export default function ProfilePage() {
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
     const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
-    if (uploadError) { setSaveMsg('Failed to upload image.'); setUploadingAvatar(false); return; }
+    if (uploadError) { setSaveMsg(t('profile.errors.uploadFailed')); setUploadingAvatar(false); return; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id);
     if (!updateError) setProfile(prev => ({ ...prev, avatar_url: data.publicUrl }));
@@ -198,19 +197,18 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setSaveMsg('Username cannot be empty.'); return; }
+    if (!form.name.trim()) { setSaveMsg(t('profile.errors.emptyUsername')); return; }
     const age = form.age ? parseInt(form.age) : null;
-    if (form.age && (isNaN(age) || age < 10 || age > 70)) { setSaveMsg('Age must be between 10 and 70.'); return; }
+    if (form.age && (isNaN(age) || age < 10 || age > 70)) { setSaveMsg(t('profile.errors.invalidAge')); return; }
     setSaving(true); setSaveMsg('');
     const { error } = await supabase.from('profiles').upsert({
       id: user.id, name: form.name.trim(), position: form.position,
       gender: form.gender || null, age: age || null, area: form.area || null,
     });
-    if (error) { setSaveMsg('Failed to save. Try again.'); }
+    if (error) { setSaveMsg(t('profile.errors.saveFailed')); }
     else { setProfile({ ...profile, name: form.name.trim(), position: form.position, gender: form.gender || null, age: age || null, area: form.area || null }); setEditing(false); }
     setSaving(false);
   };
-
 
   const downloadBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
@@ -258,18 +256,12 @@ export default function ProfilePage() {
     } catch { setSharing(false); }
   };
 
-  const getInitials = (name) => {
-    if (!name || name.trim() === '') return '?';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
   const formatDate = (dateStr) => {
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
   const daysUntil = (dateStr) => {
-    // Compare dates only in Malaysia time (UTC+8) to avoid timezone off-by-one
     const nowMY = new Date(Date.now() + 8 * 60 * 60 * 1000);
     const todayMY = new Date(Date.UTC(nowMY.getUTCFullYear(), nowMY.getUTCMonth(), nowMY.getUTCDate()));
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -286,7 +278,7 @@ export default function ProfilePage() {
         <Navbar />
         <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text)' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}><IconLoading size={16} /></div>
-          <p>Loading profile...</p>
+          <p>{t('profile.loading')}</p>
         </div>
       </div>
     );
@@ -325,7 +317,6 @@ export default function ProfilePage() {
             gap: 16, padding: '24px 16px', overflowY: 'auto',
           }}
         >
-          {/* Close */}
           <button onClick={() => setShowCardModal(false)} style={{
             position: 'absolute', top: 16, right: 16,
             width: 36, height: 36, borderRadius: '50%',
@@ -334,7 +325,6 @@ export default function ProfilePage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}><IoClose size={20} /></button>
 
-          {/* Card preview — canvas output as img */}
           <div onClick={e => e.stopPropagation()}>
             {cardPreviewUrl
               ? <img src={cardPreviewUrl} alt="card preview" style={{ width: 220, height: 308, borderRadius: 12, display: 'block', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }} />
@@ -342,20 +332,15 @@ export default function ProfilePage() {
             }
           </div>
 
-          {/* Background picker */}
           <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: "'Space Mono'", letterSpacing: 2 }}>BACKGROUND</div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-
-              {/* Dark default */}
               <button onClick={() => setSelectedBg(DEFAULT_BG)} style={{
                 width: 40, height: 40, borderRadius: 10, cursor: 'pointer', padding: 0,
                 border: `2px solid ${selectedBg.id === DEFAULT_BG.id ? 'var(--accent)' : 'rgba(255,255,255,0.15)'}`,
                 background: '#111213', outline: 'none',
                 boxShadow: selectedBg.id === DEFAULT_BG.id ? '0 0 0 3px rgba(240,157,81,0.3)' : 'none',
               }} title="Dark" />
-
-              {/* Premium backgrounds from admin */}
               {premiumBgs.map(bg => (
                 <button key={bg.id} onClick={() => setSelectedBg(bg)} style={{
                   width: 40, height: 40, borderRadius: 10, cursor: 'pointer', padding: 0,
@@ -365,11 +350,9 @@ export default function ProfilePage() {
                   boxShadow: selectedBg.id === bg.id ? '0 0 0 3px rgba(240,157,81,0.3)' : 'none',
                 }} title={bg.label} />
               ))}
-
             </div>
           </div>
 
-          {/* Share + Save buttons */}
           <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 12 }}>
             <button onClick={handleShareCard} disabled={sharing || !cardPreviewUrl} style={{
               padding: '12px 28px', borderRadius: 12,
@@ -399,7 +382,7 @@ export default function ProfilePage() {
         <h2 className="fade-up" style={{
           fontFamily: "'Bebas Neue'", fontSize: 32,
           letterSpacing: 3, marginBottom: 20, color: 'var(--text)'
-        }}>MY PROFILE</h2>
+        }}>{t('profile.title')}</h2>
 
         {/* FIFA Card section */}
         <div
@@ -415,28 +398,28 @@ export default function ProfilePage() {
             marginTop: 8, fontSize: 11, color: 'var(--muted)',
             fontFamily: "'Space Mono'", letterSpacing: 1,
           }}>
-            TAP TO VIEW & SHARE
+            {t('profile.tapToShare')}
           </div>
         </div>
 
-        {/* Action row — edit profile + friends */}
+        {/* Action row */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, justifyContent: 'center' }}>
           <button onClick={() => setEditing(!editing)} disabled={saving} style={{
             background: editing ? 'var(--accent)' : 'transparent',
             color: editing ? '#fff' : 'var(--accent)',
             border: '1.5px solid var(--accent)', borderRadius: 10, padding: '8px 24px',
             fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
-          }}>{saving ? 'Saving...' : editing ? 'Cancel Edit' : 'Edit Profile'}</button>
+          }}>{saving ? t('profile.form.saving') : editing ? t('profile.cancelEdit') : t('profile.editProfile')}</button>
           <button onClick={() => navigate('/friends')} style={{
             background: 'transparent', color: 'var(--accent)',
             border: '1.5px solid var(--accent)', borderRadius: 10,
             padding: '8px 24px', fontSize: 13, fontWeight: 600,
             display: 'flex', alignItems: 'center', gap: 6
-          }}><RiTeamLine size={14} /> Friends</button>
+          }}><RiTeamLine size={14} /> {t('profile.friends')}</button>
         </div>
         <input ref={fileInputRef} type="file" accept={isSubscribed ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png'} style={{ display: 'none' }} onChange={handleAvatarUpload} />
 
-        {/* Nudge banner for missing gender/age */}
+        {/* Nudge banner */}
         {!editing && profile && (!profile.gender || !profile.age || !profile.area) && (
           <div style={{
             background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.3)',
@@ -444,15 +427,13 @@ export default function ProfilePage() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
           }}>
             <span style={{ fontSize: 13, color: 'var(--accent)' }}>
-              {!profile.area
-                ? 'Add your area so players nearby can find you.'
-                : 'Add your gender and age to finish setting up your profile.'}
+              {!profile.area ? t('profile.nudge.addArea') : t('profile.nudge.addDetails')}
             </span>
             <button onClick={() => setEditing(true)} style={{
               background: 'var(--accent)', color: '#fff', border: 'none',
               borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700,
               cursor: 'pointer', flexShrink: 0,
-            }}>Update</button>
+            }}>{t('profile.nudge.update')}</button>
           </div>
         )}
 
@@ -468,11 +449,11 @@ export default function ProfilePage() {
               </div>
             )}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>USERNAME</label>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.usernameLabel')}</label>
               <input placeholder="e.g. hazif77" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>POSITION</label>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.positionLabel')}</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {POSITIONS.map(p => (
                   <button key={p} onClick={() => setForm({ ...form, position: form.position === p ? '' : p })} style={{
@@ -480,31 +461,31 @@ export default function ProfilePage() {
                     color: form.position === p ? 'var(--accent)' : 'var(--text)',
                     border: `1px solid ${form.position === p ? 'var(--accent)' : 'var(--border)'}`,
                     borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500
-                  }}>{p}</button>
+                  }}>{t(`profile.positions.${p}`)}</button>
                 ))}
               </div>
             </div>
             <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>GENDER</label>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.genderLabel')}</label>
               <div style={{ display: 'flex', gap: 8 }}>
-                {['Male', 'Female', 'Rather not say'].map(g => (
+                {GENDERS.map(g => (
                   <button key={g} onClick={() => setForm({ ...form, gender: form.gender === g ? '' : g })} style={{
                     flex: 1,
                     background: form.gender === g ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
                     color: form.gender === g ? 'var(--accent)' : 'var(--text)',
                     border: `1px solid ${form.gender === g ? 'var(--accent)' : 'var(--border)'}`,
                     borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500
-                  }}>{g}</button>
+                  }}>{t(`profile.genders.${g}`)}</button>
                 ))}
               </div>
             </div>
             <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>AGE</label>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.ageLabel')}</label>
               <input type="number" placeholder="e.g. 22" min="10" max="70"
                 value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} />
             </div>
             <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>AREA</label>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.areaLabel')}</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {AREAS.map(a => (
                   <button key={a} onClick={() => setForm({ ...form, area: form.area === a ? '' : a })} style={{
@@ -517,9 +498,11 @@ export default function ProfilePage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Save Changes'}</button>
+              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
+                {saving ? t('profile.form.saving') : t('profile.form.saveChanges')}
+              </button>
               <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '' }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
-                Cancel
+                {t('profile.form.cancel')}
               </button>
             </div>
           </div>
@@ -528,12 +511,12 @@ export default function ProfilePage() {
         {/* Stats */}
         <div className="fade-up-3 stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
           {[
-            { label: 'Games Joined', val: profile?.games_played || 0 },
-            { label: 'Member Since', val: new Date(user?.created_at).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' }) },
+            { labelKey: 'profile.stats.gamesJoined', val: profile?.games_played || 0 },
+            { labelKey: 'profile.stats.memberSince', val: new Date(user?.created_at).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' }) },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px' }}>
+            <div key={s.labelKey} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px' }}>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--accent)', letterSpacing: 1 }}>{s.val}</div>
-              <div style={{ color: 'var(--text)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
+              <div style={{ color: 'var(--text)', fontSize: 12, marginTop: 2 }}>{t(s.labelKey)}</div>
             </div>
           ))}
         </div>
@@ -550,12 +533,12 @@ export default function ProfilePage() {
           <div style={{ position: 'absolute', bottom: -18, right: 64, width: 64, height: 64, borderRadius: '50%', background: 'rgba(240,157,81,0.04)', pointerEvents: 'none' }} />
           <div>
             <div style={{ fontSize: 10, color: 'rgba(240,157,81,0.65)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 6 }}>
-              BOLAHH WALLET
+              {t('profile.wallet.title')}
             </div>
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: 38, color: '#fff', letterSpacing: 2, lineHeight: 1 }}>
               RM {walletBalance.toFixed(2)}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>Available balance</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{t('profile.wallet.balance')}</div>
           </div>
           <button onClick={() => navigate('/wallet/topup')} style={{
             background: 'var(--accent)', color: '#fff', border: 'none',
@@ -566,7 +549,7 @@ export default function ProfilePage() {
             onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}
           >
-            + TOPUP
+            {t('profile.wallet.topup')}
           </button>
         </div>
 
@@ -599,14 +582,14 @@ export default function ProfilePage() {
             }}><IoCheckmark size={16} /></div>
             <div>
               <div style={{ fontSize: 10, color: isSubscribed ? 'rgba(74,222,128,0.7)' : 'rgba(240,157,81,0.65)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 3 }}>
-                BOLAHH VERIFIED
+                {t('profile.subscription.title')}
               </div>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, lineHeight: 1, color: isSubscribed ? '#4ade80' : '#fff' }}>
-                {isSubscribed ? 'ACTIVE' : 'GET VERIFIED TICK'}
+                {isSubscribed ? t('profile.subscription.active') : t('profile.subscription.get')}
               </div>
               {isSubscribed && profile?.subscription_expires_at && (
                 <div style={{ fontSize: 11, color: 'rgba(74,222,128,0.6)', marginTop: 3 }}>
-                  Expires {new Date(profile.subscription_expires_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {t('profile.subscription.expires')} {new Date(profile.subscription_expires_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
               )}
             </div>
@@ -618,14 +601,14 @@ export default function ProfilePage() {
             borderRadius: 10, padding: '8px 16px', fontWeight: 700,
             fontSize: 12, fontFamily: "'Bebas Neue'", letterSpacing: 1.5, flexShrink: 0,
           }}>
-            {isSubscribed ? 'RENEW' : 'RM10/MONTH'}
+            {isSubscribed ? t('profile.subscription.renew') : t('profile.subscription.price')}
           </div>
         </div>
 
         {/* Upcoming Games */}
         <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
           <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Upcoming Games</span>
+            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{t('profile.upcoming.title')}</span>
             <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700 }}>
               {upcomingGames.length}
             </span>
@@ -633,8 +616,8 @@ export default function ProfilePage() {
           {upcomingGames.length === 0 ? (
             <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}><IconUpcoming size={16} /></div>
-              No upcoming games.{' '}
-              <span onClick={() => navigate('/home')} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>Find one →</span>
+              {t('profile.upcoming.empty')}{' '}
+              <span onClick={() => navigate('/home')} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>{t('profile.upcoming.findOne')}</span>
             </div>
           ) : (
             upcomingGames.map((entry, i) => (
@@ -670,7 +653,7 @@ export default function ProfilePage() {
         {/* Past Games */}
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Past Games</span>
+            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{t('profile.past.title')}</span>
             {recentGames.length > 0 && (
               <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700 }}>
                 {recentGames.length}
@@ -678,7 +661,7 @@ export default function ProfilePage() {
             )}
           </div>
           {recentGames.length === 0 && deletedGameCount === 0 && (
-            <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>No past games yet.</div>
+            <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>{t('profile.past.empty')}</div>
           )}
           {recentGames.map((entry, i) => (
             <div key={entry.id} style={{
@@ -697,7 +680,7 @@ export default function ProfilePage() {
           ))}
           {deletedGameCount > 0 && (
             <div style={{ padding: '12px 18px', fontSize: 12, color: 'var(--muted)', textAlign: 'center', fontFamily: "'Space Mono'" }}>
-              + {deletedGameCount} game{deletedGameCount !== 1 ? 's' : ''} no longer available
+              {t('profile.past.deleted', { count: deletedGameCount })}
             </div>
           )}
         </div>
