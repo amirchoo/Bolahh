@@ -1,8 +1,9 @@
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { IconLoading } from '../components/Icons';
-import { LogOut as IconLogout, ClipboardList as IconManager, ShieldCheck as IconAdmin } from 'lucide-react';
+import { LogOut as IconLogout, ClipboardList as IconManager, ShieldCheck as IconAdmin, Globe as IconGlobe } from 'lucide-react';
 import { IoFootballOutline as IconBall, IoTrophyOutline as IconLeaderboard } from 'react-icons/io5';
 import { AiOutlineUser as IconProfile } from 'react-icons/ai';
 import { GiSoccerKick as IconGames} from "react-icons/gi";
@@ -22,7 +23,24 @@ export default function Navbar() {
   };
 
   const isActive = (path) => location.pathname === path;
-  const toggleLang = () => i18n.changeLanguage(i18n.language === 'en' ? 'ms' : 'en');
+
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (langRef.current && !langRef.current.contains(e.target)) {
+        setLangOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const languages = [
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+    { code: 'ms', label: 'Melayu', flag: '🇲🇾' },
+  ];
 
   return (
     <>
@@ -80,21 +98,60 @@ export default function Navbar() {
             </button>
           ))}
 
-          {/* Language toggle */}
-          <button
-            onClick={toggleLang}
-            style={{
-              background: 'transparent',
-              color: 'var(--accent)',
-              border: '1px solid rgba(240,157,81,0.3)',
-              borderRadius: 8, padding: '6px 10px',
-              fontSize: 11, fontWeight: 700,
-              fontFamily: "'Space Mono'",
-              transition: 'all 0.15s', whiteSpace: 'nowrap', letterSpacing: 0.5,
-            }}
-          >
-            {i18n.language === 'ms' ? 'EN' : 'BM'}
-          </button>
+          {/* Language dropdown */}
+          <div ref={langRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setLangOpen(o => !o)}
+              style={{
+                background: langOpen ? 'rgba(240,157,81,0.1)' : 'transparent',
+                color: 'var(--accent)',
+                border: '1px solid rgba(240,157,81,0.3)',
+                borderRadius: 8, padding: '6px 10px',
+                display: 'flex', alignItems: 'center', gap: 5,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              title="Language / Bahasa"
+            >
+              <IconGlobe size={16} />
+              <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'", letterSpacing: 0.5 }}>
+                {i18n.language === 'ms' ? 'BM' : 'EN'}
+              </span>
+            </button>
+
+            {langOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                background: 'var(--card)', border: '1px solid var(--border)',
+                borderRadius: 10, overflow: 'hidden',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                minWidth: 140, zIndex: 200,
+              }}>
+                {languages.map(({ code, label, flag }, idx) => (
+                  <button
+                    key={code}
+                    onClick={() => { i18n.changeLanguage(code); setLangOpen(false); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 14px', background: 'transparent',
+                      color: i18n.language === code ? 'var(--accent)' : 'var(--muted)',
+                      fontWeight: i18n.language === code ? 700 : 400,
+                      fontSize: 13, cursor: 'pointer', border: 'none',
+                      borderBottom: idx < languages.length - 1 ? '1px solid var(--border)' : 'none',
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(240,157,81,0.07)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: 16 }}>{flag}</span>
+                    <span>{label}</span>
+                    {i18n.language === code && (
+                      <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: 11 }}>✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button
             onClick={handleLogout}

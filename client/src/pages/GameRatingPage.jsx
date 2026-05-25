@@ -309,7 +309,7 @@ export default function GameRatingPage() {
   };
 
   const handleSubmit = async () => {
-    if (isPreview) { setSuccess('Preview mode — no data written.'); return; }
+    if (isPreview) { setSuccess('Preview mode. No data written.'); return; }
     setSaving(true); setError('');
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();

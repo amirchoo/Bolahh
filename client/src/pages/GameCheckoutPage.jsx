@@ -4,9 +4,10 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
+import { clearCached } from '../lib/dataCache';
 import { LuRecycle } from "react-icons/lu";
 import { MdOutlineCancel } from "react-icons/md";
-import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark } from "react-icons/io5";
+import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark, IoShieldCheckmark, IoPeople, IoHeart, IoAlertCircle } from "react-icons/io5";
 import { RiRefund2Line } from "react-icons/ri";
 import { LuPartyPopper } from 'react-icons/lu';
 import { GiSoccerBall } from 'react-icons/gi';
@@ -111,6 +112,7 @@ export default function GameCheckoutPage() {
       balance_after: newBalance,
     });
 
+    clearCached(`game_${id}`);
     setWalletBalance(newBalance);
     setSuccess(true);
     setConfirming(false);
@@ -180,6 +182,93 @@ export default function GameCheckoutPage() {
               <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {walletBalance.toFixed(2)}</span>
             </div>
           </div>
+          {/* Game Rules */}
+          <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 16, padding: '20px', marginBottom: 20, textAlign: 'left',
+          }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--accent)', marginBottom: 4 }}>
+              Bolahh Game Rules
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 20 }}>
+              Bolahh is a community for all levels, from first-timers to seasoned ballers. We expect every player to uphold the spirit of the game.
+            </p>
+
+            {[
+              {
+                icon: <IoShieldCheckmark size={15} />,
+                color: '#4ade80',
+                title: 'Fair Play',
+                rules: [
+                  'No slide tackles. Keep your feet on the ground at all times.',
+                  'No aggressive challenges, hard fouls, or reckless physical contact.',
+                  'No barging, pushing, or holding opponents.',
+                  'Futsal is about skill and movement. Let the ball do the work.',
+                ],
+              },
+              {
+                icon: <IoPeople size={15} />,
+                color: '#60a5fa',
+                title: 'Respect & Conduct',
+                rules: [
+                  'Respect all players regardless of skill level. New players are always welcome here.',
+                  'No trash talk, taunting, or unsportsmanlike behaviour.',
+                  'Disputes are settled calmly. No shouting, arguing, or confrontation.',
+                  'Good manner is tracked on your Bolahh Card. Play with integrity.',
+                ],
+              },
+              {
+                icon: <IoHeart size={15} />,
+                color: '#f87171',
+                title: 'Safety First',
+                rules: [
+                  'Proper futsal shoes only. No cleats or barefoot play.',
+                  'If a player is injured, stop play immediately.',
+                  'Do not continue a challenge if the opponent has clearly lost the ball.',
+                ],
+              },
+              {
+                icon: <IoAlertCircle size={15} />,
+                color: '#fb923c',
+                title: 'Consequences',
+                rules: [
+                  'Repeated rough play or poor conduct will result in removal from the session.',
+                  'Serious violations will lead to a permanent ban from the Bolahh platform.',
+                  'The session manager has full authority to remove any player at any time.',
+                ],
+              },
+            ].map((section, si) => (
+              <div key={si} style={{ marginBottom: si < 3 ? 18 : 0 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  marginBottom: 10,
+                }}>
+                  <span style={{ color: section.color }}>{section.icon}</span>
+                  <span style={{ fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 1.5, color: 'var(--text)' }}>
+                    {section.title}
+                  </span>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {section.rules.map((rule, ri) => (
+                    <li key={ri} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: section.color, flexShrink: 0, marginTop: 6 }} />
+                      {rule}
+                    </li>
+                  ))}
+                </ul>
+                {si < 3 && <div style={{ height: 1, background: 'var(--border)', marginTop: 18 }} />}
+              </div>
+            ))}
+
+            <div style={{
+              marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)',
+              textAlign: 'center', fontFamily: "'Bebas Neue'", fontSize: 14,
+              letterSpacing: 2, color: 'var(--accent)',
+            }}>
+              Play hard. Play fair. Play Bolahh.
+            </div>
+          </div>
+
           <button onClick={() => navigate(`/game/${id}`)} style={{
             width: '100%', padding: '14px', background: 'var(--accent)', color: '#fff',
             border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15,
@@ -284,7 +373,7 @@ export default function GameCheckoutPage() {
             },
             {
               icon: <IoWarningOutline />,
-              title: '50% Refund (cancel 2–24hrs before)',
+              title: '50% Refund (cancel 2 to 24hrs before)',
               desc: 'Cancel between 2 and 24 hours before the game and get half your money back.',
             },
             {

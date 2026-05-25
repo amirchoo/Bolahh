@@ -138,7 +138,7 @@ export default function ManagerPage() {
       shoes_type: f.shoes_type.join(', '),
     }).eq('id', editingGame).select('*, fields(name)');
     if (error) { showError(error.message); return; }
-    if (!updated || updated.length === 0) { showError('Update failed — no rows matched. Check Supabase RLS policies.'); return; }
+    if (!updated || updated.length === 0) { showError('Update failed. No rows matched. Check Supabase RLS policies.'); return; }
     setGames(prev => prev.map(g => g.id === editingGame ? updated[0] : g));
     clearCached('manager_data');
     showSuccess('Game updated!'); setEditingGame(null); setShowEditGameModal(false); resetEditGameForm();

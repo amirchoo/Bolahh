@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
+import { clearCached } from '../lib/dataCache';
 import { RiRefund2Line } from 'react-icons/ri';
 import { IoWarningOutline, IoCheckmarkCircle } from 'react-icons/io5';
 import { MdOutlineCancel } from 'react-icons/md';
@@ -70,13 +71,14 @@ export default function GameCancelPage() {
     const { pct, label } = getRefundTier(hoursUntilGame);
     const refundAmount = parseFloat((game.price * pct).toFixed(2));
 
-    const { error: leaveErr } = await supabase
+    const { error: leaveErr, count } = await supabase
       .from('game_players')
-      .delete()
+      .delete({ count: 'exact' })
       .eq('game_id', id)
       .eq('user_id', user.id);
 
-    if (leaveErr) {
+    if (leaveErr || count === 0) {
+      console.error('Cancel failed:', leaveErr, 'rows deleted:', count);
       setError('Failed to cancel booking. Please try again.');
       setConfirming(false);
       return;
@@ -93,11 +95,12 @@ export default function GameCancelPage() {
         user_id: user.id,
         type: 'refund',
         amount: refundAmount,
-        description: `Cancelled: ${game.title} — ${label}`,
+        description: `Cancelled: ${game.title} (${label})`,
         balance_after: newBalance,
       });
     }
 
+    clearCached(`game_${id}`);
     setSuccess(true);
     setConfirming(false);
   };
@@ -129,7 +132,7 @@ export default function GameCancelPage() {
 
   const policyRows = [
     { icon: <RiRefund2Line />, label: '24+ hours before',  desc: 'Full refund to wallet',  color: '#4ade80',        active: hoursUntilGame >= 24 },
-    { icon: <IoWarningOutline />, label: '2–24 hours before', desc: '50% refund to wallet', color: 'var(--accent)',   active: hoursUntilGame >= 2 && hoursUntilGame < 24 },
+    { icon: <IoWarningOutline />, label: '2 to 24 hours before', desc: '50% refund to wallet', color: 'var(--accent)',   active: hoursUntilGame >= 2 && hoursUntilGame < 24 },
     { icon: <MdOutlineCancel />, label: 'Under 2 hours',    desc: 'No refund',              color: 'var(--red)',      active: hoursUntilGame < 2 },
   ];
 
