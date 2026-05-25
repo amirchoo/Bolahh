@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Globe as IconGlobe } from 'lucide-react';
 import { FaUserFriends, FaInstagram } from 'react-icons/fa';
 import { IoMdFootball } from 'react-icons/io';
 import { TbPlayCard7Filled } from 'react-icons/tb';
@@ -109,6 +110,21 @@ export default function LandingPage() {
   const [floatOffset, setFloatOffset] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [activeRank, setActiveRank] = useState(null);
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef(null);
+
+  const languages = [
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+    { code: 'ms', label: 'Melayu',  flag: '🇲🇾' },
+  ];
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (langRef.current && !langRef.current.contains(e.target)) setLangOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const STEPS = [
     { num: '01', icon: STEP_ICONS[0], title: t('landing.steps.step1.title'), desc: t('landing.steps.step1.desc') },
@@ -265,18 +281,60 @@ export default function LandingPage() {
           <span className="nav-link" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>{t('landing.nav.features')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'ms' : 'en')}
-            style={{
-              background: 'transparent', color: '#F09D51',
-              border: '1px solid rgba(240,157,81,0.4)',
-              borderRadius: 8, padding: '6px 10px',
-              fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'",
-              cursor: 'pointer', letterSpacing: 0.5,
-            }}
-          >
-            {i18n.language === 'ms' ? 'EN' : 'BM'}
-          </button>
+          {/* Language dropdown */}
+          <div ref={langRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setLangOpen(o => !o)}
+              style={{
+                background: langOpen ? 'rgba(240,157,81,0.1)' : 'transparent',
+                color: '#F09D51',
+                border: '1px solid rgba(240,157,81,0.4)',
+                borderRadius: 8, padding: '6px 10px',
+                display: 'flex', alignItems: 'center', gap: 5,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              title="Language / Bahasa"
+            >
+              <IconGlobe size={16} />
+              <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'", letterSpacing: 0.5 }}>
+                {i18n.language === 'ms' ? 'BM' : 'EN'}
+              </span>
+            </button>
+
+            {langOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                background: '#1a1b1d', border: '1px solid rgba(232,233,235,0.1)',
+                borderRadius: 10, overflow: 'hidden',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                minWidth: 140, zIndex: 200,
+              }}>
+                {languages.map(({ code, label, flag }, idx) => (
+                  <button
+                    key={code}
+                    onClick={() => { i18n.changeLanguage(code); setLangOpen(false); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 14px', background: 'transparent',
+                      color: i18n.language === code ? '#F09D51' : 'rgba(232,233,235,0.55)',
+                      fontWeight: i18n.language === code ? 700 : 400,
+                      fontSize: 13, cursor: 'pointer', border: 'none',
+                      borderBottom: idx < languages.length - 1 ? '1px solid rgba(232,233,235,0.07)' : 'none',
+                      transition: 'background 0.1s', fontFamily: "'DM Sans'",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(240,157,81,0.07)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: 16 }}>{flag}</span>
+                    <span>{label}</span>
+                    {i18n.language === code && (
+                      <span style={{ marginLeft: 'auto', color: '#F09D51', fontSize: 11 }}>✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button className="cta-btn" onClick={() => navigate('/login')} style={{
             background: 'transparent', color: '#F09D51', border: '1.5px solid #F09D51',
             borderRadius: 8, padding: '7px 18px', fontSize: 13, fontWeight: 600,
@@ -307,18 +365,6 @@ export default function LandingPage() {
 
           {/* Left — text */}
           <div style={{ flex: 1 }}>
-            <div className={`reveal ${heroVisible ? 'visible' : ''} hero-badge`} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)',
-              borderRadius: 20, padding: '5px 14px', marginBottom: 24,
-              fontSize: 12, fontFamily: "'Space Mono'", color: '#F09D51', fontWeight: 700, letterSpacing: 1
-            }}>
-              <span style={{ width:6, height:6, borderRadius:'50%', background:'#F09D51', display:'inline-block', position:'relative' }}>
-                <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#F09D51', animation:'pulse-ring 1.5s ease-out infinite' }} />
-              </span>
-              {t('landing.badge')}
-            </div>
-
             <h1 className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-1 hero-title`} style={{
               fontFamily: "'Bebas Neue'", fontSize: 88, lineHeight: 0.9,
               letterSpacing: 3, marginBottom: 24, color: '#e8e9eb'

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     username: '', email: '', password: '', confirmPassword: '', position: '', gender: '', age: '', area: ''
   });
@@ -137,24 +137,10 @@ export default function SignupPage() {
     }}>
       <div className="fade-up" style={cardStyle}>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-          <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3 }}>
-              <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
-            </span>
-          </div>
-          <button
-            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'ms' : 'en')}
-            style={{
-              background: 'transparent', color: 'var(--accent)',
-              border: '1px solid rgba(240,157,81,0.3)',
-              borderRadius: 8, padding: '4px 10px',
-              fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'",
-              cursor: 'pointer', letterSpacing: 0.5,
-            }}
-          >
-            {i18n.language === 'ms' ? 'EN' : 'BM'}
-          </button>
+        <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 32 }}>
+          <span style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 3 }}>
+            <span style={{ color: '#e8e9eb' }}>B<span style={{ color: '#F09D51' }}>O</span>LAHH</span>
+          </span>
         </div>
 
         <h2 style={{

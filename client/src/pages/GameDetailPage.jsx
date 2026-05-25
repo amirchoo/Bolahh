@@ -416,7 +416,7 @@ export default function GameDetailPage() {
           }}>
             <span style={{ color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><IoWallet size={13} /> Wallet balance</span>
             <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: walletBalance >= game.price ? '#4ade80' : 'var(--red)' }}>
-              RM {walletBalance.toFixed(2)} {walletBalance >= game.price ? <IoCheckmark size={13} style={{ verticalAlign: 'middle' }} /> : `— need RM ${shortfall.toFixed(2)} more`}
+              RM {walletBalance.toFixed(2)} {walletBalance >= game.price ? <IoCheckmark size={13} style={{ verticalAlign: 'middle' }} /> : `(need RM ${shortfall.toFixed(2)} more)`}
             </span>
           </div>
         )}

@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [form, setForm] = useState({ identifier: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -181,26 +181,12 @@ export default function LoginPage() {
           </span>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <h2 style={{
-            fontFamily: "'Bebas Neue'", fontSize: 36,
-            letterSpacing: 2, color: 'var(--text)'
-          }}>
-            {t('login.welcomeBack')}
-          </h2>
-          <button
-            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'ms' : 'en')}
-            style={{
-              background: 'transparent', color: 'var(--accent)',
-              border: '1px solid rgba(240,157,81,0.3)',
-              borderRadius: 8, padding: '4px 10px',
-              fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'",
-              cursor: 'pointer', letterSpacing: 0.5,
-            }}
-          >
-            {i18n.language === 'ms' ? 'EN' : 'BM'}
-          </button>
-        </div>
+        <h2 style={{
+          fontFamily: "'Bebas Neue'", fontSize: 36,
+          letterSpacing: 2, marginBottom: 6, color: 'var(--text)'
+        }}>
+          {t('login.welcomeBack')}
+        </h2>
         <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28 }}>
           {t('login.subtitle')}
         </p>
