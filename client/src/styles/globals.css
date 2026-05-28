@@ -103,3 +103,13 @@ input:focus, select:focus, textarea:focus {
   border-color: rgba(240, 157, 81, 0.5) !important;
   outline: none !important;
 }
+
+/* GameSummaryPage responsive fixes */
+@media (max-width: 520px) {
+  .summary-top3-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .summary-chips-col {
+    display: none;
+  }
+}

@@ -224,7 +224,7 @@ export default function GameSummaryPage() {
 
     const { data: ratingsData } = await supabase
       .from('game_ratings')
-      .select('user_id, goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
+      .select('user_id, goals, assists, good_defending, good_keeping, successful_dribble, good_chance, admin_bonus')
       .eq('game_id', id);
 
     if (!ratingsData || ratingsData.length === 0) {
@@ -246,13 +246,23 @@ export default function GameSummaryPage() {
         agg[r.user_id] = {
           user_id: r.user_id, goals: 0, assists: 0,
           good_defending: 0, good_keeping: 0,
-          successful_dribble: 0, good_chance: 0,
+          successful_dribble: 0, good_chance: 0, admin_bonus: 0,
         };
       }
       STAT_KEYS.forEach(({ key }) => { agg[r.user_id][key] += r[key] || 0; });
+      if ((r.admin_bonus || 0) > 0) agg[r.user_id].admin_bonus = r.admin_bonus;
     });
 
-    const sorted = Object.values(agg).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
+    // Use manager's MOTM picks if any were set, otherwise auto-rank by points
+    const hasOfficialMotm = Object.values(agg).some(r => r.admin_bonus > 0);
+    let sorted;
+    if (hasOfficialMotm) {
+      const motmOrder = Object.values(agg).filter(r => r.admin_bonus > 0).sort((a, b) => a.admin_bonus - b.admin_bonus);
+      const others = Object.values(agg).filter(r => !r.admin_bonus).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
+      sorted = [...motmOrder, ...others];
+    } else {
+      sorted = Object.values(agg).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
+    }
     setSortedRatings(sorted);
 
     const myIdx = sorted.findIndex(r => r.user_id === user.id);
@@ -448,7 +458,7 @@ export default function GameSummaryPage() {
 
           {/* 2nd & 3rd — side by side */}
           {top3.length >= 2 && (
-            <div style={{ display: 'grid', gridTemplateColumns: top3.length >= 3 ? '1fr 1fr' : '1fr', gap: 12 }}>
+            <div className="summary-top3-grid" style={{ display: 'grid', gridTemplateColumns: top3.length >= 3 ? '1fr 1fr' : '1fr', gap: 12 }}>
               {top3.slice(1).map((r, i) => {
                 const pos = i + 2;
                 const meta = POSITION_META[pos];
@@ -564,8 +574,8 @@ export default function GameSummaryPage() {
                     <span style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: rankColor }}>{rank}</span>
                   </div>
 
-                  {/* Stat chips — hidden on very small screens via flex shrink */}
-                  <div style={{ flexShrink: 1, minWidth: 0, maxWidth: 140 }}>
+                  {/* Stat chips — hidden on small screens */}
+                  <div className="summary-chips-col" style={{ flexShrink: 1, minWidth: 0, maxWidth: 140 }}>
                     <StatChips rating={r} size="sm" />
                   </div>
 
