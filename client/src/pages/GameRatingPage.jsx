@@ -4,10 +4,15 @@ import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached, clearCached } from '../lib/dataCache';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { calculateCardStats } from '../lib/cardUtils';
 import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct } from 'react-icons/io5';
-import { GiSoccerBall } from 'react-icons/gi';
+import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
+
+const MOTM_META = {
+  0: { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', label: '1ST' },
+  1: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND' },
+  2: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD' },
+};
 
 const CARD_STATS = [
   { key: 'goals',              label: 'SHO', color: '#f87171' },
@@ -105,6 +110,7 @@ export default function GameRatingPage() {
   const [notOwner, setNotOwner] = useState(false);
   const [alreadyRated, setAlreadyRated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [motmPlayers, setMotmPlayers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -143,7 +149,7 @@ export default function GameRatingPage() {
   // Persist progress to localStorage so a phone screen-off / tab refresh doesn't lose work
   useEffect(() => {
     if (loading || isPreview) return;
-    localStorage.setItem(storageKey, JSON.stringify({ step, duration, teamMode, teamAssign, ratings, currentMatch }));
+    localStorage.setItem(storageKey, JSON.stringify({ step, duration, teamMode, teamAssign, ratings, currentMatch, motmPlayers }));
   }, [step, duration, teamMode, teamAssign, ratings, currentMatch, loading]);
 
   const fetchData = async (silent = false) => {
@@ -228,6 +234,7 @@ export default function GameRatingPage() {
         if (p.teamAssign)        setTeamAssign(p.teamAssign);
         if (p.ratings)           setRatings(p.ratings);
         if (p.currentMatch != null) setCurrentMatch(p.currentMatch);
+        if (p.motmPlayers)       setMotmPlayers(p.motmPlayers);
       }
     } catch {}
 
@@ -302,10 +309,20 @@ export default function GameRatingPage() {
   };
 
   const updateStat = (uid, key, delta) => {
+    const isRanked = (profiles[uid]?.games_played || 0) > 0;
+    const baseMin = isRanked ? 0 : (baseRatings[uid]?.[key] || 0);
     setRatings(prev => ({
       ...prev,
-      [uid]: { ...prev[uid], [key]: Math.max(0, (prev[uid][key] || 0) + delta) }
+      [uid]: { ...prev[uid], [key]: Math.max(baseMin, (prev[uid][key] || 0) + delta) }
     }));
+  };
+
+  const toggleMotm = (uid) => {
+    setMotmPlayers(prev => {
+      if (prev.includes(uid)) return prev.filter(id => id !== uid);
+      if (prev.length < 3) return [...prev, uid];
+      return prev;
+    });
   };
 
   const handleSubmit = async () => {
@@ -314,57 +331,60 @@ export default function GameRatingPage() {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      // Store the per-game delta (new total taps minus pre-game base)
       for (const uid of players) {
         const stats = ratings[uid] || defaultStats();
         const base  = baseRatings[uid] || defaultStats();
+
+        const d_sho = (stats.goals              || 0) - (base.goals              || 0);
+        const d_pas = (stats.assists            || 0) - (base.assists            || 0);
+        const d_def = (stats.good_defending     || 0) - (base.good_defending     || 0);
+        const d_phy = (stats.good_keeping       || 0) - (base.good_keeping       || 0);
+        const d_dri = (stats.successful_dribble || 0) - (base.successful_dribble || 0);
+        const d_pac = (stats.good_chance        || 0) - (base.good_chance        || 0);
+
         const { error: insertError } = await supabase.from('game_ratings').insert({
           game_id: id,
           user_id: uid,
           rated_by: currentUser.id,
-          goals:              Math.max(0, (stats.goals              || 0) - (base.goals              || 0)),
-          assists:            Math.max(0, (stats.assists            || 0) - (base.assists            || 0)),
-          good_defending:     Math.max(0, (stats.good_defending     || 0) - (base.good_defending     || 0)),
-          good_keeping:       Math.max(0, (stats.good_keeping       || 0) - (base.good_keeping       || 0)),
-          successful_dribble: Math.max(0, (stats.successful_dribble || 0) - (base.successful_dribble || 0)),
-          good_chance:        Math.max(0, (stats.good_chance        || 0) - (base.good_chance        || 0)),
+          goals:              d_sho,
+          assists:            d_pas,
+          good_defending:     d_def,
+          good_keeping:       d_phy,
+          successful_dribble: d_dri,
+          good_chance:        d_pac,
           good_manner: 0,
-          admin_bonus: 0,
+          admin_bonus: motmPlayers.indexOf(uid) >= 0 ? motmPlayers.indexOf(uid) + 1 : 0,
           total_points: 0,
         });
         if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
-      }
 
-      // Recalculate OVR from lifetime stats
-      for (const uid of players) {
-        const { data: allRatings } = await supabase
-          .from('game_ratings')
-          .select('goals, assists, good_defending, good_keeping, successful_dribble, good_chance')
-          .eq('user_id', uid);
+        // Apply deltas directly to existing card_stats (preserves prior rating)
+        const existing = profiles[uid]?.card_stats || {};
+        const newPac = Math.max(30, Math.min(99, (existing.pac || 30) + d_pac));
+        const newSho = Math.max(30, Math.min(99, (existing.sho || 30) + d_sho));
+        const newPas = Math.max(30, Math.min(99, (existing.pas || 30) + d_pas));
+        const newDri = Math.max(30, Math.min(99, (existing.dri || 30) + d_dri));
+        const newDef = Math.max(30, Math.min(99, (existing.def || 30) + d_def));
+        const newPhy = Math.max(30, Math.min(99, (existing.phy || 30) + d_phy));
+        const newOverall = Math.round((newPac + newSho + newPas + newDri + newDef + newPhy) / 6);
 
-        const cardStats = calculateCardStats(allRatings || []);
-        const profile = profiles[uid];
-        const newGamesPlayed = (profile?.games_played || 0) + 1;
-
-        const { data: updateData, error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from('profiles')
           .update({
-            total_points: cardStats.overall,
-            games_played: newGamesPlayed,
-            card_stats: { pac: cardStats.pac, sho: cardStats.sho, pas: cardStats.pas, dri: cardStats.dri, def: cardStats.def, phy: cardStats.phy },
+            total_points: newOverall,
+            games_played: (profiles[uid]?.games_played || 0) + 1,
+            card_stats: { pac: newPac, sho: newSho, pas: newPas, dri: newDri, def: newDef, phy: newPhy },
           })
-          .eq('id', uid)
-          .select();
+          .eq('id', uid);
 
         if (updateError) throw new Error('Profile update failed: ' + updateError.message);
-        if (!updateData || updateData.length === 0) throw new Error('Profile update matched no rows for ' + uid);
       }
 
       localStorage.removeItem(storageKey);
       clearCached(`rating_data_${id}`);
       setSuccess('Ratings submitted!');
       setAlreadyRated(true);
-      setStep('setup');
+      setStep('config');
     } catch (e) {
       setError(e.message);
     }
@@ -464,6 +484,7 @@ export default function GameRatingPage() {
             { key: 'setup',    label: '2. Assign Teams'  },
             { key: 'schedule', label: '3. Schedule'      },
             { key: 'rating',   label: '4. Rate Players'  },
+            { key: 'motm',     label: '5. Awards'        },
           ].map(s => (
             <div key={s.key} style={{
               padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
@@ -761,6 +782,7 @@ export default function GameRatingPage() {
                       const stats = ratings[uid] || defaultStats();
                       const base  = baseRatings[uid] || defaultStats();
                       const bib = getBibNumber(uid, team);
+                      const isRanked = (profiles[uid]?.games_played || 0) > 0;
 
                       // Total delta across all stats for this player
                       const totalDelta = CARD_STATS.reduce((sum, { key }) => sum + ((stats[key] || 0) - (base[key] || 0)), 0);
@@ -799,7 +821,7 @@ export default function GameRatingPage() {
                               const baseTaps = base[key] || 0;
                               const cardVal  = Math.max(30, Math.min(99, 30 + taps));
                               const delta    = taps - baseTaps;
-                              const canDecrease = taps > baseTaps;
+                              const canDecrease = isRanked ? taps > 0 : taps > baseTaps;
                               return (
                                 <div key={key} style={{
                                   borderRadius: 8,
@@ -861,9 +883,9 @@ export default function GameRatingPage() {
                   Next Match →
                 </button>
               ) : (
-                <button type="button" onClick={handleSubmit} disabled={saving || alreadyRated}
-                  style={{ flex: 1, padding: '11px', background: alreadyRated ? 'var(--card2)' : 'var(--accent)', color: alreadyRated ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, opacity: saving ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  {saving ? 'Submitting...' : alreadyRated ? 'Already Submitted' : <><IoCheckmarkCircle size={16} />Submit All Ratings</>}
+                <button type="button" onClick={() => setStep('motm')} disabled={alreadyRated}
+                  style={{ flex: 1, padding: '11px', background: alreadyRated ? 'var(--card2)' : 'var(--accent)', color: alreadyRated ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  {alreadyRated ? 'Already Submitted' : 'Choose Top 3 →'}
                 </button>
               )}
             </div>
@@ -873,6 +895,138 @@ export default function GameRatingPage() {
               border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}><IoCalendar size={14} />View Schedule</button>
+          </div>
+        )}
+
+        {/* ── STEP 4: MOTM SELECTION ── */}
+        {step === 'motm' && (
+          <div>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>
+              CHOOSE TOP 3 PLAYERS
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>
+              Select the best performers of this session. Tap to assign 1st, 2nd, 3rd place awards. At least 1 required.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+              {players.map(uid => {
+                const p = profiles[uid];
+                const stats = ratings[uid] || defaultStats();
+                const base  = baseRatings[uid] || defaultStats();
+                const motmIdx = motmPlayers.indexOf(uid);
+                const isSelected = motmIdx >= 0;
+                const meta = isSelected ? MOTM_META[motmIdx] : null;
+                const canSelect = !isSelected && motmPlayers.length < 3;
+
+                return (
+                  <button key={uid} type="button" onClick={() => toggleMotm(uid)}
+                    disabled={!isSelected && motmPlayers.length >= 3}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 16px', borderRadius: 12, textAlign: 'left',
+                      background: isSelected ? meta.bg : 'var(--card)',
+                      border: `1.5px solid ${isSelected ? meta.border : 'var(--border)'}`,
+                      cursor: isSelected || canSelect ? 'pointer' : 'default',
+                      opacity: !isSelected && motmPlayers.length >= 3 ? 0.45 : 1,
+                      transition: 'all 0.15s',
+                    }}>
+                    {/* Avatar */}
+                    <div style={{
+                      width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                      background: isSelected ? meta.color : 'var(--accent)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 15, fontWeight: 700, color: '#1e2123', overflow: 'hidden',
+                    }}>
+                      {p?.avatar_url
+                        ? <img src={p.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (p?.name?.[0] || '?').toUpperCase()}
+                    </div>
+
+                    {/* Name + this-game stats */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? meta.color : 'var(--text)', marginBottom: 4 }}>
+                        {p?.name || 'Unknown'}
+                      </div>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                        {CARD_STATS.map(({ key, label, color }) => {
+                          const delta = (stats[key] || 0) - (base[key] || 0);
+                          if (delta === 0) return null;
+                          return (
+                            <span key={key} style={{
+                              fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700,
+                              color, background: `${color}15`, border: `1px solid ${color}38`,
+                              borderRadius: 4, padding: '1px 5px',
+                            }}>{label}{delta > 0 ? `+${delta}` : delta}</span>
+                          );
+                        })}
+                        {CARD_STATS.every(({ key }) => (stats[key] || 0) - (base[key] || 0) === 0) && (
+                          <span style={{ fontSize: 11, color: 'var(--muted)' }}>No events</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Rank badge or tap hint */}
+                    {isSelected ? (
+                      <div style={{
+                        background: meta.bg, border: `1px solid ${meta.border}`,
+                        borderRadius: 8, padding: '4px 12px', flexShrink: 0,
+                        fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: meta.color,
+                        display: 'flex', alignItems: 'center', gap: 5,
+                      }}>
+                        <GiTrophy size={12} />{meta.label}
+                      </div>
+                    ) : canSelect ? (
+                      <div style={{
+                        background: 'var(--card2)', border: '1px solid var(--border)',
+                        borderRadius: 8, padding: '4px 10px', flexShrink: 0,
+                        fontSize: 11, color: 'var(--muted)',
+                      }}>Tap to add</div>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selection summary */}
+            <div style={{
+              background: 'var(--card2)', border: '1px solid var(--border)',
+              borderRadius: 10, padding: '10px 14px', marginBottom: 20,
+              display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
+            }}>
+              <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>SELECTED:</span>
+              {motmPlayers.length === 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>None yet</span>}
+              {motmPlayers.map((uid, idx) => {
+                const meta = MOTM_META[idx];
+                return (
+                  <span key={uid} style={{
+                    fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                    color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`,
+                    borderRadius: 6, padding: '3px 10px',
+                  }}>
+                    {meta.label} {profiles[uid]?.name || uid}
+                  </span>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setStep('rating')} style={{
+                flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
+                border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer',
+              }}>← Back to Rating</button>
+              <button type="button" onClick={handleSubmit}
+                disabled={saving || alreadyRated || motmPlayers.length === 0}
+                style={{
+                  flex: 2, padding: '12px',
+                  background: motmPlayers.length > 0 && !alreadyRated ? 'var(--accent)' : 'var(--card2)',
+                  color: motmPlayers.length > 0 && !alreadyRated ? '#fff' : 'var(--muted)',
+                  border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+                  opacity: saving ? 0.6 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}>
+                {saving ? 'Submitting...' : alreadyRated ? 'Already Submitted' : motmPlayers.length === 0 ? 'Pick at least 1 player' : <><IoCheckmarkCircle size={16} />Submit All Ratings</>}
+              </button>
+            </div>
           </div>
         )}
 
