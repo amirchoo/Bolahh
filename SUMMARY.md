@@ -29,8 +29,7 @@ Bolahh is a futsal match booking and player progression platform for Malaysia, l
 ### Colour Palette
 
 | Variable | Hex | Usage |
-|----------|-----|-------|
-| `--bg` | `#111213` | Page background |
+|----------|-----|----ckground |
 | `--card` | `#1a1b1d` | Card / surface background |
 | `--card2` | `#222426` | Elevated card, secondary surface |
 | `--border` | `#2e3032` | All borders and dividers |
@@ -51,7 +50,8 @@ The background is a near-black gunmetal (`#111213`) with a subtle SVG pitch-patt
 | **DM Sans** | 300 / 400 / 500 / 600 | Body text, descriptions, UI copy |
 | **Space Mono** | 400 / 700 | Labels, stat keys, metadata, monospaced data |
 
-Bebas Neue is used exclusively for anything bold and decorative (headings, OVR numbers, rank names). DM Sans handles all readable body copy. Space Mono handles anything data-like — stat abbreviations (PAC, SHO, etc.), OVR ranges, timestamps, and small-caps labels.
+Bebas Neue is used exclusively for anything bold and decorative (headings, OVR numbers, rank names). DM Sans handles all readable body copy. Space Mono handles anything data-like — stat abbreviations (PAC, SHO, etc.), OVR ranges, timestamps, and small-caps labels.---|
+| `--bg` | `#111213` | Page ba
 
 ### Rank Tier Themes
 
