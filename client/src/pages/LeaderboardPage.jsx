@@ -4,17 +4,34 @@ import { getCached, setCached } from '../lib/dataCache';
 import { usePersistedState } from '../lib/usePersistedState';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { getRank, getRankColor } from '../lib/rankUtils';
+import { getRank, getRankColor, getRankTier } from '../lib/rankUtils';
 import { getCardTheme, STATS, POSITION_ABBR } from '../components/FifaCard';
 import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
-import { FaLocationDot } from 'react-icons/fa6';
+import { FaLocationDot, FaMedal } from 'react-icons/fa6';
 
 const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
-const POSITIONS = ['All', 'Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
+const POSITION_TABS = [
+  { value: 'All',        label: 'ALL' },
+  { value: 'Attacker',   label: 'ATK' },
+  { value: 'Midfielder', label: 'MID' },
+  { value: 'Defender',   label: 'DEF' },
+  { value: 'Goalkeeper', label: 'GK'  },
+];
 
-const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const RANK_NUM_COLOR = { 1: '#FFD700', 2: '#C0C0C0', 3: '#CD7F32' };
+
+const TIER_ORDER = ['emas', 'perak', 'gangsa'];
+const TIER_DISPLAY = { emas: 'EMAS', perak: 'PERAK', gangsa: 'GANGSA' };
+const TIER_COLORS = { emas: '#FFD700', perak: '#6ec8e8', gangsa: '#cd7f32' };
+
+// Key stats highlighted per position
+const POS_KEY_STATS = {
+  Goalkeeper: ['def', 'phy'],
+  Defender:   ['def', 'phy'],
+  Midfielder: ['pas', 'dri'],
+  Attacker:   ['sho', 'pac'],
+};
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
@@ -22,6 +39,8 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [areaFilter, setAreaFilter] = usePersistedState('lb_area', 'All Areas');
   const [posFilter, setPosFilter] = usePersistedState('lb_pos', 'All');
+  const [viewMode, setViewMode] = usePersistedState('lb_view', 'global');
+  const [activeTier, setActiveTier] = usePersistedState('lb_tier', 'emas');
 
   useEffect(() => {
     const cached = getCached('leaderboard');
@@ -59,18 +78,166 @@ export default function LeaderboardPage() {
   const filtered = players.filter(p => {
     if (areaFilter !== 'All Areas' && p.area !== areaFilter) return false;
     if (posFilter !== 'All' && p.position !== posFilter) return false;
+    if (getRankTier(getRank(p.overall)) === 'novis') return false;
     return true;
   });
 
-  const chipStyle = (active) => ({
-    background: active ? 'rgba(240,157,81,0.15)' : 'var(--card)',
-    color: active ? 'var(--accent)' : 'var(--muted)',
-    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-    borderRadius: 20, padding: '6px 14px',
-    fontSize: 12, fontWeight: 600, cursor: 'pointer',
-    whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
-    fontFamily: "'DM Sans'",
-  });
+  const keyStats = POS_KEY_STATS[posFilter] || [];
+
+
+  const renderPlayerRow = (player, pos) => {
+    const rank = getRank(player.overall);
+    const rankColor = getRankColor(rank);
+    const theme = getCardTheme(rank);
+    const isSelf = player.id === user?.id;
+    const isSubscribed = player.is_subscribed && player.subscription_expires_at && new Date(player.subscription_expires_at) > new Date();
+
+    return (
+      <div
+        key={player.id}
+        style={{
+          background: isSelf ? 'rgba(240,157,81,0.06)' : 'var(--card)',
+          border: `1px solid ${isSelf ? 'rgba(240,157,81,0.35)' : 'var(--border)'}`,
+          borderRadius: 14, padding: '12px 14px',
+          display: 'flex', alignItems: 'center', gap: 12,
+          transition: 'background 0.15s',
+        }}
+      >
+        {/* Rank number */}
+        <div style={{
+          width: 28, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: "'Bebas Neue'", fontSize: 16,
+          color: RANK_NUM_COLOR[pos] || 'var(--muted)',
+          letterSpacing: 1,
+        }}>
+          {pos <= 3
+            ? <FaMedal size={22} color={RANK_NUM_COLOR[pos]} />
+            : `#${pos}`}
+        </div>
+
+        {/* Mini card swatch */}
+        <div style={{
+          width: 36, height: 50, borderRadius: 6, flexShrink: 0,
+          background: theme.bg,
+          border: `1.5px solid ${theme.border}`,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%)', pointerEvents: 'none' }} />
+          {player.avatar_url ? (
+            <img src={player.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+          ) : (
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: theme.text }}>
+              {(player.name || '?')[0].toUpperCase()}
+            </div>
+          )}
+          <div style={{ fontFamily: "'Space Mono'", fontSize: 6, color: theme.text, fontWeight: 700, marginTop: 2, letterSpacing: 0.5 }}>
+            {POSITION_ABBR[player.position] || '—'}
+          </div>
+        </div>
+
+        {/* Name + meta */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+              {player.name || 'Unknown'}
+            </span>
+            {isSubscribed && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff' }}><IoCheckmark size={9} /></span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: rankColor, fontFamily: "'Space Mono'" }}>{rank}</span>
+            {player.area && (
+              <span style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <FaLocationDot size={9} />{player.area}
+              </span>
+            )}
+          </div>
+          {/* Stats — key stats for the active position glow in rank color */}
+          <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+            {STATS.map(s => {
+              const isKey = keyStats.includes(s.key);
+              return (
+                <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <div style={{ fontSize: 9, color: isKey ? rankColor : 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: isKey ? 700 : 400 }}>
+                    {s.label}
+                  </div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: isKey ? rankColor : 'var(--text)', fontFamily: "'Space Mono'" }}>
+                    {player[s.key] || 30}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* OVR */}
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: rankColor, lineHeight: 1, letterSpacing: 1 }}>
+            {player.overall || 30}
+          </div>
+          <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
+          {player.games_played > 0 && (
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{player.games_played} games</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderGlobalList = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {filtered.map((player, idx) => renderPlayerRow(player, idx + 1))}
+    </div>
+  );
+
+  const renderTierList = () => {
+    const tierPlayers = filtered.filter(p => getRankTier(getRank(p.overall)) === activeTier);
+    const color = TIER_COLORS[activeTier];
+
+    return (
+      <div>
+        {/* Tier tab row */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {TIER_ORDER.map(tier => {
+            const isActive = activeTier === tier;
+            const tc = TIER_COLORS[tier];
+            return (
+              <button
+                key={tier}
+                onClick={() => setActiveTier(tier)}
+                style={{
+                  flex: 1,
+                  background: isActive ? `${tc}18` : 'var(--card)',
+                  color: isActive ? tc : 'var(--muted)',
+                  border: `1.5px solid ${isActive ? tc : 'var(--border)'}`,
+                  borderRadius: 10, padding: '8px 0',
+                  fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 2,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >
+                {TIER_DISPLAY[tier]}
+              </button>
+            );
+          })}
+        </div>
+
+        {tierPlayers.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 13 }}>
+            No {TIER_DISPLAY[activeTier]} players for this filter.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {tierPlayers.map((player, idx) => renderPlayerRow(player, idx + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -85,22 +252,68 @@ export default function LeaderboardPage() {
           </h2>
         </div>
 
-        {/* Area filter */}
-        <div style={{ overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 8, width: 'max-content' }}>
-            {AREAS.map(a => (
-              <button key={a} style={chipStyle(areaFilter === a)} onClick={() => setAreaFilter(a)}>{a}</button>
-            ))}
-          </div>
+        {/* Area filter — dropdown */}
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <select
+            value={areaFilter}
+            onChange={e => setAreaFilter(e.target.value)}
+            style={{
+              width: '100%', appearance: 'none', colorScheme: 'dark',
+              background: 'var(--card)',
+              border: `1.5px solid ${areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--border)'}`,
+              color: areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--text)',
+              borderRadius: 10, padding: '10px 36px 10px 14px',
+              fontSize: 13, fontFamily: "'DM Sans'", fontWeight: 600,
+              cursor: 'pointer', outline: 'none',
+            }}
+          >
+            {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--muted)', fontSize: 12 }}>▾</div>
         </div>
 
-        {/* Position filter */}
-        <div style={{ overflowX: 'auto', paddingBottom: 8, marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 8, width: 'max-content' }}>
-            {POSITIONS.map(p => (
-              <button key={p} style={chipStyle(posFilter === p)} onClick={() => setPosFilter(p)}>{p}</button>
-            ))}
-          </div>
+        {/* Position filter — compact tabs */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+          {POSITION_TABS.map(({ value, label }) => {
+            const isActive = posFilter === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setPosFilter(value)}
+                style={{
+                  flex: 1,
+                  background: isActive ? 'rgba(240,157,81,0.15)' : 'var(--card)',
+                  color: isActive ? 'var(--accent)' : 'var(--muted)',
+                  border: `1.5px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 10, padding: '8px 0',
+                  fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* View mode toggle */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+          {[['global', 'Global Rank'], ['tier', 'Tier']].map(([mode, label]) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              style={{
+                background: viewMode === mode ? 'var(--accent)' : 'var(--card)',
+                color: viewMode === mode ? '#111' : 'var(--muted)',
+                border: `1px solid ${viewMode === mode ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 8, padding: '7px 16px',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                fontFamily: "'DM Sans'", transition: 'all 0.15s',
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {loading ? (
@@ -112,104 +325,7 @@ export default function LeaderboardPage() {
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)', fontSize: 14 }}>
             No players found for this filter.
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filtered.map((player, idx) => {
-              const rank = getRank(player.overall);
-              const rankColor = getRankColor(rank);
-              const theme = getCardTheme(rank);
-              const pos = idx + 1;
-              const isSelf = player.id === user?.id;
-              const isSubscribed = player.is_subscribed && player.subscription_expires_at && new Date(player.subscription_expires_at) > new Date();
-
-              return (
-                <div
-                  key={player.id}
-                  style={{
-                    background: isSelf ? 'rgba(240,157,81,0.06)' : 'var(--card)',
-                    border: `1px solid ${isSelf ? 'rgba(240,157,81,0.35)' : 'var(--border)'}`,
-                    borderRadius: 14, padding: '12px 14px',
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  {/* Rank number */}
-                  <div style={{
-                    width: 28, textAlign: 'center', flexShrink: 0,
-                    fontFamily: "'Bebas Neue'", fontSize: pos <= 3 ? 22 : 16,
-                    color: RANK_NUM_COLOR[pos] || 'var(--muted)',
-                    letterSpacing: 1,
-                  }}>
-                    {pos <= 3 ? MEDAL[pos] : `#${pos}`}
-                  </div>
-
-                  {/* Mini card swatch */}
-                  <div style={{
-                    width: 36, height: 50, borderRadius: 6, flexShrink: 0,
-                    background: theme.bg,
-                    border: `1.5px solid ${theme.border}`,
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
-                    position: 'relative', overflow: 'hidden',
-                  }}>
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%)', pointerEvents: 'none' }} />
-                    {player.avatar_url ? (
-                      <img src={player.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: theme.text }}>
-                        {(player.name || '?')[0].toUpperCase()}
-                      </div>
-                    )}
-                    <div style={{ fontFamily: "'Space Mono'", fontSize: 6, color: theme.text, fontWeight: 700, marginTop: 2, letterSpacing: 0.5 }}>
-                      {POSITION_ABBR[player.position] || '—'}
-                    </div>
-                  </div>
-
-                  {/* Name + meta */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
-                        {player.name || 'Unknown'}
-                      </span>
-                      {isSubscribed && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff' }}><IoCheckmark size={9} /></span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: rankColor, fontFamily: "'Space Mono'" }}>{rank}</span>
-                      {player.area && (
-                        <span style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <FaLocationDot size={9} />{player.area}
-                        </span>
-                      )}
-                    </div>
-                    {/* Stat bars */}
-                    <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-                      {STATS.map(s => (
-                        <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                          <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 0 }}>{s.label}</div>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text)', fontFamily: "'Space Mono'" }}>{player[s.key] || 30}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* OVR */}
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: rankColor, lineHeight: 1, letterSpacing: 1 }}>
-                      {player.overall || 30}
-                    </div>
-                    <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
-                    {player.games_played > 0 && (
-                      <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{player.games_played} games</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        ) : viewMode === 'tier' ? renderTierList() : renderGlobalList()}
 
         {!loading && filtered.length > 0 && (
           <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'" }}>
