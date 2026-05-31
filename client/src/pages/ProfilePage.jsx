@@ -377,7 +377,7 @@ export default function ProfilePage() {
       )}
 
 
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
+      <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
         <h2 className="fade-up" style={{
           fontFamily: "'Bebas Neue'", fontSize: 32,
@@ -664,18 +664,27 @@ export default function ProfilePage() {
             <div style={{ padding: '28px 18px', textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>{t('profile.past.empty')}</div>
           )}
           {recentGames.map((entry, i) => (
-            <div key={entry.id} style={{
-              padding: '12px 18px',
-              borderBottom: i < recentGames.length - 1 || deletedGameCount > 0 ? '1px solid var(--border)' : 'none',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.65
-            }}>
+            <div key={entry.id}
+              onClick={() => navigate(`/game/${entry.games.id}/summary`)}
+              style={{
+                padding: '12px 18px',
+                borderBottom: i < recentGames.length - 1 || deletedGameCount > 0 ? '1px solid var(--border)' : 'none',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.75,
+                cursor: 'pointer', transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(240,157,81,0.04)'; e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.opacity = '0.75'; }}
+            >
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.games?.title}</div>
                 <div style={{ fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{entry.games?.area} · {entry.games?.date}</div>
               </div>
-              <span style={{ background: 'rgba(240,157,81,0.1)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", flexShrink: 0, marginLeft: 8 }}>
-                {entry.games?.format}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8 }}>
+                <span style={{ background: 'rgba(240,157,81,0.1)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'" }}>
+                  {entry.games?.format}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>View →</span>
+              </div>
             </div>
           ))}
           {deletedGameCount > 0 && (

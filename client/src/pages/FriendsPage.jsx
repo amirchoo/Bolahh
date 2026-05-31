@@ -278,7 +278,7 @@ export default function FriendsPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>

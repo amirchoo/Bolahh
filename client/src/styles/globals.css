@@ -28,6 +28,12 @@ body {
   min-height: 100vh;
 }
 
+@media (max-width: 600px) {
+  body {
+    padding-bottom: 70px;
+  }
+}
+
 
 
 input, select, textarea {
@@ -102,6 +108,17 @@ input::placeholder {
 input:focus, select:focus, textarea:focus {
   border-color: rgba(240, 157, 81, 0.5) !important;
   outline: none !important;
+}
+
+/* Responsive page content wrapper — keeps content off the edges on mobile */
+.page-wrap {
+  margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .page-wrap {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
 }
 
 /* GameSummaryPage responsive fixes */

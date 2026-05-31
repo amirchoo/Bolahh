@@ -303,7 +303,7 @@ export default function GameSummaryPage() {
   if (notJoined) return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 560, margin: '0 auto', padding: '32px 24px' }}>
         <button onClick={() => navigate(`/game/${id}`)} style={backBtn}>← Back to Game</button>
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
@@ -323,7 +323,7 @@ export default function GameSummaryPage() {
   if (notRated) return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 560, margin: '0 auto', padding: '32px 24px' }}>
         <button onClick={() => navigate(`/game/${id}`)} style={backBtn}>← Back to Game</button>
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
@@ -358,7 +358,7 @@ export default function GameSummaryPage() {
         />
       )}
 
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
         <button onClick={() => navigate(`/game/${id}`)} style={backBtn}>← Back to Game</button>
 
         {/* Page header */}
@@ -386,7 +386,7 @@ export default function GameSummaryPage() {
                 BOLAHH AWARD
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                Top 3 players with most points this match
+                Players with the best manner and great plays
               </div>
             </div>
           </div>

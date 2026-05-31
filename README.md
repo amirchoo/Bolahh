@@ -35,6 +35,7 @@ A futsal match booking and player progression platform for Malaysia. Find open g
 - OVR (0–99) = average of the 6 stats
 - Card theme upgrades automatically across 4 tiers: **Novis → Gangsa → Perak → Emas**
 - Stats are rated per-game by an admin with Bayesian smoothing to prevent wild swings
+- Download or share your card as an image
 
 ### Rank System (10 tiers, OVR-based)
 
@@ -65,6 +66,9 @@ Players with an active Bolahh subscription get a blue verified badge next to the
 ### Manager Dashboard
 Create and delete fields (with image uploads) and games. Navigate to the rating page per game.
 
+### Admin Panel (Super Admin)
+Manage homepage banners, fields, card backgrounds, and a custom FIFA-card maker with downloadable output.
+
 ---
 
 ## Pages & Routes
@@ -79,6 +83,7 @@ Create and delete fields (with image uploads) and games. Navigate to the rating 
 | `/game/:id` | Game Detail | Auth required |
 | `/game/:id/checkout` | Checkout | Auth required |
 | `/game/:id/cancel` | Cancel Booking | Auth required |
+| `/game/:id/summary` | Game Summary | Auth required |
 | `/profile` | Profile & Bolahh Card | Auth required |
 | `/friends` | Friends | Auth required |
 | `/wallet/topup` | Wallet Top-Up | Auth required |
@@ -112,13 +117,19 @@ Create a `.env` file inside the `client` folder:
 cp .env.example .env
 ```
 
-Fill in your Supabase credentials:
+Fill in your values:
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
+
+# Email of the super admin account — gates access to /admin
+VITE_SUPER_ADMIN_EMAIL=youremail@example.com
+
+# ToyyibPay — use https://dev.toyyibpay.com for sandbox testing
+VITE_TOYYIBPAY_BASE_URL=https://toyyibpay.com
 ```
 
-Find these in Supabase → **Project Settings → API**.
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are in Supabase → **Project Settings → API**.
 
 ### 4. Run locally
 ```bash
@@ -135,7 +146,7 @@ Hosted on [Vercel](https://vercel.com). To deploy your own:
 
 1. Import the repo on Vercel
 2. Set **Root Directory** to `client`
-3. Add environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+3. Add all environment variables from `.env` above in Vercel → **Project Settings → Environment Variables**
 4. Deploy
 
 After deploying, update Supabase → **Authentication → URL Configuration**:
@@ -146,24 +157,54 @@ After deploying, update Supabase → **Authentication → URL Configuration**:
 
 ## Admin SQL
 
-### Make a user admin
+### Make a user admin (can create games and rate matches)
 ```sql
 UPDATE public.profiles
 SET is_admin = true
 WHERE email = 'youremail@example.com';
 ```
 
-### Reset a player to Novis
+### Make a user super admin (access to /admin panel)
+Super admin access requires two things:
+1. The profile `name` column must be set to `bolahhadmin`
+2. The account email must match `VITE_SUPER_ADMIN_EMAIL` in your `.env`
+
+```sql
+UPDATE public.profiles
+SET name = 'bolahhadmin'
+WHERE email = 'youremail@example.com';
+```
+
+### Fix fields table RLS (allow admins to edit any field)
+```sql
+CREATE POLICY "Admins can update any field" ON fields
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+```
+
+### Reset a player's stats
 ```sql
 UPDATE profiles SET total_points = 0, games_played = 0 WHERE email = 'player@example.com';
 ```
 
 ---
 
+## Security
+
+Bolahh uses Supabase with the public anon key on the client — all data access is controlled by **Row Level Security (RLS)** policies. Key points:
+
+- **`/admin` is double-gated**: the React route requires `isSuperAdmin`, which cross-checks both the profile `name` field *and* the Supabase auth email (`VITE_SUPER_ADMIN_EMAIL`). Changing your display name alone is not enough.
+- **`/manager` and `/game/:id/rate`** require `is_admin = true` in the `profiles` table, set only via SQL.
+- **Wallet balance** must not be directly updatable by users via RLS. Ensure your `profiles` update policy restricts the `wallet_balance` column to server-side operations only.
+- The anon key is intentionally public (standard Supabase pattern). Security relies entirely on RLS being correctly configured.
+
+---
+
 ## Roadmap
 
 - [ ] Edit games from manager panel
-- [ ] Notifications (game full, reminders)
+- [ ] Notifications (game full, game reminders)
 - [ ] Mobile app
 
 ---

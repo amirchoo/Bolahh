@@ -2,6 +2,7 @@
   "navbar": {
     "games": "Permainan",
     "ranks": "Kedudukan",
+    "friends": "Rakan",
     "profile": "Profil",
     "manager": "Pengurus",
     "admin": "Admin",
@@ -23,7 +24,7 @@
       "gamesOrganised": "Perlawanan Dianjurkan"
     },
     "nav": {
-      "howItWorks": "Cara Ia Berfungsi",
+      "howItWorks": "Cara Bolahh Berfungsi",
       "ranks": "Kedudukan",
       "features": "Ciri-Ciri",
       "login": "Log Masuk",
@@ -31,10 +32,10 @@
     },
     "steps": {
       "label": "PROSES",
-      "title": "CARA IA BERFUNGSI",
+      "title": "CARA Bolahh BERFUNGSI",
       "step1": { "title": "Cari Perlawanan", "desc": "Semak sesi futsal berdekatan. Tapis mengikut kawasan, format, dan harga." },
-      "step2": { "title": "Tambah Nilai & Sertai", "desc": "Tambah kredit ke dompet Bolahh anda dan tempah slot dengan satu ketukan. Tiada hassle bayaran setiap kali." },
-      "step3": { "title": "Main & Dapatkan Penilaian", "desc": "Selepas perlawanan, penganjur menilai statistik anda. OVR anda dikemas kini dan mendorong anda naik tangga kedudukan." }
+      "step2": { "title": "Tambah Nilai & Sertai", "desc": "Tambah kredit ke dompet Bolahh anda dan tempah slot dengan satu klik. Kemudahan bayaran setiap masa." },
+      "step3": { "title": "Main & Dapatkan Penilaian", "desc": "Selepas perlawanan, Manager akan menilai statistik anda. OVR anda dikemas kini dan mendorong anda naik tangga kedudukan." }
     },
     "ranks": {
       "label": "PERKEMBANGAN",

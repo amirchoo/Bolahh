@@ -76,7 +76,7 @@ export default function LeaderboardPage() {
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
 
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
+      <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           <IoTrophyOutline size={28} color="var(--accent)" />

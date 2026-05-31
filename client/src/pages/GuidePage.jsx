@@ -74,7 +74,7 @@ export default function GuidePage() {
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
 
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px 80px' }}>
+      <div className="page-wrap" style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px 80px' }}>
 
         <button
           onClick={() => navigate('/home')}

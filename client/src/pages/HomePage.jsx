@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached } from '../lib/dataCache';
 import { usePersistedState } from '../lib/usePersistedState';
 import Navbar from '../components/Navbar';
+import BannerCarousel from '../components/BannerCarousel';
 import { IconLoading } from '../components/Icons';
 import { GiSoccerBall } from 'react-icons/gi';
 import { FaLocationDot } from "react-icons/fa6";
@@ -137,7 +138,7 @@ export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px' }}>
 
         <div className="fade-up" style={{ marginBottom: 28 }}>
           <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 40, letterSpacing: 3, marginBottom: 4, color: 'var(--text)' }}>
@@ -145,6 +146,8 @@ export default function HomePage() {
           </h1>
           <p style={{ color: 'var(--text)', fontSize: 14 }}>{t('home.subtitle')}</p>
         </div>
+
+        <BannerCarousel />
 
         <div className="fade-up-2" style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
           <input placeholder={t('home.searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)}

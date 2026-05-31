@@ -266,7 +266,7 @@ export default function ManagerPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Header */}
         <div className="fade-up" style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>

@@ -2,6 +2,7 @@
   "navbar": {
     "games": "Games",
     "ranks": "Ranks",
+    "friends": "Friends",
     "profile": "Profile",
     "manager": "Manager",
     "admin": "Admin",
