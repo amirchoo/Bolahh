@@ -140,7 +140,7 @@ export default function GameCancelPage() {
     return (
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
-        <div style={{ maxWidth: 480, margin: '0 auto', padding: '32px 16px', textAlign: 'center' }}>
+        <div className="page-wrap" style={{ maxWidth: 480, margin: '0 auto', padding: '32px 16px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><IoCheckmarkCircle size={52} color="#4ade80" /></div>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
             Booking Cancelled
@@ -167,7 +167,7 @@ export default function GameCancelPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 48px' }}>
+      <div className="page-wrap" style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 48px' }}>
 
         <button onClick={() => navigate(`/game/${id}`)} style={{
           background: 'none', border: 'none', color: 'var(--muted)',

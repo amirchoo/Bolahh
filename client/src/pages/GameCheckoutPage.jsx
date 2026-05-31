@@ -5,9 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
 import { clearCached } from '../lib/dataCache';
-import { LuRecycle } from "react-icons/lu";
+import { LuRecycle, LuTag } from "react-icons/lu";
 import { MdOutlineCancel } from "react-icons/md";
-import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark, IoShieldCheckmark, IoPeople, IoHeart, IoAlertCircle } from "react-icons/io5";
+import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark, IoShieldCheckmark, IoPeople, IoHeart, IoAlertCircle, IoClose } from "react-icons/io5";
 import { RiRefund2Line } from "react-icons/ri";
 import { LuPartyPopper } from 'react-icons/lu';
 import { GiSoccerBall } from 'react-icons/gi';
@@ -26,6 +26,10 @@ export default function GameCheckoutPage() {
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponData, setCouponData] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -54,6 +58,46 @@ export default function GameCheckoutPage() {
     setLoading(false);
   };
 
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponData(null);
+
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('code', code)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error || !data) {
+      setCouponError('Invalid or expired coupon code.');
+      setCouponLoading(false);
+      return;
+    }
+    if (data.max_uses !== null && data.uses_count >= data.max_uses) {
+      setCouponError('This coupon has reached its usage limit.');
+      setCouponLoading(false);
+      return;
+    }
+    if (data.expires_at && new Date(data.expires_at) < new Date()) {
+      setCouponError('This coupon has expired.');
+      setCouponLoading(false);
+      return;
+    }
+
+    setCouponData(data);
+    setCouponLoading(false);
+  };
+
+  const removeCoupon = () => {
+    setCouponData(null);
+    setCouponInput('');
+    setCouponError('');
+  };
+
   const handleConfirm = async () => {
     if (!agreed) { setError('Please agree to the terms before confirming.'); return; }
     setConfirming(true);
@@ -69,18 +113,44 @@ export default function GameCheckoutPage() {
       return;
     }
 
+    // Re-validate coupon if applied
+    let validatedCoupon = null;
+    if (couponData) {
+      const { data: freshCoupon } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('id', couponData.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (
+        !freshCoupon ||
+        (freshCoupon.max_uses !== null && freshCoupon.uses_count >= freshCoupon.max_uses) ||
+        (freshCoupon.expires_at && new Date(freshCoupon.expires_at) < new Date())
+      ) {
+        setError('Your coupon is no longer valid. Please remove it and try again.');
+        setConfirming(false);
+        return;
+      }
+      validatedCoupon = freshCoupon;
+    }
+
+    const discountAmount = validatedCoupon
+      ? parseFloat((game.price * validatedCoupon.discount_percentage / 100).toFixed(2))
+      : 0;
+    const chargeAmount = parseFloat((game.price - discountAmount).toFixed(2));
+
     // Re-fetch balance live to prevent race condition
     const { data: freshProfile } = await supabase
       .from('profiles').select('wallet_balance').eq('id', user.id).single();
     const freshBalance = freshProfile?.wallet_balance || 0;
 
-    if (freshBalance < game.price) {
+    if (freshBalance < chargeAmount) {
       setError('Insufficient wallet balance. Please top up first.');
       setConfirming(false);
       return;
     }
 
-    const newBalance = freshBalance - game.price;
+    const newBalance = parseFloat((freshBalance - chargeAmount).toFixed(2));
 
     // Deduct wallet balance
     const { error: balanceErr } = await supabase
@@ -103,12 +173,23 @@ export default function GameCheckoutPage() {
       return;
     }
 
+    // Increment coupon uses_count
+    if (validatedCoupon) {
+      await supabase
+        .from('coupons')
+        .update({ uses_count: validatedCoupon.uses_count + 1 })
+        .eq('id', validatedCoupon.id);
+    }
+
     // Log transaction
+    const description = validatedCoupon
+      ? `Joined game: ${game.title} (${validatedCoupon.discount_percentage}% off with code ${validatedCoupon.code})`
+      : `Joined game: ${game.title}`;
     await supabase.from('wallet_transactions').insert({
       user_id: user.id,
       type: 'payment',
-      amount: game.price,
-      description: `Joined game: ${game.title}`,
+      amount: chargeAmount,
+      description,
       balance_after: newBalance,
     });
 
@@ -146,14 +227,18 @@ export default function GameCheckoutPage() {
     );
   }
 
-  const balanceAfter = walletBalance - (game?.price || 0);
+  const discountAmount = couponData
+    ? parseFloat((game.price * couponData.discount_percentage / 100).toFixed(2))
+    : 0;
+  const finalPrice = parseFloat((game.price - discountAmount).toFixed(2));
+  const balanceAfter = walletBalance - finalPrice;
 
   // ── Success Screen ──
   if (success) {
     return (
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
-        <div style={{ maxWidth: 480, margin: '0 auto', padding: '60px 24px', textAlign: 'center' }}>
+        <div className="page-wrap" style={{ maxWidth: 480, margin: '0 auto', padding: '60px 24px', textAlign: 'center' }}>
           <div style={{
             width: 80, height: 80, borderRadius: '50%',
             background: 'rgba(74,222,128,0.12)', border: '1.5px solid rgba(74,222,128,0.3)',
@@ -167,15 +252,27 @@ export default function GameCheckoutPage() {
           </div>
           <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28, lineHeight: 1.7 }}>
             Successfully joined <strong style={{ color: 'var(--text)' }}>{game.title}</strong>.<br />
-            RM {Number(game.price).toFixed(2)} has been deducted from your wallet.
+            RM {finalPrice.toFixed(2)} has been deducted from your wallet.
           </p>
           <div style={{
             background: 'var(--card)', border: '1px solid var(--border)',
             borderRadius: 14, padding: '16px 20px', marginBottom: 28, textAlign: 'left'
           }}>
+            {discountAmount > 0 && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+                  <span style={{ color: 'var(--muted)' }}>Original fee</span>
+                  <span style={{ fontFamily: "'Space Mono'", color: 'var(--muted)', textDecoration: 'line-through' }}>RM {Number(game.price).toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+                  <span style={{ color: '#4ade80' }}>Coupon discount ({couponData?.discount_percentage}% off)</span>
+                  <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: '#4ade80' }}>− RM {discountAmount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
               <span style={{ color: 'var(--muted)' }}>Amount paid</span>
-              <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--tomato)' }}>− RM {Number(game.price).toFixed(2)}</span>
+              <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--tomato)' }}>− RM {finalPrice.toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
               <span style={{ color: 'var(--muted)' }}>Remaining balance</span>
@@ -286,7 +383,7 @@ export default function GameCheckoutPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 520, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 520, margin: '0 auto', padding: '32px 24px' }}>
 
         <button onClick={() => navigate(`/game/${id}`)} style={{
           background: 'transparent', color: 'var(--muted)',
@@ -333,8 +430,63 @@ export default function GameCheckoutPage() {
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>PAYMENT SUMMARY</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
             <span style={{ color: 'var(--text)' }}>Game fee</span>
-            <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {Number(game.price).toFixed(2)}</span>
+            <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: couponData ? 'var(--muted)' : 'var(--text)', textDecoration: couponData ? 'line-through' : 'none' }}>RM {Number(game.price).toFixed(2)}</span>
           </div>
+
+          {/* Coupon section */}
+          {!couponData ? (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <LuTag size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+                  <input
+                    placeholder="Promo code"
+                    value={couponInput}
+                    onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                    onKeyDown={e => e.key === 'Enter' && applyCoupon()}
+                    style={{ paddingLeft: 30, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, height: 38 }}
+                  />
+                </div>
+                <button
+                  onClick={applyCoupon}
+                  disabled={couponLoading || !couponInput.trim()}
+                  style={{
+                    background: 'var(--accent)', color: '#fff', border: 'none',
+                    borderRadius: 8, padding: '0 16px', fontSize: 13, fontWeight: 700,
+                    cursor: couponLoading || !couponInput.trim() ? 'not-allowed' : 'pointer',
+                    opacity: couponLoading || !couponInput.trim() ? 0.5 : 1,
+                    fontFamily: "'Bebas Neue'", letterSpacing: 1, whiteSpace: 'nowrap'
+                  }}
+                >{couponLoading ? '...' : 'APPLY'}</button>
+              </div>
+              {couponError && (
+                <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 6, paddingLeft: 2 }}>{couponError}</div>
+              )}
+            </div>
+          ) : (
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              marginBottom: 10, background: 'rgba(74,222,128,0.07)',
+              border: '1px solid rgba(74,222,128,0.25)', borderRadius: 8, padding: '7px 12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <LuTag size={13} color="#4ade80" />
+                <span style={{ fontSize: 13, color: '#4ade80', fontFamily: "'Space Mono'", fontWeight: 700 }}>{couponData.code}</span>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{couponData.discount_percentage}% off</span>
+              </div>
+              <button onClick={removeCoupon} style={{ background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                <IoClose size={15} />
+              </button>
+            </div>
+          )}
+
+          {couponData && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
+              <span style={{ color: '#4ade80' }}>Discount ({couponData.discount_percentage}% off)</span>
+              <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: '#4ade80' }}>− RM {discountAmount.toFixed(2)}</span>
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
             <span style={{ color: 'var(--text)' }}>Current wallet balance</span>
             <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {walletBalance.toFixed(2)}</span>
@@ -422,7 +574,16 @@ export default function GameCheckoutPage() {
             {agreed && <IoCheckmark size={12} />}
           </div>
           <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
-            I have read and agree to the refund & cancellation policy. I understand that my wallet will be charged <strong>RM {Number(game.price).toFixed(2)}</strong> upon confirming.
+            I have read and agree to the refund & cancellation policy. I understand that my wallet will be charged{' '}
+            {couponData ? (
+              <>
+                <strong style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>RM {Number(game.price).toFixed(2)}</strong>{' '}
+                <strong style={{ color: '#4ade80' }}>RM {finalPrice.toFixed(2)}</strong>
+              </>
+            ) : (
+              <strong>RM {finalPrice.toFixed(2)}</strong>
+            )}{' '}
+            upon confirming.
           </span>
         </div>
 
@@ -448,7 +609,7 @@ export default function GameCheckoutPage() {
             fontFamily: "'Bebas Neue'", letterSpacing: 2
           }}
         >
-          {confirming ? 'PROCESSING...' : `CONFIRM & PAY RM ${Number(game.price).toFixed(2)}`}
+          {confirming ? 'PROCESSING...' : `CONFIRM & PAY RM ${finalPrice.toFixed(2)}`}
         </button>
 
         <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginTop: 14 }}>

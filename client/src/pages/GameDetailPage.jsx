@@ -347,7 +347,7 @@ export default function GameDetailPage() {
         </div>
       )}
 
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <button onClick={() => navigate('/home')} style={{

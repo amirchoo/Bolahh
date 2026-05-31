@@ -5,7 +5,7 @@ import { usePersistedState } from '../lib/usePersistedState';
 import Navbar from '../components/Navbar';
 import { GiRunningShoe } from 'react-icons/gi';
 import { FaSquareParking, FaLocationDot } from 'react-icons/fa6';
-import { LuToilet } from 'react-icons/lu';
+import { LuToilet, LuTag } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave } from 'react-icons/md';
@@ -64,6 +64,11 @@ export default function AdminPage() {
   const [uploadingBg, setUploadingBg] = useState(false);
   const [editingField, setEditingField] = useState(null);
 
+  // ── Banners state ─────────────────────────────────────
+  const [banners, setBanners] = useState([]);
+  const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', link_url: '', sort_order: 0, active: true, image_url: '' });
+  const [uploadingBannerImg, setUploadingBannerImg] = useState(false);
+
   // ── Card Maker state ──────────────────────────────────
   const cardAvatarRef = useRef(null);
   const [cardForm, setCardForm] = useState({
@@ -95,6 +100,10 @@ export default function AdminPage() {
   const activeCustomTheme = cardForm.useCustomTheme ? buildCustomTheme(cardForm) : null;
   const activeBadge = cardForm.useCustomTheme && cardForm.badgeLabel ? cardForm.badgeLabel : null;
 
+  // ── Coupons state ─────────────────────────────────────
+  const [coupons, setCoupons] = useState([]);
+  const [couponForm, setCouponForm] = useState({ code: '', discount_percentage: 10, max_uses: '', expires_at: '' });
+
   // ── Field form state ──────────────────────────────────
   const [fieldForm, setFieldForm] = useState({
     name: '', area: '', address: '', field_rules: '', images: [],
@@ -105,8 +114,44 @@ export default function AdminPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates()]);
+    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates(), fetchBanners(), fetchCoupons()]);
     setLoading(false);
+  };
+
+  const fetchCoupons = async () => {
+    const { data } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
+    if (data) setCoupons(data);
+  };
+
+  const handleAddCoupon = async () => {
+    const code = couponForm.code.trim().toUpperCase();
+    if (!code || !couponForm.discount_percentage) { showError('Code and discount % are required.'); return; }
+    const payload = {
+      code,
+      discount_percentage: parseInt(couponForm.discount_percentage),
+      max_uses: couponForm.max_uses !== '' ? parseInt(couponForm.max_uses) : null,
+      expires_at: couponForm.expires_at || null,
+      is_active: true,
+    };
+    const { error } = await supabase.from('coupons').insert(payload);
+    if (error) { showError(error.message); return; }
+    showSuccess(`Coupon "${code}" created!`);
+    setCouponForm({ code: '', discount_percentage: 10, max_uses: '', expires_at: '' });
+    fetchCoupons();
+  };
+
+  const handleToggleCoupon = async (coupon) => {
+    const { error } = await supabase.from('coupons').update({ is_active: !coupon.is_active }).eq('id', coupon.id);
+    if (error) { showError(error.message); return; }
+    setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, is_active: !c.is_active } : c));
+  };
+
+  const handleDeleteCoupon = async (id) => {
+    if (!confirm('Delete this coupon?')) return;
+    const { error } = await supabase.from('coupons').delete().eq('id', id);
+    if (error) { showError(error.message); return; }
+    setCoupons(prev => prev.filter(c => c.id !== id));
+    showSuccess('Coupon deleted.');
   };
 
   const fetchFields = async () => {
@@ -132,6 +177,11 @@ export default function AdminPage() {
       .select('*')
       .order('created_at', { ascending: false });
     if (data) setSavedTemplates(data);
+  };
+
+  const fetchBanners = async () => {
+    const { data } = await supabase.from('banners').select('*').order('sort_order', { ascending: true });
+    if (data) setBanners(data);
   };
 
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
@@ -186,13 +236,18 @@ export default function AdminPage() {
 
   const handleUpdateField = async () => {
     if (!fieldForm.name || !fieldForm.area || !fieldForm.address) { showError('Fill in name, area and address.'); return; }
-    const { error } = await supabase.from('fields').update({
+    const { error, count } = await supabase.from('fields').update({
       name: fieldForm.name, area: fieldForm.area, address: fieldForm.address,
       field_rules: fieldForm.field_rules, images: fieldForm.images,
       has_toilet: fieldForm.has_toilet, has_parking: fieldForm.has_parking,
       has_shop: fieldForm.has_shop, has_shoe_rent: fieldForm.has_shoe_rent,
-    }).eq('id', editingField);
+    }, { count: 'exact' }).eq('id', editingField);
     if (error) { showError(error.message); return; }
+    if (count === 0) {
+      showError('Update blocked — your Supabase RLS policy is preventing this. Run the SQL fix below in your Supabase SQL editor.');
+      console.error('RLS FIX — run in Supabase SQL editor:\ncreate policy "Admins can update any field" on fields\n  for update using (\n    exists (select 1 from profiles where id = auth.uid() and is_admin = true)\n  );');
+      return;
+    }
     showSuccess('Field updated!'); setEditingField(null); resetFieldForm(); fetchFields();
   };
 
@@ -323,6 +378,50 @@ export default function AdminPage() {
     else { showSuccess('Template deleted.'); fetchTemplates(); }
   };
 
+  // ── Banner handlers ───────────────────────────────────
+  const handleBannerImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingBannerImg(true);
+    const ext = file.name.split('.').pop();
+    const fileName = `banner-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, file);
+    if (uploadError) { showError('Upload failed: ' + uploadError.message); setUploadingBannerImg(false); return; }
+    const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
+    setBannerForm(prev => ({ ...prev, image_url: data.publicUrl }));
+    setUploadingBannerImg(false);
+    e.target.value = '';
+  };
+
+  const handleAddBanner = async () => {
+    if (!bannerForm.image_url) { showError('Upload an image first.'); return; }
+    const { error } = await supabase.from('banners').insert({
+      image_url: bannerForm.image_url,
+      title: bannerForm.title || null,
+      subtitle: bannerForm.subtitle || null,
+      link_url: bannerForm.link_url || null,
+      sort_order: Number(bannerForm.sort_order) || 0,
+      active: bannerForm.active,
+    });
+    if (error) { showError(error.message); return; }
+    showSuccess('Banner added!');
+    setBannerForm({ title: '', subtitle: '', link_url: '', sort_order: 0, active: true, image_url: '' });
+    fetchBanners();
+  };
+
+  const handleToggleBanner = async (id, currentActive) => {
+    const { error } = await supabase.from('banners').update({ active: !currentActive }).eq('id', id);
+    if (error) { showError(error.message); return; }
+    fetchBanners();
+  };
+
+  const handleDeleteBanner = async (id) => {
+    if (!confirm('Delete this banner?')) return;
+    const { error } = await supabase.from('banners').delete().eq('id', id);
+    if (error) { showError(error.message); return; }
+    showSuccess('Banner deleted.'); fetchBanners();
+  };
+
   // ── Styles ────────────────────────────────────────────
   const labelStyle  = { fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' };
   const checkboxLabel = { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--text)', cursor: 'pointer' };
@@ -362,15 +461,17 @@ export default function AdminPage() {
   );
 
   const TABS = [
+    { key: 'banners',     label: 'Banners'     },
     { key: 'fields',      label: 'Fields'      },
     { key: 'backgrounds', label: 'Card BG'     },
     { key: 'cardmaker',   label: 'Card Maker'  },
+    { key: 'coupons',     label: 'Coupons'     },
   ];
 
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>
 
         <div className="fade-up" style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
@@ -396,6 +497,7 @@ export default function AdminPage() {
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
+            { label: 'Active Banners',       val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
             { label: 'Total Fields',       val: fields.length,    icon: <MdOutlineStadium /> },
             { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
             { label: 'Saved Card Templates', val: savedTemplates.length, icon: <MdSave size={24} color="var(--accent)" /> },
@@ -430,6 +532,139 @@ export default function AdminPage() {
             }}>{tab.label}</button>
           ))}
         </div>
+
+        {/* ── BANNERS TAB ── */}
+        {activeTab === 'banners' && (
+          <div>
+            {/* SQL setup note */}
+            <div style={{ background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>ONE-TIME SETUP</div>
+              <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.7, marginBottom: 8 }}>
+                If you haven't created the banners table yet, run this SQL in your Supabase SQL editor:
+              </p>
+              <code style={{ display: 'block', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: 'var(--text)', fontFamily: "'Space Mono'", lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{`create table banners (
+  id uuid default gen_random_uuid() primary key,
+  image_url text not null,
+  title text,
+  subtitle text,
+  link_url text,
+  active boolean default true,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+alter table banners enable row level security;
+create policy "Read banners" on banners for select using (true);
+create policy "Manage banners" on banners for all using (true);`}</code>
+            </div>
+
+            {/* Add banner form */}
+            <div style={sectionCard}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 20 }}>ADD NEW BANNER</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                <div>
+                  <label style={labelStyle}>BANNER IMAGE *</label>
+                  {bannerForm.image_url ? (
+                    <div style={{ position: 'relative', marginBottom: 4 }}>
+                      <img src={bannerForm.image_url} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', display: 'block' }} />
+                      <button onClick={() => setBannerForm(prev => ({ ...prev, image_url: '' }))}
+                        style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <IoClose size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div onClick={() => document.getElementById('banner-img-input').click()} style={{
+                      border: '2px dashed var(--border)', borderRadius: 10, padding: '28px',
+                      textAlign: 'center', cursor: 'pointer', background: 'var(--card2)',
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><IoCamera size={24} color="var(--muted)" /></div>
+                      <div style={{ fontSize: 13, color: 'var(--muted)' }}>{uploadingBannerImg ? 'Uploading...' : 'Click to upload banner image'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, opacity: 0.6 }}>Recommended: 16:5 ratio — e.g. 1600×500px</div>
+                    </div>
+                  )}
+                  <input id="banner-img-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBannerImageUpload} />
+                </div>
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>TITLE (optional)</label>
+                    <input placeholder="e.g. New Season Starting!" value={bannerForm.title}
+                      onChange={e => setBannerForm(prev => ({ ...prev, title: e.target.value }))} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>SUBTITLE (optional)</label>
+                    <input placeholder="e.g. Join a game today" value={bannerForm.subtitle}
+                      onChange={e => setBannerForm(prev => ({ ...prev, subtitle: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>LINK URL (optional)</label>
+                    <input placeholder="e.g. /subscription or https://..." value={bannerForm.link_url}
+                      onChange={e => setBannerForm(prev => ({ ...prev, link_url: e.target.value }))} />
+                  </div>
+                  <div style={{ flex: '0 0 100px' }}>
+                    <label style={labelStyle}>ORDER</label>
+                    <input type="number" min={0} value={bannerForm.sort_order}
+                      onChange={e => setBannerForm(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))} />
+                  </div>
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <div onClick={() => setBannerForm(prev => ({ ...prev, active: !prev.active }))}
+                    style={{ width: 38, height: 20, borderRadius: 10, background: bannerForm.active ? 'var(--accent)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                    <div style={{ position: 'absolute', top: 2, left: bannerForm.active ? 20 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--text)' }}>Active (show on homepage)</span>
+                </label>
+
+                <button onClick={handleAddBanner} style={{
+                  padding: '12px', background: 'var(--accent)', color: '#fff',
+                  border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                }}>+ Add Banner</button>
+              </div>
+            </div>
+
+            {/* Existing banners */}
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                All Banners ({banners.length})
+              </div>
+              {banners.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No banners yet.</div>
+              ) : banners.map((banner, i) => (
+                <div key={banner.id} style={{
+                  padding: '14px 20px',
+                  borderBottom: i < banners.length - 1 ? '1px solid var(--border)' : 'none',
+                  display: 'flex', alignItems: 'center', gap: 14,
+                }}>
+                  <img src={banner.image_url} alt="" style={{ width: 100, height: 36, objectFit: 'cover', borderRadius: 7, border: '1px solid var(--border)', flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{banner.title || '(no title)'}</div>
+                    {banner.subtitle && <div style={{ fontSize: 12, color: 'var(--muted)' }}>{banner.subtitle}</div>}
+                    {banner.link_url && <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: "'Space Mono'", marginTop: 2 }}>{banner.link_url}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, fontFamily: "'Space Mono'", color: 'var(--muted)' }}>#{banner.sort_order}</span>
+                    <div onClick={() => handleToggleBanner(banner.id, banner.active)}
+                      style={{ width: 38, height: 20, borderRadius: 10, background: banner.active ? 'var(--accent)' : 'var(--border)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: 2, left: banner.active ? 20 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                    </div>
+                    <button onClick={() => handleDeleteBanner(banner.id)} style={{
+                      background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+                      border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8,
+                      padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── FIELDS TAB ── */}
         {activeTab === 'fields' && (
@@ -1262,6 +1497,115 @@ export default function AdminPage() {
               )}
             </div>
 
+          </div>
+        )}
+
+        {/* ── COUPONS TAB ── */}
+        {activeTab === 'coupons' && (
+          <div>
+            {/* Create coupon form */}
+            <div style={sectionCard}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <LuTag size={18} /> CREATE COUPON
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>PROMO CODE *</label>
+                    <input
+                      placeholder="e.g. BOLAHH20"
+                      value={couponForm.code}
+                      onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
+                      style={{ textTransform: 'uppercase', letterSpacing: 1 }}
+                    />
+                  </div>
+                  <div style={{ flex: '0 0 140px' }}>
+                    <label style={labelStyle}>DISCOUNT % *</label>
+                    <input
+                      type="number" min={1} max={100} placeholder="e.g. 20"
+                      value={couponForm.discount_percentage}
+                      onChange={e => setCouponForm({ ...couponForm, discount_percentage: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>MAX USES (blank = unlimited)</label>
+                    <input
+                      type="number" min={1} placeholder="e.g. 100"
+                      value={couponForm.max_uses}
+                      onChange={e => setCouponForm({ ...couponForm, max_uses: e.target.value })}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>EXPIRES AT (optional)</label>
+                    <input
+                      type="datetime-local"
+                      value={couponForm.expires_at}
+                      onChange={e => setCouponForm({ ...couponForm, expires_at: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <button onClick={handleAddCoupon} style={{
+                  padding: '11px', background: 'var(--accent)', color: '#fff',
+                  border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  fontFamily: "'Bebas Neue'", letterSpacing: 1.5
+                }}>
+                  <LuTag size={15} /> CREATE COUPON
+                </button>
+              </div>
+            </div>
+
+            {/* Coupon list */}
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)' }}>
+                ALL COUPONS ({coupons.length})
+              </div>
+              {coupons.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No coupons yet.</div>
+              ) : coupons.map((coupon, i) => (
+                <div key={coupon.id} style={{
+                  padding: '14px 20px',
+                  borderBottom: i < coupons.length - 1 ? '1px solid var(--border)' : 'none',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                  opacity: coupon.is_active ? 1 : 0.5
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontFamily: "'Space Mono'", fontSize: 15, fontWeight: 700, color: 'var(--text)', letterSpacing: 1 }}>{coupon.code}</span>
+                      <span style={{
+                        background: 'rgba(240,157,81,0.12)', color: 'var(--accent)',
+                        border: '1px solid rgba(240,157,81,0.25)', borderRadius: 5,
+                        padding: '1px 8px', fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'"
+                      }}>{coupon.discount_percentage}% OFF</span>
+                      {!coupon.is_active && (
+                        <span style={{ background: 'rgba(100,100,100,0.15)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 5, padding: '1px 7px', fontSize: 10 }}>INACTIVE</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', gap: 14 }}>
+                      <span>Used: {coupon.uses_count}{coupon.max_uses ? ` / ${coupon.max_uses}` : ' (unlimited)'}</span>
+                      {coupon.expires_at && (
+                        <span>Expires: {new Date(coupon.expires_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button onClick={() => handleToggleCoupon(coupon)} style={{
+                      background: coupon.is_active ? 'rgba(74,222,128,0.1)' : 'var(--card2)',
+                      color: coupon.is_active ? '#4ade80' : 'var(--muted)',
+                      border: `1px solid ${coupon.is_active ? 'rgba(74,222,128,0.25)' : 'var(--border)'}`,
+                      borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600
+                    }}>{coupon.is_active ? 'Disable' : 'Enable'}</button>
+                    <button onClick={() => handleDeleteCoupon(coupon.id)} style={{
+                      background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+                      border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8,
+                      padding: '5px 12px', fontSize: 12, fontWeight: 600
+                    }}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

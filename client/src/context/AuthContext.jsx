@@ -12,7 +12,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) checkAdmin(session.user.id);
+      if (session?.user) checkAdmin(session.user.id, session.user.email);
       else setLoading(false);
     });
 
@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         setLoading(true);
-        checkAdmin(session.user.id);
+        checkAdmin(session.user.id, session.user.email);
       } else {
         setIsAdmin(false);
         setIsSuperAdmin(false);
@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkAdmin = async (userId) => {
+  const checkAdmin = async (userId, userEmail) => {
     const { data } = await supabase
       .from('profiles')
       .select('is_admin, name')
@@ -39,7 +39,9 @@ export function AuthProvider({ children }) {
       .single();
 
     setIsAdmin(data?.is_admin === true);
-    setIsSuperAdmin(data?.name === 'bolahhadmin');
+    // Cross-check with Supabase auth email to prevent name spoofing —
+    // users can freely edit profile.name but cannot change their auth email without verification.
+    setIsSuperAdmin(data?.name === 'bolahhadmin' && userEmail === import.meta.env.VITE_SUPER_ADMIN_EMAIL);
     setLoading(false);
   };
 

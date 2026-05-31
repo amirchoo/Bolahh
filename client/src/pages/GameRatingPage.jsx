@@ -403,7 +403,7 @@ export default function GameRatingPage() {
 
   if (notOwner) return (
     <div style={{ minHeight: '100vh' }}><Navbar />
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 760, margin: '0 auto', padding: '32px 24px' }}>
         <button onClick={() => navigate('/manager')} style={{ background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 16px', fontSize: 13, marginBottom: 24 }}>← Back</button>
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><IoRemoveCircle size={48} color="var(--red)" /></div>
@@ -422,7 +422,7 @@ export default function GameRatingPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Header */}
         <button onClick={() => navigate(`/game/${id}`)} style={{

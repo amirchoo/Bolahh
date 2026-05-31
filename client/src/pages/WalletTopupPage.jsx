@@ -159,7 +159,7 @@ export default function WalletTopupPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 480, margin: '0 auto', padding: '32px 24px' }}>
 
         <button onClick={() => navigate('/profile')} style={{
           background: 'transparent', color: 'var(--muted)',
