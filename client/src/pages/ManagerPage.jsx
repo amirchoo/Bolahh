@@ -11,6 +11,7 @@ import { FaPeopleGroup, FaLocationDot } from 'react-icons/fa6';
 import { LuMedal } from 'react-icons/lu';
 import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
+import GameRulesEditor from '../components/GameRulesEditor';
 
 
 
@@ -221,11 +222,11 @@ export default function ManagerPage() {
         <textarea placeholder="Tell players what to expect..." value={form.description}
           onChange={e => setForm({ ...form, description: e.target.value })} rows={3} style={{ resize: 'vertical' }} />
       </div>
-      <div>
-        <label style={labelStyle}>GAME RULES</label>
-        <textarea placeholder="e.g. No sliding tackles..." value={form.game_rules}
-          onChange={e => setForm({ ...form, game_rules: e.target.value })} rows={3} style={{ resize: 'vertical' }} />
-      </div>
+      <GameRulesEditor
+        value={form.game_rules}
+        format={form.format}
+        onChange={val => setForm({ ...form, game_rules: val })}
+      />
       <div>
         <label style={labelStyle}>SHOES TYPE</label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

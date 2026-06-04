@@ -14,6 +14,7 @@ import { FaLink } from "react-icons/fa";
 import { IoWallet, IoTimer, IoClose, IoCheckmark } from 'react-icons/io5';
 import { GiSoccerBall } from 'react-icons/gi';
 import { getRank, getRankColor } from '../lib/rankUtils';
+import GameRulesDisplay from '../components/GameRulesDisplay';
 
 export default function GameDetailPage() {
   const { id } = useParams();
@@ -594,12 +595,7 @@ export default function GameDetailPage() {
           </div>
         )}
 
-        {game.game_rules && (
-          <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-            <div style={sectionTitle}>GAME RULES</div>
-            <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.8, whiteSpace: 'pre-line', opacity: 0.8 }}>{game.game_rules}</p>
-          </div>
-        )}
+        <GameRulesDisplay gameRules={game.game_rules} format={game.format} />
 
         {field?.field_rules && (
           <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
