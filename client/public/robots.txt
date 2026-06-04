@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /game/*/checkout
+Disallow: /wallet/topup
+Disallow: /manager
+
+Sitemap: https://www.bolahh.com/sitemap.xml
