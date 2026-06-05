@@ -7,7 +7,7 @@ import { IconLoading } from '../components/Icons';
 import { clearCached } from '../lib/dataCache';
 import { LuRecycle, LuTag } from "react-icons/lu";
 import { MdOutlineCancel } from "react-icons/md";
-import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark, IoShieldCheckmark, IoPeople, IoHeart, IoAlertCircle, IoClose } from "react-icons/io5";
+import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark, IoShieldCheckmark, IoPeople, IoHeart, IoAlertCircle, IoClose, IoWallet } from "react-icons/io5";
 import { RiRefund2Line } from "react-icons/ri";
 import { LuPartyPopper } from 'react-icons/lu';
 import { GiSoccerBall } from 'react-icons/gi';
@@ -30,6 +30,8 @@ export default function GameCheckoutPage() {
   const [couponData, setCouponData] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState('');
+  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
+  const [insufficientShortfall, setInsufficientShortfall] = useState(0);
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -145,7 +147,8 @@ export default function GameCheckoutPage() {
     const freshBalance = freshProfile?.wallet_balance || 0;
 
     if (freshBalance < chargeAmount) {
-      setError('Insufficient wallet balance. Please top up first.');
+      setInsufficientShortfall(parseFloat((chargeAmount - freshBalance).toFixed(2)));
+      setShowInsufficientModal(true);
       setConfirming(false);
       return;
     }
@@ -383,6 +386,79 @@ export default function GameCheckoutPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
+
+      {showInsufficientModal && (
+        <div
+          onClick={e => e.target === e.currentTarget && setShowInsufficientModal(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)',
+            zIndex: 1000, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', padding: 16
+          }}
+        >
+          <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 360,
+            textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{
+              width: 68, height: 68, borderRadius: '50%',
+              background: 'rgba(224,62,26,0.1)', border: '1.5px solid rgba(224,62,26,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 18px',
+            }}>
+              <IoWallet size={30} color="#e03e1a" />
+            </div>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
+              INSUFFICIENT BALANCE
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 22 }}>
+              Your wallet doesn't have enough funds to pay for this game. Top up to continue.
+            </p>
+            <div style={{
+              background: 'var(--card2)', border: '1px solid var(--border)',
+              borderRadius: 14, padding: '16px 18px', marginBottom: 22, textAlign: 'left'
+            }}>
+              {[
+                { label: 'Your balance', value: `RM ${walletBalance.toFixed(2)}`, color: 'var(--text)' },
+                { label: 'Amount due', value: `RM ${(game.price - (couponData ? parseFloat((game.price * couponData.discount_percentage / 100).toFixed(2)) : 0)).toFixed(2)}`, color: 'var(--tomato)' },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 13 }}>
+                  <span style={{ color: 'var(--muted)' }}>{row.label}</span>
+                  <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: row.color }}>{row.value}</span>
+                </div>
+              ))}
+              <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 10px' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'var(--muted)' }}>You need</span>
+                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--red)' }}>+ RM {insufficientShortfall.toFixed(2)}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/wallet/topup')}
+              style={{
+                width: '100%', padding: '14px',
+                background: 'var(--accent)', color: '#fff', border: 'none',
+                borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: 'pointer',
+                fontFamily: "'Bebas Neue'", letterSpacing: 2, marginBottom: 10,
+                transition: 'opacity 0.15s'
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >TOPUP NOW</button>
+            <button
+              onClick={() => setShowInsufficientModal(false)}
+              style={{
+                width: '100%', padding: '12px',
+                background: 'transparent', color: 'var(--muted)',
+                border: '1px solid var(--border)', borderRadius: 12,
+                fontSize: 14, cursor: 'pointer'
+              }}
+            >Maybe Later</button>
+          </div>
+        </div>
+      )}
+
       <div className="page-wrap" style={{ maxWidth: 520, margin: '0 auto', padding: '32px 24px' }}>
 
         <button onClick={() => navigate(`/game/${id}`)} style={{

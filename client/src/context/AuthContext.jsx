@@ -8,13 +8,19 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [serverDown, setServerDown] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) checkAdmin(session.user.id, session.user.email);
-      else setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        if (session?.user) checkAdmin(session.user.id, session.user.email);
+        else setLoading(false);
+      })
+      .catch(() => {
+        setServerDown(true);
+        setLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -46,7 +52,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isSuperAdmin, loading }}>
+    <AuthContext.Provider value={{ user, isAdmin, isSuperAdmin, loading, serverDown }}>
       {!loading && children}
     </AuthContext.Provider>
   );
