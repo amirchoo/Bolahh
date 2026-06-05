@@ -21,6 +21,7 @@ import GuidePage from './pages/GuidePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import NotFoundPage from './pages/NotFoundPage';
+import ServerDownPage from './pages/ServerDownPage';
 import WIPBanner from './components/WIPBanner';
 
 function PrivateRoute({ children }) {
@@ -46,6 +47,9 @@ function SuperAdminRoute({ children }) {
 }
 
 function App() {
+  const { serverDown } = useAuth();
+  if (serverDown) return <ServerDownPage />;
+
   return (
     <BrowserRouter>
       <Routes>

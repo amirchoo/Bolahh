@@ -97,10 +97,6 @@ export default function GameDetailPage() {
 
   const handleJoinClick = () => {
     if (hasJoined || full || locked || !game) return;
-    if (walletBalance < game.price) {
-      setShowInsufficientModal(true);
-      return;
-    }
     navigate(`/game/${id}/checkout`);
   };
 
