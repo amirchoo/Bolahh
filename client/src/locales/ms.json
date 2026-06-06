@@ -127,6 +127,13 @@
     "createAccount": "Buat Akaun",
     "hasAccount": "Sudah ada akaun?",
     "signIn": "Log Masuk",
+    "continueButton": "Teruskan",
+    "checking": "Menyemak...",
+    "positionTitle": "POSISI ANDA",
+    "positionSubtitle": "Ketik zon di mana anda bermain di padang",
+    "positionSkip": "Langkau buat masa ini",
+    "aboutTitle": "TENTANG ANDA",
+    "aboutSubtitle": "Beberapa butiran lagi untuk permulaan",
     "positions": {
       "Attacker": "Penyerang",
       "Midfielder": "Pemain Tengah",

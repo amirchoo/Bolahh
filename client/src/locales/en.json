@@ -127,6 +127,13 @@
     "createAccount": "Create Account",
     "hasAccount": "Already have an account?",
     "signIn": "Sign in",
+    "continueButton": "Continue",
+    "checking": "Checking...",
+    "positionTitle": "YOUR POSITION",
+    "positionSubtitle": "Tap the zone where you play on the pitch",
+    "positionSkip": "Skip for now",
+    "aboutTitle": "ABOUT YOU",
+    "aboutSubtitle": "A few more details to get you started",
     "positions": {
       "Attacker": "Attacker",
       "Midfielder": "Midfielder",
