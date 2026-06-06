@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { useAuth } from './context/AuthContext';
 
@@ -46,12 +46,10 @@ function SuperAdminRoute({ children }) {
   return children;
 }
 
-function App() {
-  const { serverDown } = useAuth();
-  if (serverDown) return <ServerDownPage />;
-
+function AnimatedRoutes() {
+  const location = useLocation();
   return (
-    <BrowserRouter>
+    <div key={location.pathname} className="page-enter">
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -61,58 +59,29 @@ function App() {
         <Route path="/game/:id/checkout" element={<PrivateRoute><GameCheckoutPage /></PrivateRoute>} />
         <Route path="/game/:id/cancel" element={<PrivateRoute><GameCancelPage /></PrivateRoute>} />
         <Route path="/game/:id/summary" element={<PrivateRoute><GameSummaryPage /></PrivateRoute>} />
-        <Route path="/game/:id" element={
-  <PrivateRoute>
-    <GameDetailPage />
-  </PrivateRoute>
-} />
-        <Route path="/home" element={
-          <PrivateRoute>
-            <HomePage />
-          </PrivateRoute>
-        } />
-        <Route path="/profile" element={
-          <PrivateRoute>
-            <ProfilePage />
-          </PrivateRoute>
-        } />
-        <Route path="/game/:id/rate" element={
-          <AdminRoute>
-            <GameRatingPage />
-          </AdminRoute>
-        } />
-        <Route path="/manager" element={
-          <AdminRoute>
-            <ManagerPage />
-          </AdminRoute>
-        } />
-        <Route path="/admin" element={
-          <SuperAdminRoute>
-            <AdminPage />
-          </SuperAdminRoute>
-        } />
-        <Route path="/friends" element={
-          <PrivateRoute>
-            <FriendsPage />
-          </PrivateRoute>
-        } />
-        <Route path="/leaderboard" element={
-          <PrivateRoute>
-            <LeaderboardPage />
-          </PrivateRoute>
-        } />
-        <Route path="/guide" element={
-          <PrivateRoute>
-            <GuidePage />
-          </PrivateRoute>
-        } />
-        <Route path="/subscription" element={
-          <PrivateRoute>
-            <SubscriptionPage />
-          </PrivateRoute>
-        } />
+        <Route path="/game/:id" element={<PrivateRoute><GameDetailPage /></PrivateRoute>} />
+        <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+        <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+        <Route path="/game/:id/rate" element={<AdminRoute><GameRatingPage /></AdminRoute>} />
+        <Route path="/manager" element={<AdminRoute><ManagerPage /></AdminRoute>} />
+        <Route path="/admin" element={<SuperAdminRoute><AdminPage /></SuperAdminRoute>} />
+        <Route path="/friends" element={<PrivateRoute><FriendsPage /></PrivateRoute>} />
+        <Route path="/leaderboard" element={<PrivateRoute><LeaderboardPage /></PrivateRoute>} />
+        <Route path="/guide" element={<PrivateRoute><GuidePage /></PrivateRoute>} />
+        <Route path="/subscription" element={<PrivateRoute><SubscriptionPage /></PrivateRoute>} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+    </div>
+  );
+}
+
+function App() {
+  const { serverDown } = useAuth();
+  if (serverDown) return <ServerDownPage />;
+
+  return (
+    <BrowserRouter>
+      <AnimatedRoutes />
       <WIPBanner />
       <Analytics />
     </BrowserRouter>

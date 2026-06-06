@@ -94,6 +94,23 @@ button {
 .fade-up-2 { animation: fadeUp 0.45s 0.1s ease both; }
 .fade-up-3 { animation: fadeUp 0.45s 0.2s ease both; }
 
+@keyframes stepEnterForward {
+  from { opacity: 0; transform: translateX(22px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes stepEnterBack {
+  from { opacity: 0; transform: translateX(-22px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.step-forward { animation: stepEnterForward 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+.step-back    { animation: stepEnterBack    0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.page-enter { animation: pageFadeIn 0.25s ease both; }
+
 /* Add these input overrides */
 input, select, textarea {
   background: #1e2023 !important;
