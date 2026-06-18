@@ -26,8 +26,9 @@ import WIPBanner from './components/WIPBanner';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return null;
-  return user ? children : <Navigate to="/login" />;
+  return user ? children : <Navigate to="/login" state={{ from: location.pathname }} />;
 }
 
 function AdminRoute({ children }) {
@@ -60,7 +61,7 @@ function AnimatedRoutes() {
         <Route path="/game/:id/cancel" element={<PrivateRoute><GameCancelPage /></PrivateRoute>} />
         <Route path="/game/:id/summary" element={<PrivateRoute><GameSummaryPage /></PrivateRoute>} />
         <Route path="/game/:id" element={<PrivateRoute><GameDetailPage /></PrivateRoute>} />
-        <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
         <Route path="/game/:id/rate" element={<AdminRoute><GameRatingPage /></AdminRoute>} />
         <Route path="/manager" element={<AdminRoute><ManagerPage /></AdminRoute>} />
