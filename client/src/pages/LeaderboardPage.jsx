@@ -10,7 +10,7 @@ import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot, FaMedal } from 'react-icons/fa6';
 
-const AREAS = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
+const AREAS = ['All Areas', 'Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
 const POSITION_TABS = [
   { value: 'All',        label: 'ALL' },
   { value: 'Attacker',   label: 'ATK' },

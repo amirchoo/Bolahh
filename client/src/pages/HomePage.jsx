@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 
 
 
-const AREAS_EN = ['All Areas', 'Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
+const AREAS_EN = ['All Areas', 'Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
 const FORMATS_EN = ['All Formats', '5v5', '6v6'];
 
 

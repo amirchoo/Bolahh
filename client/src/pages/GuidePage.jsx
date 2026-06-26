@@ -237,7 +237,7 @@ export default function GuidePage() {
               {
                 icon: <FaLocationDot size={18} />,
                 title: 'Filter by Area',
-                desc: 'Narrow the board to players from your area. Subang, Petaling Jaya, KL, Shah Alam, Cheras, Ampang, and more.',
+                desc: 'Narrow the board to players from your area. Kuala Lumpur, Petaling Jaya, Subang, Shah Alam, and Ansan.',
                 color: 'var(--accent)',
               },
               {

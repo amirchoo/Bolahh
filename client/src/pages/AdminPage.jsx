@@ -13,7 +13,7 @@ import FifaCard, { buildCustomTheme, getCardTheme, POSITION_ABBR, STATS, STICKER
 import { drawCardImage } from '../lib/cardCanvas';
 import { RANKS, getRankColor } from '../lib/rankUtils';
 
-const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
+const AREAS = ['Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
 
 const DEFAULT_DESIGN = {
   gradFrom: '#b8860b', gradMid: '#ffd700', gradTo: '#b8860b',
