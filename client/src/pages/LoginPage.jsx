@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { AiFillEyeInvisible as IconEyeHide, AiFillEye as IconEyeShow } from 'react-icons/ai';
 import { IoMail } from 'react-icons/io5';
@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from;
   const { t } = useTranslation();
   const [form, setForm] = useState({ identifier: '', password: '' });
   const [error, setError] = useState('');
@@ -51,7 +53,7 @@ export default function LoginPage() {
       }
       setLoading(false);
     } else {
-      navigate(identifier.toLowerCase() === 'bolahhadmin' ? '/admin' : '/home');
+      navigate(identifier.toLowerCase() === 'bolahhadmin' ? '/admin' : (from || '/home'));
     }
   };
 

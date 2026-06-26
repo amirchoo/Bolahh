@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import PlayerAvatar from '../components/PlayerAvatar';
+import StatChips from '../components/StatChips';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
 import { IoClose } from 'react-icons/io5';
@@ -26,44 +28,6 @@ const STAT_KEYS = [
 const calcAwardPoints = (r) =>
   STAT_KEYS.reduce((sum, { key, weight }) => sum + (r[key] || 0) * weight, 0);
 
-function StatChips({ rating, size = 'md' }) {
-  const active = STAT_KEYS.filter(({ key }) => (rating[key] || 0) > 0);
-  if (!active.length) return null;
-  const pad = size === 'sm' ? '1px 5px' : '2px 7px';
-  const fontSize = size === 'sm' ? 9 : 10;
-  return (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-      {active.map(({ key, label, color }) => (
-        <span key={key} style={{
-          background: `${color}15`, border: `1px solid ${color}38`,
-          borderRadius: 5, padding: pad,
-          fontSize, fontFamily: "'Space Mono'", color, fontWeight: 700,
-        }}>
-          {label}+{rating[key]}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function PlayerAvatar({ profile, size, borderColor }) {
-  const name = profile?.name || '?';
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%', flexShrink: 0,
-      border: `2px solid ${borderColor}`,
-      overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--card)',
-    }}>
-      {profile?.avatar_url
-        ? <img src={profile.avatar_url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ fontFamily: "'Space Mono'", fontSize: Math.round(size * 0.3), fontWeight: 700, color: borderColor }}>
-            {name.slice(0, 2).toUpperCase()}
-          </span>
-      }
-    </div>
-  );
-}
 
 function AwardPopup({ position, profile, points, rating, onClose }) {
   const meta = POSITION_META[position];

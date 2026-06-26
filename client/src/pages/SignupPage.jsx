@@ -148,7 +148,7 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const genders = ['Male', 'Female', 'Rather not say'];
-  const areas = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
+  const areas = ['Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
 
   const advance = () => { setStepDir('forward'); setStep(s => s + 1); };
   const goBack  = () => { setError(''); setStepDir('back'); setStep(s => s - 1); };;

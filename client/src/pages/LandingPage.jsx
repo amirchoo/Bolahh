@@ -399,6 +399,21 @@ export default function LandingPage() {
               }}>{t('landing.hero.howItWorks')}</button>
             </div>
 
+            <button
+              className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 cta-btn`}
+              onClick={() => navigate('/home')}
+              style={{
+                background: 'none', border: 'none', padding: '10px 0 0',
+                color: 'rgba(232,233,235,0.45)', fontSize: 13, fontFamily: "'DM Sans'",
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = '#F09D51'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(232,233,235,0.45)'}
+            >
+              <span></span> Click to browse games near you now!
+            </button>
+
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-4 hero-stats`} style={{ display: 'flex', gap: 32, marginTop: 40 }}>
               {[
                 [heroStats.courts === null ? '—' : heroStats.courts, t('landing.stats.courts')],

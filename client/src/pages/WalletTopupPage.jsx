@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IoCheckmark, IoClose, IoLockClosed } from 'react-icons/io5';
 
-const TOPUP_OPTIONS = [5, 10, 20, 30, 50, 100];
+const TOPUP_OPTIONS = [5, 10, 15, 30, 50, 100];
 
 export default function WalletTopupPage() {
   const navigate = useNavigate();

@@ -14,7 +14,7 @@ import FifaCard, { calcOverall } from '../components/FifaCard';
 import { useTranslation } from 'react-i18next';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
-const AREAS = ['Subang', 'Petaling Jaya', 'KL', 'Shah Alam', 'Cheras', 'Ampang', 'Ansan'];
+const AREAS = ['Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
 const GENDERS = ['Male', 'Female', 'Rather not say'];
 
 export default function ProfilePage() {

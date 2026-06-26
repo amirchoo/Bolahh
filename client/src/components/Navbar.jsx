@@ -95,7 +95,7 @@ export default function Navbar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
 
           {/* Desktop nav items */}
-          {desktopNavItems.map(({ path, label, icon }) => (
+          {user && desktopNavItems.map(({ path, label, icon }) => (
             <button
               key={path}
               className="top-nav-item"
@@ -169,27 +169,53 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Logout — always visible, icon-only on mobile */}
-          <button
-            onClick={handleLogout}
-            style={{
-              background: 'transparent',
-              color: 'var(--muted)',
-              border: '1px solid var(--border)',
-              borderRadius: 8, padding: '6px 10px',
-              display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: 13, fontWeight: 500,
-              transition: 'all 0.15s', whiteSpace: 'nowrap', cursor: 'pointer',
-            }}
-          >
-            <IconLogout size={18} />
-            <span className="nav-label">{t('navbar.logout')}</span>
-          </button>
+          {user ? (
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'transparent',
+                color: 'var(--muted)',
+                border: '1px solid var(--border)',
+                borderRadius: 8, padding: '6px 10px',
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 13, fontWeight: 500,
+                transition: 'all 0.15s', whiteSpace: 'nowrap', cursor: 'pointer',
+              }}
+            >
+              <IconLogout size={18} />
+              <span className="nav-label">{t('navbar.logout')}</span>
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => navigate('/login')}
+                style={{
+                  background: 'transparent', color: 'var(--muted)',
+                  border: '1px solid var(--border)', borderRadius: 8,
+                  padding: '6px 14px', fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                }}
+              >
+                {t('navbar.login', 'Login')}
+              </button>
+              <button
+                onClick={() => navigate('/signup')}
+                style={{
+                  background: 'var(--accent)', color: '#fff',
+                  border: '1px solid var(--accent)', borderRadius: 8,
+                  padding: '6px 14px', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                }}
+              >
+                {t('navbar.signup', 'Sign Up')}
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
-      {/* Mobile bottom tab bar */}
-      <nav
+      {/* Mobile bottom tab bar — only for logged-in users */}
+      {user && <nav
         className="mobile-bottom-nav"
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
@@ -219,7 +245,7 @@ export default function Navbar() {
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.2 }}>{label}</span>
           </button>
         ))}
-      </nav>
+      </nav>}
     </>
   );
 }
