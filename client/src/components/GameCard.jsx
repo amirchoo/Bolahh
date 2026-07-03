@@ -35,43 +35,88 @@ export default function GameCard({ game }) {
   const [gy, gm, gd] = game.date.split('-').map(Number);
   const [gh, gmin] = (game.time || '00:00').split(':').map(Number);
   const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
-  const locked = now >= new Date(gameStart.getTime() - 10 * 60 * 1000);
+  const lockoutStart = new Date(gameStart.getTime() - 10 * 60 * 1000);
+  const gameEnd = new Date(gameStart.getTime() + 2 * 60 * 60 * 1000);
 
-  const disabled = full || locked;
+  const timedOut = now >= lockoutStart && now < gameStart;
+  const ongoing  = now >= gameStart && now < gameEnd;
+  const ended    = now >= gameEnd;
+
+  // Cards are clickable once game has started (ongoing/ended); blocked only during 10-min window or if full+not started
+  const clickable = (ongoing || ended) || (!timedOut && !full);
 
   const handleClick = () => {
-    if (full) return;
+    if (!clickable) return;
     if (!user) { navigate('/login', { state: { from: `/game/${game.id}` } }); return; }
     navigate(`/game/${game.id}`);
   };
+
+  // Overlay shown on cover image
+  let overlayText = null;
+  let overlayColor = 'var(--red)';
+  if (timedOut) { overlayText = t('home.timeOut'); overlayColor = 'var(--red)'; }
+  else if (ongoing) { overlayText = t('home.ongoing'); overlayColor = '#4ade80'; }
+  else if (ended) { overlayText = t('home.gameEnded'); overlayColor = 'var(--accent)'; }
+  else if (full) { overlayText = t('home.full'); overlayColor = 'var(--red)'; }
+
+  // Bottom status dot + label
+  let statusLabel, statusColor, statusDot;
+  if (timedOut) {
+    statusLabel = t('home.timeOutLabel'); statusColor = 'var(--red)'; statusDot = 'var(--red)';
+  } else if (ongoing) {
+    statusLabel = t('home.ongoingLabel'); statusColor = '#4ade80'; statusDot = '#4ade80';
+  } else if (ended) {
+    statusLabel = t('home.gameEndedLabel'); statusColor = 'var(--accent)'; statusDot = 'var(--accent)';
+  } else if (full) {
+    statusLabel = t('home.gameFullLabel'); statusColor = 'var(--red)'; statusDot = 'var(--red)';
+  } else {
+    statusColor = open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : 'var(--text)';
+    statusDot = open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : '#ffffff';
+    statusLabel = t('home.slotsLeft', { count: open });
+  }
+
+  const dimmed = timedOut || (full && !ongoing && !ended);
 
   return (
     <div
       onClick={handleClick}
       style={{
-        background: disabled ? 'var(--card2)' : 'var(--card)',
+        background: dimmed ? 'var(--card2)' : 'var(--card)',
         border: '1px solid var(--border)',
         borderRadius: 16, overflow: 'hidden',
-        opacity: disabled ? 0.65 : 1,
+        opacity: dimmed ? 0.65 : 1,
         transition: 'border-color 0.2s, transform 0.15s',
-        cursor: full ? 'not-allowed' : 'pointer',
+        cursor: clickable ? 'pointer' : 'not-allowed',
       }}
-      onMouseEnter={e => { if (!full) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+      onMouseEnter={e => { if (clickable) { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)'; }}
     >
       {coverImage && (
         <div style={{ width: '100%', height: 140, overflow: 'hidden', position: 'relative' }}>
           <img src={coverImage} alt={game.fields?.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          {disabled && (
+          {overlayText && (
             <div style={{
               position: 'absolute', inset: 0,
-              background: 'rgba(0,0,0,0.45)',
+              background: 'rgba(0,0,0,0.50)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 3, color: 'var(--red)',
+              fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 3,
+              color: overlayColor,
             }}>
-              {locked ? t('home.timeOut') : t('home.full')}
+              {overlayText}
             </div>
           )}
+        </div>
+      )}
+
+      {/* No-image fallback overlay */}
+      {!coverImage && overlayText && (
+        <div style={{
+          background: 'var(--card2)', borderBottom: '1px solid var(--border)',
+          padding: '8px 0', textAlign: 'center',
+          fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 3,
+          color: overlayColor,
+        }}>
+          {overlayText}
         </div>
       )}
 
@@ -79,6 +124,9 @@ export default function GameCard({ game }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2, color: 'var(--text)' }}>{game.fields?.name}</div>
+            {game.court && (
+              <div style={{ color: 'var(--accent)', fontSize: 12, fontFamily: "'Space Mono'", marginBottom: 2 }}>{t('home.court', { court: game.court })}</div>
+            )}
             <div style={{ color: 'var(--text)', fontSize: 13, opacity: 0.6 }}>{game.title}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -107,7 +155,8 @@ export default function GameCard({ game }) {
           ))}
         </div>
 
-        {!locked && (
+        {/* Slot progress bar — only when game hasn't started */}
+        {!timedOut && !ongoing && !ended && (
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>
               <span>{playerCount}/{game.slots} {t('home.players')}</span>
@@ -123,16 +172,24 @@ export default function GameCard({ game }) {
           paddingTop: 12, borderTop: '1px solid var(--border)',
         }}>
           <span style={{
-            fontSize: 12, fontWeight: disabled ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6,
-            color: disabled ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : 'var(--text)',
+            fontSize: 12, fontWeight: (timedOut || ongoing || ended || full) ? 600 : 400,
+            display: 'flex', alignItems: 'center', gap: 6,
+            color: statusColor,
           }}>
             <span style={{
               width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-              background: disabled ? 'var(--red)' : open <= 5 ? 'var(--red)' : open <= 10 ? 'var(--accent)' : '#ffffff',
+              background: statusDot,
+              ...(ongoing ? { animation: 'pulse 1.8s ease-in-out infinite' } : {}),
             }} />
-            {locked ? t('home.timeOutLabel') : full ? t('home.gameFullLabel') : t('home.slotsLeft', { count: open })}
+            {statusLabel}
           </span>
-          {!full && (
+
+          {(ongoing || ended) && (
+            <span style={{ fontSize: 13, color: ongoing ? '#4ade80' : 'var(--accent)', fontWeight: 600 }}>
+              {ended ? t('home.viewSummary') : t('home.viewMatch')}
+            </span>
+          )}
+          {!timedOut && !ongoing && !ended && !full && (
             <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
               {t('home.viewDetails')}
             </span>

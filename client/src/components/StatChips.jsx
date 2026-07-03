@@ -15,7 +15,7 @@ const STAT_KEYS = [
 ];
 
 export default function StatChips({ rating, size = 'md' }) {
-  const active = STAT_KEYS.filter(({ key }) => (rating[key] || 0) > 0);
+  const active = STAT_KEYS.filter(({ key }) => (rating[key] || 0) !== 0);
   if (!active.length) return null;
 
   const pad = size === 'sm' ? '1px 5px' : '2px 7px';
@@ -23,15 +23,19 @@ export default function StatChips({ rating, size = 'md' }) {
 
   return (
     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-      {active.map(({ key, label, color }) => (
-        <span key={key} style={{
-          background: `${color}15`, border: `1px solid ${color}38`,
-          borderRadius: 5, padding: pad,
-          fontSize, fontFamily: "'Space Mono'", color, fontWeight: 700,
-        }}>
-          {label}+{rating[key]}
-        </span>
-      ))}
+      {active.map(({ key, label, color }) => {
+        const val = rating[key] || 0;
+        return (
+          <span key={key} style={{
+            background: `${color}15`, border: `1px solid ${color}38`,
+            borderRadius: 5, padding: pad,
+            fontSize, fontFamily: "'Space Mono'", color, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', gap: 2,
+          }}>
+            {label}
+          </span>
+        );
+      })}
     </div>
   );
 }

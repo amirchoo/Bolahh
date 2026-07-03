@@ -5,7 +5,7 @@ import { getCached, setCached, clearCached } from '../lib/dataCache';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct } from 'react-icons/io5';
-import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
+import { GiSoccerBall, GiTrophy, GiRunningShoe } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
 const MOTM_META = {
@@ -15,8 +15,8 @@ const MOTM_META = {
 };
 
 const CARD_STATS = [
-  { key: 'goals',              label: 'SHO', color: '#f87171' },
-  { key: 'assists',            label: 'PAS', color: '#4ade80' },
+  { key: 'shooting_quality',   label: 'SHO', color: '#f87171' },
+  { key: 'passing_quality',    label: 'PAS', color: '#4ade80' },
   { key: 'successful_dribble', label: 'DRI', color: '#F09D51' },
   { key: 'good_defending',     label: 'DEF', color: '#a78bfa' },
   { key: 'good_keeping',       label: 'PHY', color: '#34d399' },
@@ -24,8 +24,9 @@ const CARD_STATS = [
 ];
 
 const defaultStats = () => ({
-  goals: 0, assists: 0, good_defending: 0,
-  good_keeping: 0, successful_dribble: 0, good_chance: 0,
+  shooting_quality: 0, passing_quality: 0,
+  good_defending: 0, good_keeping: 0,
+  successful_dribble: 0, good_chance: 0,
 });
 
 // Base 3-team rotation (1 round)
@@ -82,16 +83,16 @@ const MOCK_PROFILES = {
   p10: { id:'p10', name:'Zulhilmi',     avatar_url: null, total_points: 71, games_played: 24 },
 };
 const MOCK_BASE_TAPS = {
-  p1:  { goals: 22, assists: 14, good_defending: 8,  good_keeping: 5,  successful_dribble: 17, good_chance: 12 },
-  p2:  { goals: 14, assists: 18, good_defending: 6,  good_keeping: 3,  successful_dribble: 9,  good_chance: 10 },
-  p3:  { goals: 11, assists: 10, good_defending: 12, good_keeping: 4,  successful_dribble: 7,  good_chance: 8  },
-  p4:  { goals: 33, assists: 22, good_defending: 15, good_keeping: 9,  successful_dribble: 24, good_chance: 20 },
-  p5:  { goals: 3,  assists: 4,  good_defending: 2,  good_keeping: 1,  successful_dribble: 4,  good_chance: 3  },
-  p6:  { goals: 18, assists: 12, good_defending: 9,  good_keeping: 6,  successful_dribble: 13, good_chance: 11 },
-  p7:  { goals: 7,  assists: 9,  good_defending: 4,  good_keeping: 2,  successful_dribble: 6,  good_chance: 5  },
-  p8:  { goals: 26, assists: 16, good_defending: 11, good_keeping: 7,  successful_dribble: 19, good_chance: 14 },
-  p9:  { goals: 1,  assists: 2,  good_defending: 1,  good_keeping: 0,  successful_dribble: 2,  good_chance: 1  },
-  p10: { goals: 41, assists: 28, good_defending: 18, good_keeping: 12, successful_dribble: 31, good_chance: 25 },
+  p1:  { shooting_quality: 22, passing_quality: 14, good_defending: 8,  good_keeping: 5,  successful_dribble: 17, good_chance: 12 },
+  p2:  { shooting_quality: 14, passing_quality: 18, good_defending: 6,  good_keeping: 3,  successful_dribble: 9,  good_chance: 10 },
+  p3:  { shooting_quality: 11, passing_quality: 10, good_defending: 12, good_keeping: 4,  successful_dribble: 7,  good_chance: 8  },
+  p4:  { shooting_quality: 33, passing_quality: 22, good_defending: 15, good_keeping: 9,  successful_dribble: 24, good_chance: 20 },
+  p5:  { shooting_quality: 3,  passing_quality: 4,  good_defending: 2,  good_keeping: 1,  successful_dribble: 4,  good_chance: 3  },
+  p6:  { shooting_quality: 18, passing_quality: 12, good_defending: 9,  good_keeping: 6,  successful_dribble: 13, good_chance: 11 },
+  p7:  { shooting_quality: 7,  passing_quality: 9,  good_defending: 4,  good_keeping: 2,  successful_dribble: 6,  good_chance: 5  },
+  p8:  { shooting_quality: 26, passing_quality: 16, good_defending: 11, good_keeping: 7,  successful_dribble: 19, good_chance: 14 },
+  p9:  { shooting_quality: 1,  passing_quality: 2,  good_defending: 1,  good_keeping: 0,  successful_dribble: 2,  good_chance: 1  },
+  p10: { shooting_quality: 41, passing_quality: 28, good_defending: 18, good_keeping: 12, successful_dribble: 31, good_chance: 25 },
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ export default function GameRatingPage() {
   const [alreadyRated, setAlreadyRated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [motmPlayers, setMotmPlayers] = useState([]);
+  const [goalAssist, setGoalAssist] = useState({});
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -149,8 +151,14 @@ export default function GameRatingPage() {
   // Persist progress to localStorage so a phone screen-off / tab refresh doesn't lose work
   useEffect(() => {
     if (loading || isPreview) return;
-    localStorage.setItem(storageKey, JSON.stringify({ step, duration, teamMode, teamAssign, ratings, currentMatch, motmPlayers }));
-  }, [step, duration, teamMode, teamAssign, ratings, currentMatch, loading]);
+    localStorage.setItem(storageKey, JSON.stringify({ step, duration, teamMode, teamAssign, ratings, currentMatch, motmPlayers, goalAssist }));
+  }, [step, duration, teamMode, teamAssign, ratings, currentMatch, loading, goalAssist]);
+
+  // Persist goal/assist separately so summary page can read it even before submit
+  useEffect(() => {
+    if (loading || isPreview) return;
+    localStorage.setItem(`bolahh_goal_assist_${id}`, JSON.stringify(goalAssist));
+  }, [goalAssist, loading]);
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -197,8 +205,8 @@ export default function GameRatingPage() {
     userIds.forEach(uid => {
       const cs = profileMap[uid]?.card_stats || {};
       baseMap[uid] = {
-        goals:              Math.max(0, (cs.sho || 30) - 30),
-        assists:            Math.max(0, (cs.pas || 30) - 30),
+        shooting_quality:   Math.max(0, (cs.sho || 30) - 30),
+        passing_quality:    Math.max(0, (cs.pas || 30) - 30),
         good_defending:     Math.max(0, (cs.def || 30) - 30),
         good_keeping:       Math.max(0, (cs.phy || 30) - 30),
         successful_dribble: Math.max(0, (cs.dri || 30) - 30),
@@ -235,6 +243,7 @@ export default function GameRatingPage() {
         if (p.ratings)           setRatings(p.ratings);
         if (p.currentMatch != null) setCurrentMatch(p.currentMatch);
         if (p.motmPlayers)       setMotmPlayers(p.motmPlayers);
+        if (p.goalAssist)        setGoalAssist(p.goalAssist);
       }
     } catch {}
 
@@ -317,6 +326,13 @@ export default function GameRatingPage() {
     }));
   };
 
+  const updateGoalAssist = (uid, type, delta) => {
+    setGoalAssist(prev => {
+      const curr = prev[uid] || { goals: 0, assists: 0 };
+      return { ...prev, [uid]: { ...curr, [type]: Math.max(0, (curr[type] || 0) + delta) } };
+    });
+  };
+
   const toggleMotm = (uid) => {
     setMotmPlayers(prev => {
       if (prev.includes(uid)) return prev.filter(id => id !== uid);
@@ -335,8 +351,8 @@ export default function GameRatingPage() {
         const stats = ratings[uid] || defaultStats();
         const base  = baseRatings[uid] || defaultStats();
 
-        const d_sho = (stats.goals              || 0) - (base.goals              || 0);
-        const d_pas = (stats.assists            || 0) - (base.assists            || 0);
+        const d_sho = (stats.shooting_quality   || 0) - (base.shooting_quality   || 0);
+        const d_pas = (stats.passing_quality    || 0) - (base.passing_quality    || 0);
         const d_def = (stats.good_defending     || 0) - (base.good_defending     || 0);
         const d_phy = (stats.good_keeping       || 0) - (base.good_keeping       || 0);
         const d_dri = (stats.successful_dribble || 0) - (base.successful_dribble || 0);
@@ -346,12 +362,14 @@ export default function GameRatingPage() {
           game_id: id,
           user_id: uid,
           rated_by: currentUser.id,
-          goals:              d_sho,
-          assists:            d_pas,
-          good_defending:     d_def,
-          good_keeping:       d_phy,
+          goals:             goalAssist[uid]?.goals   || 0,
+          assists:           goalAssist[uid]?.assists || 0,
+          shooting_quality:  d_sho,
+          passing_quality:   d_pas,
+          good_defending:    d_def,
+          good_keeping:      d_phy,
           successful_dribble: d_dri,
-          good_chance:        d_pac,
+          good_chance:       d_pac,
           good_manner: 0,
           admin_bonus: motmPlayers.indexOf(uid) >= 0 ? motmPlayers.indexOf(uid) + 1 : 0,
           total_points: 0,
@@ -812,6 +830,42 @@ export default function GameRatingPage() {
                                 {totalDelta > 0 ? `+${totalDelta}` : totalDelta} this game
                               </div>
                             )}
+                          </div>
+
+                          {/* Goal / Assist counters */}
+                          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                            {[
+                              { type: 'goals',   label: 'GOAL',   icon: <GiSoccerBall size={13} />, color: '#F09D51', bg: 'rgba(240,157,81,0.12)', border: 'rgba(240,157,81,0.35)' },
+                              { type: 'assists', label: 'ASSIST', icon: <GiRunningShoe size={13} />, color: '#4ade80', bg: 'rgba(74,222,128,0.12)',  border: 'rgba(74,222,128,0.35)' },
+                            ].map(({ type, label, icon, color, bg, border }) => {
+                              const count = goalAssist[uid]?.[type] || 0;
+                              return (
+                                <div key={type} style={{
+                                  flex: 1, display: 'flex', alignItems: 'center', gap: 4,
+                                  background: count > 0 ? bg : 'var(--card2)',
+                                  border: `1px solid ${count > 0 ? border : 'var(--border)'}`,
+                                  borderRadius: 8, padding: '4px 6px',
+                                  transition: 'all 0.12s',
+                                }}>
+                                  <span style={{ color: count > 0 ? color : 'var(--muted)' }}>{icon}</span>
+                                  <span style={{ fontSize: 9, color: count > 0 ? color : 'var(--muted)', fontWeight: 700, letterSpacing: 0.5, flex: 1 }}>{label}</span>
+                                  <button type="button" onClick={() => updateGoalAssist(uid, type, -1)} style={{
+                                    background: 'none', border: 'none', cursor: count > 0 ? 'pointer' : 'default',
+                                    color: count > 0 ? '#f87171' : 'var(--border)', fontSize: 13, fontWeight: 700,
+                                    padding: '0 2px', lineHeight: 1, opacity: count > 0 ? 1 : 0.25,
+                                  }}>−</button>
+                                  <span style={{
+                                    fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700,
+                                    color: count > 0 ? color : 'var(--muted)', minWidth: 14, textAlign: 'center',
+                                  }}>{count}</span>
+                                  <button type="button" onClick={() => updateGoalAssist(uid, type, 1)} style={{
+                                    background: 'none', border: 'none', cursor: 'pointer',
+                                    color: '#4ade80', fontSize: 13, fontWeight: 700,
+                                    padding: '0 2px', lineHeight: 1,
+                                  }}>+</button>
+                                </div>
+                              );
+                            })}
                           </div>
 
                           {/* 6 stat pads — 3×2 grid with [−] VALUE [+] */}
