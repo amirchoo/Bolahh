@@ -17,6 +17,7 @@ import WalletTopupPage from './pages/WalletTopupPage';
 import GameCheckoutPage from './pages/GameCheckoutPage';
 import GameCancelPage from './pages/GameCancelPage';
 import GameSummaryPage from './pages/GameSummaryPage';
+import BallerInfoPage from './pages/BallerInfoPage';
 import GuidePage from './pages/GuidePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -69,6 +70,7 @@ function AnimatedRoutes() {
         <Route path="/friends" element={<PrivateRoute><FriendsPage /></PrivateRoute>} />
         <Route path="/leaderboard" element={<PrivateRoute><LeaderboardPage /></PrivateRoute>} />
         <Route path="/guide" element={<PrivateRoute><GuidePage /></PrivateRoute>} />
+        <Route path="/baller-info" element={<PrivateRoute><BallerInfoPage /></PrivateRoute>} />
         <Route path="/subscription" element={<PrivateRoute><SubscriptionPage /></PrivateRoute>} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

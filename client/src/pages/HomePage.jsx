@@ -249,6 +249,39 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Area request callout */}
+        <div style={{
+          marginTop: 40, borderRadius: 16,
+          background: 'linear-gradient(135deg, rgba(240,157,81,0.08) 0%, rgba(240,157,81,0.03) 100%)',
+          border: '1px solid rgba(240,157,81,0.2)',
+          padding: '24px 28px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 16,
+        }}>
+          <div>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>
+              CAN'T FIND YOUR AREA?
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+              Request now and Bolahh will work on coming to your place!
+            </p>
+          </div>
+          <a
+            href="https://forms.gle/smaxnmagtw6awKsX8"
+            style={{
+              flexShrink: 0,
+              background: 'var(--accent)', color: '#fff',
+              border: 'none', borderRadius: 10,
+              padding: '11px 22px', fontSize: 13,
+              fontFamily: "'Bebas Neue'", letterSpacing: 2,
+              cursor: 'pointer', textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            REQUEST NOW
+          </a>
+        </div>
+
         <HomeFooter />
       </div>
     </div>

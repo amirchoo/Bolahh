@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 import { IconLoading } from '../components/Icons';
 import { clearCached } from '../lib/dataCache';
 import { LuRecycle, LuTag } from "react-icons/lu";
-import { MdOutlineCancel } from "react-icons/md";
+import { MdOutlineCancel, MdOutlineStadium } from "react-icons/md";
 import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark, IoShieldCheckmark, IoPeople, IoHeart, IoAlertCircle, IoClose, IoWallet } from "react-icons/io5";
 import { RiRefund2Line } from "react-icons/ri";
 import { LuPartyPopper } from 'react-icons/lu';
@@ -488,6 +488,7 @@ export default function GameCheckoutPage() {
               { icon: <IoCalendar size={11} />, text: formatDate(game.date) },
               { icon: <IoTime size={11} />, text: formatTime(game.time) },
               { icon: <GiSoccerBall size={11} />, text: game.format },
+              ...(game.court ? [{ icon: <MdOutlineStadium size={11} />, text: `Court ${game.court}` }] : []),
             ].map((item, i) => (
               <span key={i} style={{
                 background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)',

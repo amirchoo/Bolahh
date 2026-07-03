@@ -33,13 +33,13 @@ export default function ManagerPage() {
 
   const [gameForm, setGameForm] = useState({
     title: '', field_id: '', area: '', format: '5v5',
-    date: '', time: '', slots: 10, price: '',
+    date: '', time: '', slots: 10, price: '', court: '',
     description: '', game_rules: '', shoes_type: []
   });
 
   const [editGameForm, setEditGameForm] = useState({
     title: '', field_id: '', area: '', format: '5v5',
-    date: '', time: '', slots: 10, price: '',
+    date: '', time: '', slots: 10, price: '', court: '',
     description: '', game_rules: '', shoes_type: []
   });
 
@@ -87,13 +87,13 @@ export default function ManagerPage() {
 
   const resetGameForm = () => setGameForm({
     title: '', field_id: '', area: '', format: '5v5',
-    date: '', time: '', slots: 10, price: '',
+    date: '', time: '', slots: 10, price: '', court: '',
     description: '', game_rules: '', shoes_type: []
   });
 
   const resetEditGameForm = () => setEditGameForm({
     title: '', field_id: '', area: '', format: '5v5',
-    date: '', time: '', slots: 10, price: '',
+    date: '', time: '', slots: 10, price: '', court: '',
     description: '', game_rules: '', shoes_type: []
   });
 
@@ -106,6 +106,7 @@ export default function ManagerPage() {
       title: gameForm.title, field_id: gameForm.field_id, area: gameForm.area,
       format: gameForm.format, date: gameForm.date, time: gameForm.time,
       slots: parseInt(gameForm.slots), price: parseInt(gameForm.price),
+      court: gameForm.court || null,
       description: gameForm.description, game_rules: gameForm.game_rules,
       shoes_type: gameForm.shoes_type.join(', '),
       created_by: (await supabase.auth.getUser()).data.user?.id,
@@ -119,7 +120,7 @@ export default function ManagerPage() {
     setEditGameForm({
       title: game.title, field_id: game.field_id, area: game.area,
       format: game.format, date: game.date, time: game.time,
-      slots: game.slots, price: game.price,
+      slots: game.slots, price: game.price, court: game.court || '',
       description: game.description || '', game_rules: game.game_rules || '',
       shoes_type: game.shoes_type ? game.shoes_type.split(', ') : [],
     });
@@ -135,6 +136,7 @@ export default function ManagerPage() {
       title: f.title, field_id: f.field_id, area: f.area,
       format: f.format, date: f.date, time: f.time,
       slots: parseInt(f.slots), price: parseInt(f.price),
+      court: f.court || null,
       description: f.description, game_rules: f.game_rules,
       shoes_type: f.shoes_type.join(', '),
     }).eq('id', editingGame).select('*, fields(name)');
@@ -216,6 +218,11 @@ export default function ManagerPage() {
           <label style={labelStyle}>PRICE (RM) *</label>
           <input type="number" placeholder="e.g. 15" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
         </div>
+      </div>
+      <div>
+        <label style={labelStyle}>COURT / PITCH (only if venue has more than one)</label>
+        <input placeholder="e.g. Court 2 (leave blank if there's only one court)" value={form.court}
+          onChange={e => setForm({ ...form, court: e.target.value })} />
       </div>
       <div>
         <label style={labelStyle}>MATCH DESCRIPTION</label>

@@ -209,6 +209,16 @@ Bolahh uses Supabase with the public anon key on the client — all data access 
 
 ---
 
+## TODO (Personal)
+
+- [ ] Change overall text description
+- [ ] Make a description for each rank
+- [ ] Check the logic
+- [ ] Check all changes and if it affects anything before this
+- [ ] Re test system
+
+---
+
 ## License
 
 MIT
