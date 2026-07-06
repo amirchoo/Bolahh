@@ -8,7 +8,7 @@ import { FaSquareParking, FaLocationDot } from 'react-icons/fa6';
 import { LuToilet, LuTag } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera } from 'react-icons/io5';
-import { MdError, MdOutlineStadium, MdSave } from 'react-icons/md';
+import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer } from 'react-icons/md';
 import FifaCard, { buildCustomTheme, getCardTheme, POSITION_ABBR, STATS, STICKER_ICONS } from '../components/FifaCard';
 import { drawCardImage } from '../lib/cardCanvas';
 import { RANKS, getRankColor } from '../lib/rankUtils';
@@ -100,6 +100,9 @@ export default function AdminPage() {
   const activeCustomTheme = cardForm.useCustomTheme ? buildCustomTheme(cardForm) : null;
   const activeBadge = cardForm.useCustomTheme && cardForm.badgeLabel ? cardForm.badgeLabel : null;
 
+  // ── Game requests state ───────────────────────────────
+  const [gameRequests, setGameRequests] = useState([]);
+
   // ── Coupons state ─────────────────────────────────────
   const [coupons, setCoupons] = useState([]);
   const [couponForm, setCouponForm] = useState({ code: '', discount_percentage: 10, max_uses: '', expires_at: '' });
@@ -114,8 +117,19 @@ export default function AdminPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates(), fetchBanners(), fetchCoupons()]);
+    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates(), fetchBanners(), fetchCoupons(), fetchGameRequests()]);
     setLoading(false);
+  };
+
+  const fetchGameRequests = async () => {
+    const { data } = await supabase.from('game_requests').select('*').order('created_at', { ascending: false });
+    if (data) setGameRequests(data);
+  };
+
+  const handleDeleteGameRequest = async (id) => {
+    const { error } = await supabase.from('game_requests').delete().eq('id', id);
+    if (error) { showError(error.message); return; }
+    setGameRequests(prev => prev.filter(r => r.id !== id));
   };
 
   const fetchCoupons = async () => {
@@ -466,7 +480,15 @@ export default function AdminPage() {
     { key: 'backgrounds', label: 'Card BG'     },
     { key: 'cardmaker',   label: 'Card Maker'  },
     { key: 'coupons',     label: 'Coupons'     },
+    { key: 'requests',    label: 'Game Requests' },
   ];
+
+  const requestsByArea = gameRequests.reduce((acc, r) => {
+    const key = r.area || 'Unknown';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const sortedAreaCounts = Object.entries(requestsByArea).sort((a, b) => b[1] - a[1]);
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -501,6 +523,7 @@ export default function AdminPage() {
             { label: 'Total Fields',       val: fields.length,    icon: <MdOutlineStadium /> },
             { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
             { label: 'Saved Card Templates', val: savedTemplates.length, icon: <MdSave size={24} color="var(--accent)" /> },
+            { label: 'Game Requests',       val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -1603,6 +1626,91 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                       padding: '5px 12px', fontSize: 12, fontWeight: 600
                     }}>Delete</button>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── GAME REQUESTS TAB ── */}
+        {activeTab === 'requests' && (
+          <div>
+            {/* SQL setup note */}
+            <div style={{ background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>ONE-TIME SETUP</div>
+              <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.7, marginBottom: 8 }}>
+                If you haven't created the game_requests table yet, run this SQL in your Supabase SQL editor:
+              </p>
+              <code style={{ display: 'block', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: 'var(--text)', fontFamily: "'Space Mono'", lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{`create table game_requests (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references profiles(id) on delete cascade not null,
+  name text,
+  area text,
+  request_date date not null,
+  created_at timestamptz default now(),
+  unique (user_id, request_date)
+);
+alter table game_requests enable row level security;
+create policy "Users can insert their own requests" on game_requests
+  for insert with check (auth.uid() = user_id);
+create policy "Read own or admin" on game_requests
+  for select using (
+    auth.uid() = user_id or exists (select 1 from profiles where id = auth.uid() and is_admin = true)
+  );
+create policy "Admins can delete requests" on game_requests
+  for delete using (
+    exists (select 1 from profiles where id = auth.uid() and is_admin = true)
+  );`}</code>
+            </div>
+
+            {/* Area breakdown */}
+            <div style={sectionCard}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FaLocationDot size={16} /> REQUESTS BY AREA
+              </h3>
+              {sortedAreaCounts.length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: 14, textAlign: 'center', padding: '10px 0' }}>No requests yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {sortedAreaCounts.map(([area, count]) => (
+                    <div key={area} style={{
+                      background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                      border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
+                      padding: '6px 14px', fontSize: 13, fontWeight: 600,
+                      display: 'flex', alignItems: 'center', gap: 6
+                    }}>
+                      {area}
+                      <span style={{ fontFamily: "'Space Mono'", fontSize: 12, opacity: 0.8 }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Requests list */}
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                All Requests ({gameRequests.length})
+              </div>
+              {gameRequests.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No game requests yet.</div>
+              ) : gameRequests.map((req, i) => (
+                <div key={req.id} style={{
+                  padding: '14px 20px',
+                  borderBottom: i < gameRequests.length - 1 ? '1px solid var(--border)' : 'none',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{req.name || '(no name)'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <FaLocationDot size={11} />{req.area || 'Unknown area'} · {req.request_date}
+                    </div>
+                  </div>
+                  <button onClick={() => handleDeleteGameRequest(req.id)} style={{
+                    background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+                    border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8,
+                    padding: '5px 12px', fontSize: 12, fontWeight: 600, flexShrink: 0
+                  }}>Delete</button>
                 </div>
               ))}
             </div>

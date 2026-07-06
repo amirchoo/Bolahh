@@ -49,6 +49,9 @@ export default function HomePage() {
   const [formatFilter, setFormatFilter] = usePersistedState('home_format', 'All Formats');
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = usePersistedState('home_date', null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [requestedToday, setRequestedToday] = useState(false);
+  const [requestingGames, setRequestingGames] = useState(false);
   const days14 = get14Days();
   const dateScrollRef = useRef(null);
   const scrollDates = (dir) => {
@@ -64,6 +67,29 @@ export default function HomePage() {
     if (cached) { setGames(cached); setLoading(false); }
     fetchGames(!!cached);
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('profiles').select('name, area').eq('id', user.id).single()
+      .then(({ data }) => setUserProfile(data));
+    const todayMYT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    supabase.from('game_requests').select('id').eq('user_id', user.id).eq('request_date', todayMYT).maybeSingle()
+      .then(({ data }) => setRequestedToday(!!data));
+  }, [user]);
+
+  const handleRequestGames = async () => {
+    if (!user || requestedToday || requestingGames) return;
+    setRequestingGames(true);
+    const todayMYT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { error } = await supabase.from('game_requests').insert({
+      user_id: user.id,
+      name: userProfile?.name || null,
+      area: userProfile?.area || null,
+      request_date: todayMYT,
+    });
+    setRequestingGames(false);
+    if (!error || error.code === '23505') setRequestedToday(true);
+  };
 
   const isGameVisible = (game, playerCount) => {
     const now = new Date();
@@ -148,6 +174,24 @@ export default function HomePage() {
             <option value="All Formats">{t('home.allFormats')}</option>
             {FORMATS_EN.slice(1).map(f => <option key={f} value={f}>{f}</option>)}
           </select>
+          {user && (
+            <button
+              onClick={handleRequestGames}
+              disabled={requestedToday || requestingGames}
+              title={requestedToday ? '' : 'Not enough games in your area? Let us know.'}
+              style={{
+                flex: '0 0 auto',
+                background: requestedToday ? 'var(--card2)' : 'var(--card)',
+                color: requestedToday ? 'var(--muted)' : 'var(--accent)',
+                border: `1px solid ${requestedToday ? 'var(--border)' : 'rgba(240,157,81,0.4)'}`,
+                borderRadius: 8, padding: '12px 18px', fontSize: 13, fontWeight: 600,
+                cursor: requestedToday ? 'default' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {requestedToday ? 'Bolahh is notified — more games coming!' : requestingGames ? 'Sending...' : 'Request More Games'}
+            </button>
+          )}
         </div>
 
         {/* Date Scroll Bar */}

@@ -109,17 +109,31 @@ export function IconUpcoming({ size = 20, color = 'currentColor', style = {} }) 
   );
 }
 
-// ── LOADING (spinning ball) ───
+// ── LOADING (bouncing football) ───
 export function IconLoading({ size = 20, color = 'currentColor', style = {} }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...base} style={{ color, display: 'inline-block', verticalAlign: 'middle', animation: 'bolahh-spin 0.9s linear infinite', ...style }}>
-      <style>{`@keyframes bolahh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-      {/* Ball circle - faded */}
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.2" />
-      {/* Spinning arc */}
-      <path d="M12 3 A9 9 0 0 1 21 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      {/* Pentagon hint */}
-      <path d="M12 7 L13.5 9 L12.9 11 L11.1 11 L10.5 9 Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" opacity="0.5" />
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} style={{ color, display: 'inline-block', verticalAlign: 'middle', overflow: 'visible', ...style }}>
+      <style>{`
+        @keyframes bolahh-bounce {
+          0%   { transform: translateY(0) scale(1.15, 0.85) rotate(0deg); }
+          25%  { transform: translateY(-5px) scale(1, 1) rotate(90deg); }
+          50%  { transform: translateY(-8px) scale(0.95, 1.05) rotate(180deg); }
+          75%  { transform: translateY(-5px) scale(1, 1) rotate(270deg); }
+          100% { transform: translateY(0) scale(1.15, 0.85) rotate(360deg); }
+        }
+        @keyframes bolahh-shadow {
+          0%, 100% { transform: scaleX(1); opacity: 0.3; }
+          50%      { transform: scaleX(0.55); opacity: 0.12; }
+        }
+      `}</style>
+      {/* Ground shadow */}
+      <ellipse cx="12" cy="20.5" rx="6" ry="1.6" fill="currentColor" opacity="0.25" style={{ transformOrigin: '12px 20.5px', animation: 'bolahh-shadow 0.8s ease-in-out infinite' }} />
+      {/* Bouncing, rolling ball */}
+      <g style={{ transformOrigin: '12px 18px', animation: 'bolahh-bounce 0.8s ease-in-out infinite' }}>
+        <circle cx="12" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M12 5.5 L14.9 7.7 L13.8 11.1 L10.2 11.1 L9.1 7.7 Z" fill="currentColor" />
+        <path d="M12 5.5 L9.1 7.7 M12 5.5 L14.9 7.7 M9.1 7.7 L6.3 9.2 M14.9 7.7 L17.7 9.2 M10.2 11.1 L8.9 14.7 M13.8 11.1 L15.1 14.7 M8.9 14.7 L12 16.9 L15.1 14.7" stroke="currentColor" strokeWidth="0.9" fill="none" strokeLinecap="round" />
+      </g>
     </svg>
   );
 }
