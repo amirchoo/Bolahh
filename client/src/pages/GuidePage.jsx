@@ -3,17 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { RANKS } from '../lib/rankUtils';
 import { IoWallet, IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
-import { FaRankingStar, FaLocationDot } from 'react-icons/fa6';
+import { FaRankingStar, FaLocationDot, FaArrowTrendUp } from 'react-icons/fa6';
 import { TbPlayCard7Filled } from 'react-icons/tb';
 import { IoSearchCircleOutline } from 'react-icons/io5';
-import { GiSoccerBall } from 'react-icons/gi';
+import { GiSoccerBall, GiRunningShoe, GiTrophy } from 'react-icons/gi';
 
 const SECTIONS = [
   { id: 'flow',        label: 'How It Works' },
   { id: 'ranks',       label: 'Ranks'        },
   { id: 'leaderboard', label: 'Leaderboard'  },
+  { id: 'ballers',     label: 'Ballers of the Match' },
   { id: 'card',        label: 'Bolahh Card'  },
   { id: 'wallet',      label: 'Wallet'       },
+];
+
+const BALLER_STATS = [
+  { label: 'Shooting Quality', desc: 'Shot accuracy and technique',      stat: 'SHO', color: '#f87171' },
+  { label: 'Passing Quality',  desc: 'Pass accuracy and vision',         stat: 'PAS', color: '#4ade80' },
+  { label: 'Good Dribble',     desc: 'Successful dribble past a player', stat: 'DRI', color: '#F09D51' },
+  { label: 'Good Defending',   desc: 'Key defensive action',             stat: 'DEF', color: '#a78bfa' },
+  { label: 'Good Keeping',     desc: 'Notable save or distribution',     stat: 'PHY', color: '#34d399' },
+  { label: 'Good Chance',      desc: 'Created or converted a big chance',stat: 'PAC', color: '#64a0ff' },
 ];
 
 const STATS = [
@@ -290,7 +300,84 @@ export default function GuidePage() {
 
         {divider}
 
-        {/* ── SECTION 4: BOLAHH CARD ── */}
+        {/* ── SECTION 4: BALLERS OF THE MATCH ── */}
+        <section>
+          <SectionHead id="ballers" sup="TOP 3 EACH GAME" title="BALLERS OF THE MATCH" />
+          <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
+            After every rated match, the 3 players with the most impact are crowned Ballers of the Match, gold, silver, and bronze.
+          </p>
+
+          {/* How it works */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 20px', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <div style={{
+                flexShrink: 0, width: 38, height: 38, borderRadius: 10,
+                background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFD700',
+              }}><GiTrophy size={20} /></div>
+              <div>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 4 }}>How It Works</div>
+                <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: 0 }}>
+                  The manager rates each player after the game. Every stat earned adds points, and the 3 highest totals are crowned Ballers of the Match. The manager can also manually pick the top 3, which overrides the point calculation.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Stat points grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12 }}>
+            {BALLER_STATS.map(({ label, desc, stat, color }) => (
+              <div key={stat} style={{
+                background: 'var(--card)', border: '1px solid var(--border)',
+                borderRadius: 10, padding: '10px 14px',
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <span style={{
+                  fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700,
+                  color, flexShrink: 0, minWidth: 30,
+                  background: `${color}15`, border: `1px solid ${color}40`,
+                  borderRadius: 6, padding: '2px 6px', textAlign: 'center',
+                }}>{stat}</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text)' }}>{label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1, lineHeight: 1.5 }}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Goals & assists + trend arrow */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px' }}>
+              <GiSoccerBall size={20} color="#FECA57" style={{ flexShrink: 0 }} />
+              <GiRunningShoe size={20} color="#00D2D3" style={{ flexShrink: 0 }} />
+              <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: 0 }}>
+                Goals and assists are also tracked and shown on your match summary, display only, they don't affect your card stats.
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px' }}>
+              <FaArrowTrendUp size={22} color="#4ade80" style={{ flexShrink: 0 }} />
+              <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: 0 }}>
+                A green arrow next to a player's name means they earned at least one stat that game, their card is trending up.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate('/baller-info')}
+            style={{
+              width: '100%', padding: '13px',
+              background: 'var(--card)', color: 'var(--text)',
+              border: '1px solid var(--border)',
+              borderRadius: 12, fontFamily: "'Bebas Neue'", fontSize: 17, letterSpacing: 2,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            }}
+          ><GiTrophy size={18} /> FULL BALLER BREAKDOWN</button>
+        </section>
+
+        {divider}
+
+        {/* ── SECTION 5: BOLAHH CARD ── */}
         <section>
           <SectionHead id="card" sup="YOUR IDENTITY" title="BOLAHH CARD" />
           <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>
@@ -340,7 +427,7 @@ export default function GuidePage() {
 
         {divider}
 
-        {/* ── SECTION 5: WALLET ── */}
+        {/* ── SECTION 6: WALLET ── */}
         <section>
           <SectionHead id="wallet" sup="PAYMENTS" title="WALLET" />
           <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>

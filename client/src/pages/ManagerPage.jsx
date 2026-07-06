@@ -467,6 +467,29 @@ export default function ManagerPage() {
           </div>
         )}
 
+        {/* Field Request CTA */}
+        <div style={{ ...sectionCard, marginTop: 24, textAlign: 'center' }}>
+          <MdOutlineStadium size={28} style={{ color: 'var(--accent)', marginBottom: 8 }} />
+          <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600, marginBottom: 4 }}>
+            No field or pitch you can manage?
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+            Request now and Bolahh will work on bringing your pitch to Bolahh.
+          </div>
+          <a
+            href="https://forms.gle/sAyHSnWnHRfPNZvt5"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-block', background: 'var(--accent)', color: '#fff',
+              border: 'none', borderRadius: 10, padding: '10px 24px',
+              fontSize: 13, fontWeight: 700, textDecoration: 'none'
+            }}
+          >
+            Request Now
+          </a>
+        </div>
+
       </div>
 
       {/* ── EDIT GAME MODAL ── */}
