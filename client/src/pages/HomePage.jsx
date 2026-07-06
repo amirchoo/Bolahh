@@ -80,12 +80,10 @@ export default function HomePage() {
   const handleRequestGames = async () => {
     if (!user || requestedToday || requestingGames) return;
     setRequestingGames(true);
-    const todayMYT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const { error } = await supabase.from('game_requests').insert({
       user_id: user.id,
       name: userProfile?.name || null,
       area: userProfile?.area || null,
-      request_date: todayMYT,
     });
     setRequestingGames(false);
     if (!error || error.code === '23505') setRequestedToday(true);
