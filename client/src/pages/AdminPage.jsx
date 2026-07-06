@@ -1639,15 +1639,17 @@ create policy "Manage banners" on banners for all using (true);`}</code>
             <div style={{ background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
               <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>ONE-TIME SETUP</div>
               <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.7, marginBottom: 8 }}>
-                If you haven't created the game_requests table yet, run this SQL in your Supabase SQL editor:
+                If you haven't created the game_requests table yet, run this SQL in your Supabase SQL editor. request_date is generated automatically from created_at in Malaysia time — don't insert it directly.
               </p>
               <code style={{ display: 'block', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: 'var(--text)', fontFamily: "'Space Mono'", lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{`create table game_requests (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references profiles(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
   name text,
   area text,
-  request_date date not null,
   created_at timestamptz default now(),
+  request_date date generated always as (
+    (created_at at time zone 'Asia/Kuala_Lumpur')::date
+  ) stored,
   unique (user_id, request_date)
 );
 alter table game_requests enable row level security;
@@ -1661,6 +1663,11 @@ create policy "Admins can delete requests" on game_requests
   for delete using (
     exists (select 1 from profiles where id = auth.uid() and is_admin = true)
   );`}</code>
+              <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.7, marginTop: 10, marginBottom: 0 }}>
+                Note: if your table already exists without the <code style={{ fontFamily: "'Space Mono'" }}>unique (user_id, request_date)</code> constraint, "once per day" is only enforced by the app, not the database. Add it with:
+              </p>
+              <code style={{ display: 'block', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: 'var(--text)', fontFamily: "'Space Mono'", lineHeight: 1.8, whiteSpace: 'pre-wrap', marginTop: 8 }}>{`alter table game_requests
+  add constraint game_requests_user_id_request_date_key unique (user_id, request_date);`}</code>
             </div>
 
             {/* Area breakdown */}
