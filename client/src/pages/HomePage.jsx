@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached } from '../lib/dataCache';
+import { refundGamePlayers } from '../lib/refundGamePlayers';
 import { usePersistedState } from '../lib/usePersistedState';
 import Navbar from '../components/Navbar';
 import BannerCarousel from '../components/BannerCarousel';
@@ -125,7 +126,10 @@ export default function HomePage() {
       return now >= gameStart && g._playerCount < minPlayers;
     });
     if (gamesToDelete.length > 0) {
-      await Promise.all(gamesToDelete.map(g => supabase.from('games').delete().eq('id', g.id)));
+      await Promise.all(gamesToDelete.map(g =>
+        refundGamePlayers(g.id, g.title, g.price, 'Insufficient Players')
+          .then(() => supabase.from('games').delete().eq('id', g.id))
+      ));
     }
     const deletedIds = new Set(gamesToDelete.map(g => g.id));
 

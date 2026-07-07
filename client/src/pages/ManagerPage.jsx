@@ -5,9 +5,11 @@ import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getCached, setCached, clearCached } from '../lib/dataCache';
 import { usePersistedState } from '../lib/usePersistedState';
+import { refundGamePlayers } from '../lib/refundGamePlayers';
 import { GiSoccerBall } from 'react-icons/gi';
-import { MdOutlineCalendarMonth, MdOutlineStadium, MdSave } from 'react-icons/md';
+import { MdOutlineCalendarMonth, MdOutlineStadium, MdSave, MdOutlineCancel } from 'react-icons/md';
 import { FaPeopleGroup, FaLocationDot } from 'react-icons/fa6';
+import { IoStar, IoStarOutline } from 'react-icons/io5';
 import { LuMedal } from 'react-icons/lu';
 import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
@@ -25,11 +27,16 @@ export default function ManagerPage() {
   const [fields, setFields] = useState([]);
   const [games, setGames] = useState([]);
   const [players, setPlayers] = useState([]);
+  const [feedback, setFeedback] = useState([]);
+  const [sportsmanship, setSportsmanship] = useState([]);
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [editingGame, setEditingGame] = useState(null);
   const [showEditGameModal, setShowEditGameModal] = useState(false);
+  const [cancelingGame, setCancelingGame] = useState(null);
+  const [cancelReason, setCancelReason] = useState('Rain');
+  const [cancelling, setCancelling] = useState(false);
 
   const [gameForm, setGameForm] = useState({
     title: '', field_id: '', area: '', format: '5v5',
@@ -47,6 +54,7 @@ export default function ManagerPage() {
     const cached = getCached('manager_data');
     if (cached) {
       setFields(cached.fields); setGames(cached.games); setPlayers(cached.players);
+      setFeedback(cached.feedback || []); setSportsmanship(cached.sportsmanship || []);
       setLoading(false);
     }
     fetchAll(!!cached);
@@ -55,7 +63,11 @@ export default function ManagerPage() {
   const fetchAll = async (silent = false) => {
     if (!silent) setLoading(true);
     const [fieldsData, gamesData, playersData] = await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
-    setCached('manager_data', { fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [] });
+    const { feedback: feedbackData, sportsmanship: sportsmanshipData } = await fetchFeedback();
+    setCached('manager_data', {
+      fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [],
+      feedback: feedbackData, sportsmanship: sportsmanshipData,
+    });
     setLoading(false);
   };
 
@@ -80,6 +92,50 @@ export default function ManagerPage() {
     const { data } = await supabase.from('profiles').select('*').order('username');
     if (data) setPlayers(data);
     return data ?? [];
+  };
+
+  const fetchFeedback = async () => {
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const { data: ownGames } = await supabase
+      .from('games').select('id, title').eq('created_by', currentUser?.id);
+    const gameIds = (ownGames || []).map(g => g.id);
+    const gameTitleMap = {};
+    (ownGames || []).forEach(g => { gameTitleMap[g.id] = g.title; });
+
+    if (gameIds.length === 0) {
+      setFeedback([]); setSportsmanship([]);
+      return { feedback: [], sportsmanship: [] };
+    }
+
+    const { data: feedbackRows } = await supabase
+      .from('game_feedback').select('*').in('game_id', gameIds).order('created_at', { ascending: false });
+    const { data: sportsmanshipRows } = await supabase
+      .from('player_sportsmanship_ratings').select('rater_id, rated_id, rating').in('game_id', gameIds);
+
+    const agg = {};
+    (sportsmanshipRows || []).forEach(r => {
+      if (!agg[r.rated_id]) agg[r.rated_id] = { sum: 0, count: 0 };
+      agg[r.rated_id].sum += r.rating; agg[r.rated_id].count += 1;
+    });
+
+    const profileIds = [...new Set([...(feedbackRows || []).map(f => f.user_id), ...Object.keys(agg)])];
+    let profileMap = {};
+    if (profileIds.length > 0) {
+      const { data: profilesData } = await supabase.from('profiles').select('id, name').in('id', profileIds);
+      (profilesData || []).forEach(p => { profileMap[p.id] = p; });
+    }
+
+    const feedbackWithNames = (feedbackRows || []).map(f => ({
+      ...f, gameTitle: gameTitleMap[f.game_id], userName: profileMap[f.user_id]?.name || 'Player',
+    }));
+
+    const sportsmanshipList = Object.entries(agg)
+      .map(([uid, { sum, count }]) => ({ id: uid, name: profileMap[uid]?.name || 'Player', avg: sum / count, count }))
+      .sort((a, b) => a.avg - b.avg);
+
+    setFeedback(feedbackWithNames);
+    setSportsmanship(sportsmanshipList);
+    return { feedback: feedbackWithNames, sportsmanship: sportsmanshipList };
   };
 
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
@@ -152,6 +208,27 @@ export default function ManagerPage() {
     const { error } = await supabase.from('games').delete().eq('id', id);
     if (error) { showError(error.message); return; }
     showSuccess('Game deleted.'); clearCached('manager_data'); fetchGames();
+  };
+
+  const CANCEL_REASONS = ['Rain', 'Insufficient Players', 'Other'];
+
+  const handleOpenCancelModal = async (game) => {
+    const { count } = await supabase
+      .from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', game.id);
+    setCancelReason('Rain');
+    setCancelingGame({ ...game, _playerCount: count || 0 });
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelingGame) return;
+    setCancelling(true);
+    const refundedCount = await refundGamePlayers(cancelingGame.id, cancelingGame.title, cancelingGame.price, cancelReason);
+    const { error } = await supabase.from('games').delete().eq('id', cancelingGame.id);
+    setCancelling(false);
+    if (error) { showError(error.message); return; }
+    showSuccess(`Game cancelled. ${refundedCount} player${refundedCount !== 1 ? 's' : ''} refunded.`);
+    setCancelingGame(null);
+    clearCached('manager_data'); fetchGames();
   };
 
   const isUpcoming = (g) => {
@@ -269,6 +346,7 @@ export default function ManagerPage() {
   const TABS = [
     { key: 'overview', label: 'Overview' },
     { key: 'games',    label: 'Games'    },
+    { key: 'feedback', label: 'Feedback' },
   ];
 
   return (
@@ -455,11 +533,70 @@ export default function ManagerPage() {
                       border: '1px solid var(--border)', borderRadius: 8,
                       padding: '5px 12px', fontSize: 12
                     }}>Edit</button>
+                    <button onClick={() => handleOpenCancelModal(game)} style={{
+                      background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                      border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
+                      padding: '5px 10px', fontSize: 12, fontWeight: 600,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}><MdOutlineCancel size={14} /></button>
                     <button onClick={() => handleDeleteGame(game.id)} style={{
                       background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
                       border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8,
                       padding: '5px 12px', fontSize: 12, fontWeight: 600
                     }}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── FEEDBACK TAB ── */}
+        {activeTab === 'feedback' && (
+          <div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                Game & Venue Feedback ({feedback.length})
+              </div>
+              {feedback.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No feedback submitted yet.</div>
+              ) : feedback.map((f, i) => (
+                <div key={f.id} style={{
+                  padding: '14px 20px',
+                  borderBottom: i < feedback.length - 1 ? '1px solid var(--border)' : 'none',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{f.gameTitle}</div>
+                    <div style={{ display: 'flex', gap: 1 }}>
+                      {[1, 2, 3, 4, 5].map(n => n <= f.venue_rating
+                        ? <IoStar key={n} size={14} color="var(--accent)" />
+                        : <IoStarOutline key={n} size={14} color="var(--muted)" />)}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: f.venue_comment ? 4 : 0 }}>{f.userName}</div>
+                  {f.venue_comment && (
+                    <div style={{ fontSize: 13, color: 'var(--text)', opacity: 0.85 }}>{f.venue_comment}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                Sportsmanship Ratings ({sportsmanship.length})
+              </div>
+              {sportsmanship.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No sportsmanship ratings yet.</div>
+              ) : sportsmanship.map((s, i) => (
+                <div key={s.id} style={{
+                  padding: '12px 20px',
+                  borderBottom: i < sportsmanship.length - 1 ? '1px solid var(--border)' : 'none',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{s.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: s.avg < 3 ? 'var(--red)' : 'var(--accent)' }}>{s.avg.toFixed(1)}</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>({s.count} rating{s.count !== 1 ? 's' : ''})</span>
                   </div>
                 </div>
               ))}
@@ -507,6 +644,63 @@ export default function ManagerPage() {
               ><IoClose size={18} /></button>
             </div>
             {renderGameForm(true, editGameForm, setEditGameForm)}
+          </div>
+        </div>
+      )}
+
+      {/* ── CANCEL GAME MODAL ── */}
+      {cancelingGame && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !cancelling) setCancelingGame(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 2, color: 'var(--text)', margin: 0 }}>CANCEL GAME</h3>
+              <button
+                onClick={() => !cancelling && setCancelingGame(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
+              ><IoClose size={18} /></button>
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20 }}>
+              {cancelingGame.title} · {cancelingGame._playerCount} player{cancelingGame._playerCount !== 1 ? 's' : ''} joined
+            </p>
+
+            <label style={labelStyle}>REASON</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              {CANCEL_REASONS.map(r => (
+                <button key={r} type="button" onClick={() => setCancelReason(r)} style={{
+                  flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  background: cancelReason === r ? 'var(--accent)' : 'var(--card2)',
+                  color: cancelReason === r ? '#fff' : 'var(--muted)',
+                  border: `1px solid ${cancelReason === r ? 'var(--accent)' : 'var(--border)'}`,
+                }}>{r}</button>
+              ))}
+            </div>
+
+            {cancelingGame._playerCount > 0 && (
+              <div style={{
+                background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.25)',
+                borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+                fontSize: 13, color: 'var(--accent)', lineHeight: 1.6,
+              }}>
+                All {cancelingGame._playerCount} player{cancelingGame._playerCount !== 1 ? 's' : ''} will be refunded RM {Number(cancelingGame.price).toFixed(2)} each
+                (RM {(cancelingGame._playerCount * cancelingGame.price).toFixed(2)} total) to their wallets.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setCancelingGame(null)}
+                disabled={cancelling}
+                style={{ flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, fontSize: 14 }}
+              >Back</button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelling}
+                style={{ flex: 2, padding: '12px', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, opacity: cancelling ? 0.6 : 1 }}
+              >{cancelling ? 'Cancelling...' : 'Confirm Cancel & Refund'}</button>
+            </div>
           </div>
         </div>
       )}

@@ -56,6 +56,7 @@ export default function GameDetailPage() {
   const [showManagerCard, setShowManagerCard] = useState(false);
   const [sortedRatings, setSortedRatings] = useState([]);
   const [ratingProfiles, setRatingProfiles] = useState({});
+  const [hasFeedback, setHasFeedback] = useState(false);
 
   useEffect(() => {
     const cached = getCached(`game_${id}`);
@@ -66,6 +67,7 @@ export default function GameDetailPage() {
       setWalletBalance(cached.walletBalance);
       setIsRated(cached.isRated || false);
       setManagerName(cached.managerName || null);
+      setHasFeedback(cached.hasFeedback || false);
       setLoading(false);
     }
     fetchGame(!!cached);
@@ -101,6 +103,14 @@ export default function GameDetailPage() {
       .from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle();
     const joinedVal = !!existing;
     setHasJoined(joinedVal);
+
+    let feedbackVal = false;
+    if (joinedVal) {
+      const { data: feedbackExisting } = await supabase
+        .from('game_feedback').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle();
+      feedbackVal = !!feedbackExisting;
+    }
+    setHasFeedback(feedbackVal);
 
     const { data: gamePlayers } = await supabase
       .from('game_players').select('user_id').eq('game_id', id);
@@ -138,7 +148,7 @@ export default function GameDetailPage() {
       game: gameData, field: fieldData, isOwner: isOwnerVal,
       walletBalance: walletBal, playerCount: countVal,
       hasJoined: joinedVal, players: playersVal, isRated: ratedVal,
-      managerName: creatorProfile?.name || null,
+      managerName: creatorProfile?.name || null, hasFeedback: feedbackVal,
     });
     setLoading(false);
   };
@@ -788,6 +798,23 @@ export default function GameDetailPage() {
               width: '100%', padding: '13px', background: 'transparent', color: 'var(--accent)',
               border: '1.5px solid var(--accent)', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer'
             }}><FaRankingStar /> Rate Players for this Game</button>
+          </div>
+        )}
+
+        {/* Player feedback CTA — shown when ended, joined, and not yet submitted */}
+        {ended && hasJoined && (
+          <div className="fade-up-2" style={{ marginBottom: 16 }}>
+            {hasFeedback ? (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '10px', color: 'var(--muted)', fontSize: 13,
+              }}><IoCheckmark size={14} /> Feedback submitted for this game</div>
+            ) : (
+              <button onClick={() => navigate(`/game/${id}/feedback`)} style={{
+                width: '100%', padding: '13px', background: 'transparent', color: 'var(--accent)',
+                border: '1.5px solid var(--accent)', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer'
+              }}>Leave Feedback</button>
+            )}
           </div>
         )}
 
