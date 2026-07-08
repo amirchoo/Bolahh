@@ -23,7 +23,6 @@ import SubscriptionPage from './pages/SubscriptionPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ServerDownPage from './pages/ServerDownPage';
-import WIPBanner from './components/WIPBanner';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -85,7 +84,6 @@ function App() {
   return (
     <BrowserRouter>
       <AnimatedRoutes />
-      <WIPBanner />
       <Analytics />
     </BrowserRouter>
   );
