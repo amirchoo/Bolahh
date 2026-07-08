@@ -142,22 +142,33 @@ export default function ProfilePage() {
   };
 
   const fetchGames = async (silent = false) => {
-    const { data: playerData, error: playerError } = await supabase
-      .from('game_players').select('id, game_id').eq('user_id', user.id);
-    if (playerError || !playerData || playerData.length === 0) return;
-    const gameIds = playerData.map(p => p.game_id);
-    const { data: gamesData, error: gamesError } = await supabase
-      .from('games').select('id, title, area, date, time, format, price, fields(name)').in('id', gameIds);
+    const [{ data: playerData, error: playerError }, { data: createdGames, error: createdError }] = await Promise.all([
+      supabase.from('game_players').select('id, game_id').eq('user_id', user.id),
+      supabase.from('games').select('id, title, area, date, time, format, price, fields(name)').eq('created_by', user.id),
+    ]);
+    if (playerError) return;
+    const safePlayerData = playerData || [];
+    const gameIds = safePlayerData.map(p => p.game_id);
+    const { data: gamesData, error: gamesError } = gameIds.length
+      ? await supabase.from('games').select('id, title, area, date, time, format, price, fields(name)').in('id', gameIds)
+      : { data: [], error: null };
     if (gamesError) return;
     const allGames = gamesData || [];
-    const merged = playerData.map(p => ({
+    const merged = safePlayerData.map(p => ({
       id: p.id,
       games: allGames.find(g => g.id === p.game_id) || null
     }));
+    if (!createdError && createdGames) {
+      const joinedGameIds = new Set(allGames.map(g => g.id));
+      createdGames.forEach(g => {
+        if (!joinedGameIds.has(g.id)) merged.push({ id: `created-${g.id}`, games: g });
+      });
+    }
+    if (merged.length === 0) return;
     const valid = merged.filter(e => e.games !== null);
     const orphaned = merged.length - valid.length;
     setDeletedGameCount(orphaned);
-    setProfile(prev => prev ? { ...prev, games_played: playerData.length } : prev);
+    setProfile(prev => prev ? { ...prev, games_played: safePlayerData.length } : prev);
     const now = new Date();
     const isUpcoming = (g) => {
       const [year, month, day] = g.date.split('-').map(Number);
@@ -665,7 +676,7 @@ export default function ProfilePage() {
           )}
           {recentGames.map((entry, i) => (
             <div key={entry.id}
-              onClick={() => navigate(`/game/${entry.games.id}/summary`)}
+              onClick={() => navigate(`/game/${entry.games.id}`)}
               style={{
                 padding: '12px 18px',
                 borderBottom: i < recentGames.length - 1 || deletedGameCount > 0 ? '1px solid var(--border)' : 'none',

@@ -15,7 +15,7 @@ import { FaLocationDot, FaWhatsapp, FaTelegram } from "react-icons/fa6";
 import { FaLink } from "react-icons/fa";
 import { IoWallet, IoTimer, IoClose, IoCheckmark, IoInformationCircleOutline } from 'react-icons/io5';
 import { FaArrowTrendUp, FaArrowTrendDown } from 'react-icons/fa6';
-import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
+import { GiSoccerBall, GiTrophy, GiRunningShoe } from 'react-icons/gi';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import GameRulesDisplay from '../components/GameRulesDisplay';
 import FifaCard from '../components/FifaCard';
@@ -31,6 +31,151 @@ const STAT_KEYS = [
 const calcAwardPoints = (r) =>
   STAT_KEYS.reduce((sum, { key, weight }) => sum + (r[key] || 0) * weight, 0);
 
+const POSITION_META = {
+  1: { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', label: '1ST PLACE', shadowColor: 'rgba(255,215,0,0.45)' },
+  2: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND PLACE', shadowColor: 'rgba(192,192,192,0.3)' },
+  3: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD PLACE', shadowColor: 'rgba(205,127,50,0.3)' },
+};
+
+const GoalAssistBadges = ({ rating }) => {
+  if (!rating || (!rating.goals && !rating.assists)) return null;
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {rating.goals > 0 && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: '#FECA57' }}>
+          <GiSoccerBall size={13} />{rating.goals}
+        </span>
+      )}
+      {rating.assists > 0 && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: '#00D2D3' }}>
+          <GiRunningShoe size={13} />{rating.assists}
+        </span>
+      )}
+    </div>
+  );
+};
+
+function AwardPopup({ position, profile, points, rating, onClose }) {
+  const meta = POSITION_META[position];
+  const name = profile?.name || 'Player';
+  const rank = getRank(profile?.total_points);
+  const rankColor = getRankColor(rank);
+
+  return (
+    <div
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.92)',
+        zIndex: 2000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16,
+      }}
+    >
+      <div style={{
+        background: 'var(--card)',
+        border: `1.5px solid ${meta.border}`,
+        borderRadius: 24,
+        padding: '36px 28px',
+        width: '100%',
+        maxWidth: 380,
+        textAlign: 'center',
+        boxShadow: `0 0 60px ${meta.shadowColor}, 0 24px 64px rgba(0,0,0,0.6)`,
+        position: 'relative',
+      }}>
+        <button onClick={onClose} style={{
+          position: 'absolute', top: 14, right: 14,
+          background: 'var(--card2)', border: '1px solid var(--border)',
+          borderRadius: 8, width: 32, height: 32,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', color: 'var(--muted)',
+        }}>
+          <IoClose size={16} />
+        </button>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div style={{
+            width: 88, height: 88, borderRadius: '50%',
+            background: meta.bg, border: `2px solid ${meta.border}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: `0 0 28px ${meta.shadowColor}`,
+            animation: 'pulse 2s ease-in-out infinite',
+          }}>
+            <GiTrophy size={44} color={meta.color} />
+          </div>
+        </div>
+
+        <div style={{
+          display: 'inline-block',
+          background: meta.bg, border: `1px solid ${meta.border}`,
+          borderRadius: 8, padding: '4px 16px',
+          fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700,
+          color: meta.color, letterSpacing: 2, marginBottom: 12,
+        }}>{meta.label}</div>
+
+        <div style={{
+          fontFamily: "'Bebas Neue'", fontSize: 34, letterSpacing: 4,
+          color: 'var(--text)', marginBottom: 6, lineHeight: 1,
+        }}>BOLAHH AWARD</div>
+
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.8 }}>
+          Congratulations, <span style={{ color: meta.color, fontWeight: 700 }}>{name}</span>!<br />
+          You are one of the top performers this match.
+        </p>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: 'var(--card2)', border: '1px solid var(--border)',
+          borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'left',
+        }}>
+          <PlayerAvatar profile={profile} size={44} borderColor={meta.color} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: meta.color, marginBottom: 2 }}>{name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: rankColor }}>{rank}</span>
+              <span style={{ fontFamily: "'Bebas Neue'", fontSize: 14, color: rankColor }}>{profile?.total_points || 30} OVR</span>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 40, color: meta.color, lineHeight: 1 }}>{points}</div>
+            <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>AWARD PTS</div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: "'Space Mono'", fontSize: 10, color: 'var(--muted)', letterSpacing: 1, marginBottom: 8 }}>
+            THIS MATCH
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {STAT_KEYS.filter(({ key }) => (rating[key] || 0) > 0).map(({ key, label, color }) => (
+              <div key={key} style={{
+                background: `${color}15`, border: `1px solid ${color}40`,
+                borderRadius: 8, padding: '6px 12px',
+                fontFamily: "'Space Mono'", fontSize: 12, color, fontWeight: 700,
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+              }}>
+                {label} ↑
+              </div>
+            ))}
+            {STAT_KEYS.every(({ key }) => !(rating[key] || 0)) && (
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>Attendance only</span>
+            )}
+          </div>
+        </div>
+
+        <button onClick={onClose} style={{
+          width: '100%', padding: '14px',
+          background: meta.color, color: '#111213',
+          border: 'none', borderRadius: 12,
+          fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 3,
+          fontWeight: 700, cursor: 'pointer',
+        }}>
+          GOT IT
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function GameDetailPage() {
   const { id } = useParams();
@@ -57,6 +202,8 @@ export default function GameDetailPage() {
   const [sortedRatings, setSortedRatings] = useState([]);
   const [ratingProfiles, setRatingProfiles] = useState({});
   const [hasFeedback, setHasFeedback] = useState(false);
+  const [showAwardPopup, setShowAwardPopup] = useState(false);
+  const [myPosition, setMyPosition] = useState(null);
 
   useEffect(() => {
     const cached = getCached(`game_${id}`);
@@ -124,7 +271,7 @@ export default function GameDetailPage() {
     }
 
     const { data: ratingCheck } = await supabase
-      .from('game_ratings').select('user_id, goals, assists, shooting_quality, passing_quality, good_defending, good_keeping, successful_dribble, good_chance')
+      .from('game_ratings').select('user_id, goals, assists, shooting_quality, passing_quality, good_defending, good_keeping, successful_dribble, good_chance, admin_bonus')
       .eq('game_id', id);
     const ratedVal = !!(ratingCheck && ratingCheck.length > 0);
     setIsRated(ratedVal);
@@ -132,16 +279,33 @@ export default function GameDetailPage() {
     if (ratedVal && ratingCheck.length > 0) {
       const agg = {};
       ratingCheck.forEach(r => {
-        if (!agg[r.user_id]) agg[r.user_id] = { user_id: r.user_id, goals: 0, assists: 0, shooting_quality: 0, passing_quality: 0, good_defending: 0, good_keeping: 0, successful_dribble: 0, good_chance: 0 };
+        if (!agg[r.user_id]) agg[r.user_id] = { user_id: r.user_id, goals: 0, assists: 0, shooting_quality: 0, passing_quality: 0, good_defending: 0, good_keeping: 0, successful_dribble: 0, good_chance: 0, admin_bonus: 0 };
+        agg[r.user_id].goals += r.goals || 0;
+        agg[r.user_id].assists += r.assists || 0;
         STAT_KEYS.forEach(({ key }) => { agg[r.user_id][key] += r[key] || 0; });
+        if ((r.admin_bonus || 0) > 0) agg[r.user_id].admin_bonus = r.admin_bonus;
       });
-      const sorted = Object.values(agg).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
+      const hasOfficialMotm = Object.values(agg).some(r => r.admin_bonus > 0);
+      let sorted;
+      if (hasOfficialMotm) {
+        const motmOrder = Object.values(agg).filter(r => r.admin_bonus > 0).sort((a, b) => a.admin_bonus - b.admin_bonus);
+        const others = Object.values(agg).filter(r => !r.admin_bonus).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
+        sorted = [...motmOrder, ...others];
+      } else {
+        sorted = Object.values(agg).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
+      }
       setSortedRatings(sorted);
       const uids = sorted.map(r => r.user_id);
       const { data: rProfiles } = await supabase.from('profiles').select('id, name, avatar_url, total_points, position').in('id', uids);
       const pm = {};
       rProfiles?.forEach(p => { pm[p.id] = p; });
       setRatingProfiles(pm);
+
+      const myIdx = sorted.findIndex(r => r.user_id === user.id);
+      if (myIdx >= 0 && myIdx < 3) {
+        setMyPosition(myIdx + 1);
+        setTimeout(() => setShowAwardPopup(true), 700);
+      }
     }
 
     setCached(`game_${id}`, {
@@ -243,6 +407,16 @@ export default function GameDetailPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
+
+      {showAwardPopup && myPosition && myRating && (
+        <AwardPopup
+          position={myPosition}
+          profile={ratingProfiles[userId]}
+          points={calcAwardPoints(myRating)}
+          rating={myRating}
+          onClose={() => setShowAwardPopup(false)}
+        />
+      )}
 
       {/* ── Manager Card Modal ── */}
       {showManagerCard && managerProfile && (() => {
@@ -639,7 +813,10 @@ export default function GameDetailPage() {
                                 <span style={{ fontSize: 8, background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.3)', borderRadius: 4, padding: '1px 5px', fontFamily: "'Space Mono'", marginTop: 4, display: 'inline-block' }}>YOU</span>
                               )}
                             </div>
-                            <StatChips rating={r} size="sm" />
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                              <StatChips rating={r} size="sm" />
+                              <GoalAssistBadges rating={r} />
+                            </div>
                           </div>
                         );
                       })}
@@ -675,7 +852,10 @@ export default function GameDetailPage() {
                             </span>
                             {isMe && <span style={{ fontSize: 9, background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.3)', borderRadius: 3, padding: '1px 5px', fontFamily: "'Space Mono'", flexShrink: 0 }}>YOU</span>}
                           </div>
-                          <span style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: rankColor }}>{rank}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: rankColor }}>{rank}</span>
+                            <GoalAssistBadges rating={r} />
+                          </div>
                         </div>
                         <div className="summary-chips-col" style={{ flexShrink: 1, minWidth: 0, maxWidth: 130 }}>
                           <StatChips rating={r} size="sm" />

@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 
 const AREAS_EN = ['All Areas', 'Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
 const FORMATS_EN = ['All Formats', '5v5', '6v6'];
+const RATED_GAMES_LIMIT = 10;
 
 
 const get14Days = () => {
@@ -51,6 +52,7 @@ export default function HomePage() {
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = usePersistedState('home_date', null);
   const [userProfile, setUserProfile] = useState(null);
+  const [ratedGames, setRatedGames] = useState([]);
   const [requestedToday, setRequestedToday] = useState(false);
   const [requestingGames, setRequestingGames] = useState(false);
   const days14 = get14Days();
@@ -67,6 +69,7 @@ export default function HomePage() {
     const cached = getCached('home_games');
     if (cached) { setGames(cached); setLoading(false); }
     fetchGames(!!cached);
+    fetchRatedGames();
   }, []);
 
   useEffect(() => {
@@ -118,13 +121,20 @@ export default function HomePage() {
     const gamesWithCounts = data.map((g, i) => ({ ...g, _playerCount: counts[i].count || 0 }));
 
     const now = new Date();
-    const gamesToDelete = gamesWithCounts.filter(g => {
+    const deleteCandidates = gamesWithCounts.filter(g => {
       const [year, month, day] = g.date.split('-').map(Number);
       const [hour, minute] = (g.time || '00:00').split(':').map(Number);
       const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
       const minPlayers = parseInt(g.format) * 2 || 10;
       return now >= gameStart && g._playerCount < minPlayers;
     });
+    let gamesToDelete = deleteCandidates;
+    if (deleteCandidates.length > 0) {
+      const { data: ratedRows } = await supabase
+        .from('game_ratings').select('game_id').in('game_id', deleteCandidates.map(g => g.id));
+      const ratedIds = new Set((ratedRows || []).map(r => r.game_id));
+      gamesToDelete = deleteCandidates.filter(g => !ratedIds.has(g.id));
+    }
     if (gamesToDelete.length > 0) {
       await Promise.all(gamesToDelete.map(g =>
         refundGamePlayers(g.id, g.title, g.price, 'Insufficient Players')
@@ -137,6 +147,30 @@ export default function HomePage() {
     setGames(result);
     setCached('home_games', result);
     setLoading(false);
+  };
+
+  const fetchRatedGames = async () => {
+    const nowMY = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const todayStartMYT = new Date(Date.UTC(nowMY.getUTCFullYear(), nowMY.getUTCMonth(), nowMY.getUTCDate(), -8, 0));
+    const { data: ratings } = await supabase
+      .from('game_ratings').select('game_id, created_at')
+      .gte('created_at', todayStartMYT.toISOString())
+      .order('created_at', { ascending: false });
+    if (!ratings || ratings.length === 0) return;
+    const orderedIds = [];
+    const seen = new Set();
+    for (const r of ratings) {
+      if (seen.has(r.game_id)) continue;
+      seen.add(r.game_id);
+      orderedIds.push(r.game_id);
+      if (orderedIds.length >= RATED_GAMES_LIMIT) break;
+    }
+    const { data: gamesData } = await supabase
+      .from('games').select('*, fields(name, area, images)').in('id', orderedIds);
+    if (!gamesData) return;
+    const byId = {};
+    gamesData.forEach(g => { byId[g.id] = g; });
+    setRatedGames(orderedIds.map(id => byId[id]).filter(Boolean));
   };
 
   const filtered = games.filter(g => {
@@ -292,6 +326,25 @@ export default function HomePage() {
                 <p>{t('home.noGames')}</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Recently Rated games */}
+        {ratedGames.length > 0 && (
+          <div className="fade-up-2" style={{ marginTop: 40 }}>
+            <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>
+              RECENTLY RATED
+            </h2>
+            <p style={{ color: 'var(--text)', fontSize: 13, marginBottom: 16, opacity: 0.7 }}>
+              Catch up on match results — tap a game to see the full summary.
+            </p>
+            <div className="hide-scrollbar" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8 }}>
+              {ratedGames.map(game => (
+                <div key={game.id} style={{ flex: '0 0 280px' }}>
+                  <GameCard game={game} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

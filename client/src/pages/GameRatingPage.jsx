@@ -478,7 +478,7 @@ export default function GameRatingPage() {
             <div style={{ background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 10, padding: '12px 16px', marginBottom: 10, color: 'var(--accent)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
               <IoCheckmarkCircle size={16} /> {success}
             </div>
-            <button onClick={() => navigate(`/game/${id}/summary`)} style={{
+            <button onClick={() => navigate(`/game/${id}`)} style={{
               width: '100%', padding: '12px',
               background: 'rgba(255,215,0,0.1)', color: '#FFD700',
               border: '1.5px solid rgba(255,215,0,0.35)', borderRadius: 10,
