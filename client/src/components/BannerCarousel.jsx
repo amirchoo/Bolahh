@@ -102,15 +102,21 @@ export default function BannerCarousel() {
             <div style={{
               position: 'absolute', bottom: 0, left: 0, right: 0,
               background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)',
-              padding: '32px 20px 14px',
+              padding: 'clamp(16px, 6vw, 32px) 20px 14px',
             }}>
               {banner.title && (
-                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: '#fff', lineHeight: 1.1 }}>
+                <div style={{
+                  fontFamily: "'Bebas Neue'", fontSize: 'clamp(13px, 4.2vw, 22px)', letterSpacing: 2, color: '#fff', lineHeight: 1.1,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
                   {banner.title}
                 </div>
               )}
               {banner.subtitle && (
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 3 }}>
+                <div style={{
+                  fontSize: 'clamp(9px, 2.6vw, 13px)', color: 'rgba(255,255,255,0.8)', marginTop: 3,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
                   {banner.subtitle}
                 </div>
               )}
