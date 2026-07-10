@@ -39,6 +39,7 @@ export default function GameCancelPage() {
   const { user } = useAuth();
   const [game, setGame] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [amountPaid, setAmountPaid] = useState(0);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
@@ -51,12 +52,13 @@ export default function GameCancelPage() {
     const [gameRes, profileRes, joinedRes] = await Promise.all([
       supabase.from('games').select('*, fields(*)').eq('id', id).single(),
       supabase.from('profiles').select('wallet_balance').eq('id', user.id).single(),
-      supabase.from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle(),
+      supabase.from('game_players').select('id, amount_paid').eq('game_id', id).eq('user_id', user.id).maybeSingle(),
     ]);
     if (gameRes.error || !gameRes.data) { navigate('/home'); return; }
     if (!joinedRes.data) { navigate(`/game/${id}`); return; }
     setGame(gameRes.data);
     setWalletBalance(profileRes.data?.wallet_balance || 0);
+    setAmountPaid(joinedRes.data.amount_paid ?? gameRes.data.price);
     setLoading(false);
   };
 
@@ -69,7 +71,7 @@ export default function GameCancelPage() {
     const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
     const hoursUntilGame = (gameStart - new Date()) / (1000 * 60 * 60);
     const { pct, label } = getRefundTier(hoursUntilGame);
-    const refundAmount = parseFloat((game.price * pct).toFixed(2));
+    const refundAmount = parseFloat((amountPaid * pct).toFixed(2));
 
     const { error: leaveErr, count } = await supabase
       .from('game_players')
@@ -122,7 +124,7 @@ export default function GameCancelPage() {
   const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
   const hoursUntilGame = (gameStart - new Date()) / (1000 * 60 * 60);
   const tier = getRefundTier(hoursUntilGame);
-  const refundAmount = parseFloat((game.price * tier.pct).toFixed(2));
+  const refundAmount = parseFloat((amountPaid * tier.pct).toFixed(2));
   const balanceAfter = parseFloat((walletBalance + refundAmount).toFixed(2));
 
   const sectionTitle = {
@@ -207,7 +209,7 @@ export default function GameCancelPage() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
             <span style={{ color: 'var(--text)' }}>Amount paid</span>
-            <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {Number(game.price).toFixed(2)}</span>
+            <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {Number(amountPaid).toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
             <span style={{ color: 'var(--text)' }}>Refund rate</span>

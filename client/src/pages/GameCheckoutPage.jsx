@@ -166,7 +166,7 @@ export default function GameCheckoutPage() {
     // Join the game
     const { error: joinErr } = await supabase
       .from('game_players')
-      .insert({ game_id: id, user_id: user.id });
+      .insert({ game_id: id, user_id: user.id, amount_paid: chargeAmount });
 
     if (joinErr) {
       // Refund the deduction if join failed
