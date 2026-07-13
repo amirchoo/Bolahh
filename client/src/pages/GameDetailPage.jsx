@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached } from '../lib/dataCache';
@@ -204,6 +204,17 @@ export default function GameDetailPage() {
   const [hasFeedback, setHasFeedback] = useState(false);
   const [showAwardPopup, setShowAwardPopup] = useState(false);
   const [myPosition, setMyPosition] = useState(null);
+
+  // Full standings list is shuffled (not ranked by points) so it doesn't read as a leaderboard —
+  // the top-3 award ranking above it already covers that.
+  const shuffledRatings = useMemo(() => {
+    const arr = [...sortedRatings];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [sortedRatings]);
 
   useEffect(() => {
     const cached = getCached(`game_${id}`);
@@ -832,7 +843,7 @@ export default function GameDetailPage() {
                   <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', marginBottom: 12 }}>
                     PLAYER STATISTICS
                   </div>
-                  {sortedRatings.map((r) => {
+                  {shuffledRatings.map((r) => {
                     const p = ratingProfiles[r.user_id];
                     const rank = getRank(p?.total_points);
                     const rankColor = getRankColor(rank);

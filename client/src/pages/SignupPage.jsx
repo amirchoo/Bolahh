@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { IoEye, IoEyeOff, IoMail } from 'react-icons/io5';
 import { useTranslation } from 'react-i18next';
+import { AREAS } from '../lib/areas';
 
 const ZONE_CONFIG = [
   { id: 'Attacker',   labelKey: 'Attacker',   svgLabel: 'ATTACKER',   y: 15,  h: 90, color: '#F09D51' },
@@ -148,7 +149,7 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const genders = ['Male', 'Female', 'Rather not say'];
-  const areas = ['Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
+  const areas = AREAS;
 
   const advance = () => { setStepDir('forward'); setStep(s => s + 1); };
   const goBack  = () => { setError(''); setStepDir('back'); setStep(s => s - 1); };;

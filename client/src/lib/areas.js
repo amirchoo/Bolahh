@@ -1,0 +1,15 @@
+export const AREAS = [
+  'Kuala Lumpur',
+  'Petaling Jaya',
+  'Subang',
+  'Shah Alam',
+  'Klang',
+  'Setapak',
+  'Wangsa Maju',
+  'Kepong',
+  'Cheras',
+  'Ampang',
+  'Puchong',
+  'Kajang',
+  'Ansan',
+];

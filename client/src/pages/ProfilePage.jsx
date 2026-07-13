@@ -12,9 +12,9 @@ import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload } 
 import { FaLocationDot } from 'react-icons/fa6';
 import FifaCard, { calcOverall } from '../components/FifaCard';
 import { useTranslation } from 'react-i18next';
+import { AREAS } from '../lib/areas';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
-const AREAS = ['Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
 const GENDERS = ['Male', 'Female', 'Rather not say'];
 
 export default function ProfilePage() {
