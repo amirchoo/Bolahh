@@ -382,7 +382,7 @@ export default function LandingPage() {
             </p>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 hero-btns`} style={{ display: 'flex', gap: 12 }}>
-              <button className="cta-btn" onClick={() => navigate('/signup')} style={{
+              <button className="cta-btn" onClick={() => navigate('/home')} style={{
                 background: 'linear-gradient(135deg, #F09D51, #F06543)',
                 color: '#fff', border: 'none', borderRadius: 12,
                 padding: '14px 0', fontSize: 15, fontWeight: 700,
@@ -398,21 +398,6 @@ export default function LandingPage() {
                 flex: 1, minWidth: 160,
               }}>{t('landing.hero.howItWorks')}</button>
             </div>
-
-            <button
-              className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-3 cta-btn`}
-              onClick={() => navigate('/home')}
-              style={{
-                background: 'none', border: 'none', padding: '10px 0 0',
-                color: 'rgba(232,233,235,0.45)', fontSize: 13, fontFamily: "'DM Sans'",
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-                transition: 'color 0.2s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = '#F09D51'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(232,233,235,0.45)'}
-            >
-              <span></span> Click to browse games near you now!
-            </button>
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-4 hero-stats`} style={{ display: 'flex', gap: 32, marginTop: 40 }}>
               {[

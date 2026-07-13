@@ -9,8 +9,9 @@ import { getCardTheme, STATS, POSITION_ABBR } from '../components/FifaCard';
 import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot, FaMedal } from 'react-icons/fa6';
+import { AREAS as CITY_AREAS } from '../lib/areas';
 
-const AREAS = ['All Areas', 'Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
+const AREAS = ['All Areas', ...CITY_AREAS];
 const POSITION_TABS = [
   { value: 'All',        label: 'ALL' },
   { value: 'Attacker',   label: 'ATK' },

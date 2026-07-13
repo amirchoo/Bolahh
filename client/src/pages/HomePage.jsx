@@ -16,10 +16,11 @@ import { TbPlayCard7Filled } from 'react-icons/tb';
 import { IoWallet } from 'react-icons/io5';
 import { FaInstagram } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
+import { AREAS as CITY_AREAS } from '../lib/areas';
 
 
 
-const AREAS_EN = ['All Areas', 'Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
+const AREAS_EN = ['All Areas', ...CITY_AREAS];
 const FORMATS_EN = ['All Formats', '5v5', '6v6'];
 const RATED_GAMES_LIMIT = 10;
 
@@ -150,11 +151,8 @@ export default function HomePage() {
   };
 
   const fetchRatedGames = async () => {
-    const nowMY = new Date(Date.now() + 8 * 60 * 60 * 1000);
-    const todayStartMYT = new Date(Date.UTC(nowMY.getUTCFullYear(), nowMY.getUTCMonth(), nowMY.getUTCDate(), -8, 0));
     const { data: ratings } = await supabase
       .from('game_ratings').select('game_id, created_at')
-      .gte('created_at', todayStartMYT.toISOString())
       .order('created_at', { ascending: false });
     if (!ratings || ratings.length === 0) return;
     const orderedIds = [];

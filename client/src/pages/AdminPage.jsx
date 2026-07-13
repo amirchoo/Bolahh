@@ -12,8 +12,7 @@ import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer } from 'react-icons/m
 import FifaCard, { buildCustomTheme, getCardTheme, POSITION_ABBR, STATS, STICKER_ICONS } from '../components/FifaCard';
 import { drawCardImage } from '../lib/cardCanvas';
 import { RANKS, getRankColor } from '../lib/rankUtils';
-
-const AREAS = ['Kuala Lumpur', 'Petaling Jaya', 'Subang', 'Shah Alam', 'Ansan'];
+import { AREAS } from '../lib/areas';
 
 const DEFAULT_DESIGN = {
   gradFrom: '#b8860b', gradMid: '#ffd700', gradTo: '#b8860b',
