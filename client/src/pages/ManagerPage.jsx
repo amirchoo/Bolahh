@@ -157,7 +157,7 @@ export default function ManagerPage() {
     if (!pendingRows || pendingRows.length === 0) { setPendingPayments([]); return []; }
 
     const userIds = [...new Set(pendingRows.map(p => p.user_id))];
-    const { data: profilesData } = await supabase.from('profiles').select('id, username').in('id', userIds);
+    const { data: profilesData } = await supabase.from('profiles').select('id, name').in('id', userIds);
     const profileMap = {};
     (profilesData || []).forEach(p => { profileMap[p.id] = p; });
     const gameMap = {};
@@ -165,7 +165,7 @@ export default function ManagerPage() {
 
     const result = pendingRows.map(p => ({
       ...p,
-      username: profileMap[p.user_id]?.username || 'Player',
+      username: profileMap[p.user_id]?.name || 'Player',
       game: gameMap[p.game_id],
     }));
     setPendingPayments(result);
