@@ -188,6 +188,7 @@
     "slotsLeft_one": "{{count}} slot tinggal",
     "slotsLeft_other": "{{count}} slot tinggal",
     "players": "pemain",
+    "earlySpot": "Baru dibuka. Jadi antara yang pertama sertai!",
     "court": "Gelanggang {{court}}",
     "today": "HARI INI",
     "showAll": "TUNJUK",

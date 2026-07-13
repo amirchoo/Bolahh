@@ -188,6 +188,7 @@
     "slotsLeft_one": "{{count}} slot left",
     "slotsLeft_other": "{{count}} slots left",
     "players": "players",
+    "earlySpot": "Newly opened. Be one of the first to join!",
     "court": "Court {{court}}",
     "today": "TODAY",
     "showAll": "SHOW",

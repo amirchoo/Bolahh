@@ -351,6 +351,9 @@ export default function GameDetailPage() {
   const full = playerCount >= game.slots;
   const pct = Math.round((playerCount / game.slots) * 100);
   const open = game.slots - playerCount;
+  // Below this fill level, the raw headcount reads as "nobody wants this game" and
+  // discourages joining — lead with opportunity framing instead until it fills up more.
+  const showCount = full || pct >= 40;
   const shortfall = Math.max(0, game.price - walletBalance);
 
   const now = new Date();
@@ -714,15 +717,19 @@ export default function GameDetailPage() {
             )}
 
             <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>
-                <span style={{ fontWeight: 600, color: 'var(--text)' }}>{playerCount}/{game.slots} players joined</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)', marginBottom: showCount ? 8 : 16 }}>
+                <span style={{ fontWeight: 600, color: showCount ? 'var(--text)' : 'var(--accent)' }}>
+                  {showCount ? `${playerCount}/${game.slots} players joined` : 'Newly opened. Be one of the first to join!'}
+                </span>
                 <span style={{ color: full ? 'var(--red)' : 'var(--accent)', fontWeight: 600 }}>
                   {full ? 'FULL' : `${open} slots open`}
                 </span>
               </div>
-              <div style={{ height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden', marginBottom: 16 }}>
-                <div style={{ height: '100%', width: `${pct}%`, background: full ? 'var(--red)' : 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
-              </div>
+              {showCount && (
+                <div style={{ height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden', marginBottom: 16 }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: full ? 'var(--red)' : 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
+                </div>
+              )}
 
               <button
                 onClick={handleJoinClick}

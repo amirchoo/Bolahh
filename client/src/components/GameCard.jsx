@@ -29,6 +29,9 @@ export default function GameCard({ game }) {
   const full = playerCount >= game.slots;
   const pct = Math.round((playerCount / game.slots) * 100);
   const open = game.slots - playerCount;
+  // Below this fill level, showing the raw headcount reads as "nobody wants this game"
+  // and discourages joining — lead with opportunity framing instead until it fills up more.
+  const showCount = full || pct >= 40;
   const coverImage = Array.isArray(game.fields?.images) ? game.fields.images[0] : null;
 
   const now = new Date();
@@ -158,12 +161,20 @@ export default function GameCard({ game }) {
         {/* Slot progress bar — only when game hasn't started */}
         {!timedOut && !ongoing && !ended && (
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>
-              <span>{playerCount}/{game.slots} {t('home.players')}</span>
-            </div>
-            <div style={{ height: 4, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: full ? 'var(--red)' : 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
-            </div>
+            {showCount ? (
+              <>
+                <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>
+                  <span>{playerCount}/{game.slots} {t('home.players')}</span>
+                </div>
+                <div style={{ height: 4, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: full ? 'var(--red)' : 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>
+                {t('home.earlySpot')}
+              </div>
+            )}
           </div>
         )}
 
