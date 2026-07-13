@@ -41,20 +41,24 @@ export default function ManagerPage() {
   const [gameForm, setGameForm] = useState({
     title: '', field_id: '', area: '', format: '5v5',
     date: '', time: '', slots: 10, price: '', court: '',
-    description: '', game_rules: '', shoes_type: []
+    description: '', game_rules: '', shoes_type: [], allow_pay_at_court: false
   });
 
   const [editGameForm, setEditGameForm] = useState({
     title: '', field_id: '', area: '', format: '5v5',
     date: '', time: '', slots: 10, price: '', court: '',
-    description: '', game_rules: '', shoes_type: []
+    description: '', game_rules: '', shoes_type: [], allow_pay_at_court: false
   });
+
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [markingPaidId, setMarkingPaidId] = useState(null);
 
   useEffect(() => {
     const cached = getCached('manager_data');
     if (cached) {
       setFields(cached.fields); setGames(cached.games); setPlayers(cached.players);
       setFeedback(cached.feedback || []); setSportsmanship(cached.sportsmanship || []);
+      setPendingPayments(cached.pendingPayments || []);
       setLoading(false);
     }
     fetchAll(!!cached);
@@ -64,9 +68,10 @@ export default function ManagerPage() {
     if (!silent) setLoading(true);
     const [fieldsData, gamesData, playersData] = await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
     const { feedback: feedbackData, sportsmanship: sportsmanshipData } = await fetchFeedback();
+    const pendingData = await fetchPendingPayments(gamesData);
     setCached('manager_data', {
       fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [],
-      feedback: feedbackData, sportsmanship: sportsmanshipData,
+      feedback: feedbackData, sportsmanship: sportsmanshipData, pendingPayments: pendingData,
     });
     setLoading(false);
   };
@@ -138,19 +143,61 @@ export default function ManagerPage() {
     return { feedback: feedbackWithNames, sportsmanship: sportsmanshipList };
   };
 
+  const fetchPendingPayments = async (gamesList) => {
+    const gameIds = (gamesList || []).map(g => g.id);
+    if (gameIds.length === 0) { setPendingPayments([]); return []; }
+
+    const { data: pendingRows } = await supabase
+      .from('game_players')
+      .select('id, game_id, user_id')
+      .in('game_id', gameIds)
+      .eq('payment_method', 'cash')
+      .eq('payment_status', 'pending');
+
+    if (!pendingRows || pendingRows.length === 0) { setPendingPayments([]); return []; }
+
+    const userIds = [...new Set(pendingRows.map(p => p.user_id))];
+    const { data: profilesData } = await supabase.from('profiles').select('id, username').in('id', userIds);
+    const profileMap = {};
+    (profilesData || []).forEach(p => { profileMap[p.id] = p; });
+    const gameMap = {};
+    (gamesList || []).forEach(g => { gameMap[g.id] = g; });
+
+    const result = pendingRows.map(p => ({
+      ...p,
+      username: profileMap[p.user_id]?.username || 'Player',
+      game: gameMap[p.game_id],
+    }));
+    setPendingPayments(result);
+    return result;
+  };
+
+  const handleMarkPaid = async (row) => {
+    setMarkingPaidId(row.id);
+    const { error } = await supabase
+      .from('game_players')
+      .update({ payment_status: 'paid', amount_paid: row.game?.price ?? 0 })
+      .eq('id', row.id);
+    setMarkingPaidId(null);
+    if (error) { showError(error.message); return; }
+    setPendingPayments(prev => prev.filter(p => p.id !== row.id));
+    clearCached('manager_data');
+    showSuccess('Marked as paid.');
+  };
+
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
   const showError = (msg) => { setError(msg); setSuccess(''); };
 
   const resetGameForm = () => setGameForm({
     title: '', field_id: '', area: '', format: '5v5',
     date: '', time: '', slots: 10, price: '', court: '',
-    description: '', game_rules: '', shoes_type: []
+    description: '', game_rules: '', shoes_type: [], allow_pay_at_court: false
   });
 
   const resetEditGameForm = () => setEditGameForm({
     title: '', field_id: '', area: '', format: '5v5',
     date: '', time: '', slots: 10, price: '', court: '',
-    description: '', game_rules: '', shoes_type: []
+    description: '', game_rules: '', shoes_type: [], allow_pay_at_court: false
   });
 
   // ── GAME HANDLERS ──
@@ -165,6 +212,7 @@ export default function ManagerPage() {
       court: gameForm.court || null,
       description: gameForm.description, game_rules: gameForm.game_rules,
       shoes_type: gameForm.shoes_type.join(', '),
+      allow_pay_at_court: gameForm.allow_pay_at_court,
       created_by: (await supabase.auth.getUser()).data.user?.id,
     });
     if (error) { showError(error.message); return; }
@@ -179,6 +227,7 @@ export default function ManagerPage() {
       slots: game.slots, price: game.price, court: game.court || '',
       description: game.description || '', game_rules: game.game_rules || '',
       shoes_type: game.shoes_type ? game.shoes_type.split(', ') : [],
+      allow_pay_at_court: !!game.allow_pay_at_court,
     });
     setShowEditGameModal(true);
   };
@@ -195,6 +244,7 @@ export default function ManagerPage() {
       court: f.court || null,
       description: f.description, game_rules: f.game_rules,
       shoes_type: f.shoes_type.join(', '),
+      allow_pay_at_court: f.allow_pay_at_court,
     }).eq('id', editingGame).select('*, fields(name)');
     if (error) { showError(error.message); return; }
     if (!updated || updated.length === 0) { showError('Update failed. No rows matched. Check Supabase RLS policies.'); return; }
@@ -294,6 +344,27 @@ export default function ManagerPage() {
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>PRICE (RM) *</label>
           <input type="number" placeholder="e.g. 15" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />
+        </div>
+      </div>
+      <div
+        onClick={() => setForm({ ...form, allow_pay_at_court: !form.allow_pay_at_court })}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+          background: form.allow_pay_at_court ? 'rgba(240,157,81,0.08)' : 'var(--card2)',
+          border: `1px solid ${form.allow_pay_at_court ? 'var(--accent)' : 'var(--border)'}`,
+          borderRadius: 10, padding: '10px 14px'
+        }}
+      >
+        <div style={{
+          width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+          background: form.allow_pay_at_court ? 'var(--accent)' : 'transparent',
+          border: `2px solid ${form.allow_pay_at_court ? 'var(--accent)' : 'var(--border)'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, color: '#fff'
+        }}>{form.allow_pay_at_court && '✓'}</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Allow Pay at Court</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>Players can book a slot and pay cash/QR at the venue instead of via wallet.</div>
         </div>
       </div>
       <div>
@@ -503,6 +574,37 @@ export default function ManagerPage() {
               {renderGameForm(false, gameForm, setGameForm)}
             </div>
 
+            {/* Pending cash payments */}
+            {pendingPayments.length > 0 && (
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                  Pending Cash Payments ({pendingPayments.length})
+                </div>
+                {pendingPayments.map((p, i) => (
+                  <div key={p.id} style={{
+                    padding: '12px 20px',
+                    borderBottom: i < pendingPayments.length - 1 ? '1px solid var(--border)' : 'none',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
+                  }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.username}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{p.game?.title} · RM {p.game?.price} due at court</div>
+                    </div>
+                    <button
+                      onClick={() => handleMarkPaid(p)}
+                      disabled={markingPaidId === p.id}
+                      style={{
+                        background: 'rgba(74,222,128,0.1)', color: '#4ade80',
+                        border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8,
+                        padding: '6px 14px', fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        opacity: markingPaidId === p.id ? 0.6 : 1
+                      }}
+                    >{markingPaidId === p.id ? 'Saving...' : 'Mark Paid'}</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Games list */}
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
@@ -519,7 +621,16 @@ export default function ManagerPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{game.title}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{game.fields?.name} · <MdOutlineCalendarMonth size={12} />{game.date} · {game.format}</div>
-                    <div style={{ fontSize: 12, color: 'var(--accent)', fontFamily: "'Space Mono'", marginTop: 2 }}>RM {game.price} · {game.slots} slots</div>
+                    <div style={{ fontSize: 12, color: 'var(--accent)', fontFamily: "'Space Mono'", marginTop: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      RM {game.price} · {game.slots} slots
+                      {game.allow_pay_at_court && (
+                        <span style={{
+                          background: 'rgba(74,222,128,0.1)', color: '#4ade80',
+                          border: '1px solid rgba(74,222,128,0.3)', borderRadius: 5,
+                          padding: '1px 7px', fontSize: 10, fontWeight: 700
+                        }}>CASH/QR OK</span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button onClick={() => navigate(`/game/${game.id}/rate`)} style={{

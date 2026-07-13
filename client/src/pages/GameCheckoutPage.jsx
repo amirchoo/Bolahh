@@ -32,6 +32,7 @@ export default function GameCheckoutPage() {
   const [couponError, setCouponError] = useState('');
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [insufficientShortfall, setInsufficientShortfall] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -111,6 +112,20 @@ export default function GameCheckoutPage() {
     const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
     if (new Date() >= new Date(gameStart.getTime() - 10 * 60 * 1000)) {
       setError('Booking closed. Game starts in less than 10 minutes.');
+      setConfirming(false);
+      return;
+    }
+
+    // Pay at Court: skip wallet balance checks/deduction, just hold the slot as pending cash
+    if (paymentMethod === 'cash') {
+      const { error: joinErr } = await supabase
+        .from('game_players')
+        .insert({ game_id: id, user_id: user.id, amount_paid: 0, payment_method: 'cash', payment_status: 'pending' });
+
+      if (joinErr) { setError('Failed to join game. Please try again.'); setConfirming(false); return; }
+
+      clearCached(`game_${id}`);
+      setSuccess(true);
       setConfirming(false);
       return;
     }
@@ -255,8 +270,21 @@ export default function GameCheckoutPage() {
           </div>
           <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28, lineHeight: 1.7 }}>
             Successfully joined <strong style={{ color: 'var(--text)' }}>{game.title}</strong>.<br />
-            RM {finalPrice.toFixed(2)} has been deducted from your wallet.
+            {paymentMethod === 'cash'
+              ? <>Pay <strong style={{ color: 'var(--text)' }}>RM {Number(game.price).toFixed(2)}</strong> by cash or QR at the court before kickoff.</>
+              : <>RM {finalPrice.toFixed(2)} has been deducted from your wallet.</>}
           </p>
+          {paymentMethod === 'cash' ? (
+            <div style={{
+              background: 'var(--card)', border: '1px solid var(--border)',
+              borderRadius: 14, padding: '16px 20px', marginBottom: 28, textAlign: 'left'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'var(--muted)' }}>Amount due at court</span>
+                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--accent)' }}>RM {Number(game.price).toFixed(2)}</span>
+              </div>
+            </div>
+          ) : (
           <div style={{
             background: 'var(--card)', border: '1px solid var(--border)',
             borderRadius: 14, padding: '16px 20px', marginBottom: 28, textAlign: 'left'
@@ -282,6 +310,7 @@ export default function GameCheckoutPage() {
               <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {walletBalance.toFixed(2)}</span>
             </div>
           </div>
+          )}
           {/* Game Rules */}
           <div style={{
             background: 'var(--card)', border: '1px solid var(--border)',
@@ -499,7 +528,50 @@ export default function GameCheckoutPage() {
           </div>
         </div>
 
+        {/* Payment method selector */}
+        {game.allow_pay_at_court && (
+          <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 16, padding: '20px', marginBottom: 16
+          }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>PAYMENT METHOD</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { key: 'wallet', label: 'Bolahh Wallet', icon: <IoWallet size={15} />, desc: 'Charged now' },
+                { key: 'cash', label: 'Pay at Court', icon: <MdOutlineStadium size={15} />, desc: 'Book now, pay later' },
+              ].map(opt => (
+                <button key={opt.key} onClick={() => setPaymentMethod(opt.key)} style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  background: paymentMethod === opt.key ? 'rgba(240,157,81,0.1)' : 'var(--card2)',
+                  color: paymentMethod === opt.key ? 'var(--accent)' : 'var(--muted)',
+                  border: `1.5px solid ${paymentMethod === opt.key ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 10, padding: '12px 8px', cursor: 'pointer'
+                }}>
+                  {opt.icon}
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{opt.label}</span>
+                  <span style={{ fontSize: 11, opacity: 0.75 }}>{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Payment breakdown */}
+        {paymentMethod === 'cash' ? (
+          <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 16, padding: '20px', marginBottom: 16
+          }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>PAYMENT SUMMARY</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
+              <span style={{ fontWeight: 700, color: 'var(--text)' }}>Due at court</span>
+              <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--accent)' }}>RM {Number(game.price).toFixed(2)}</span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
+              No wallet charge now. Pay the full amount by cash or QR at the venue before kickoff.
+            </p>
+          </div>
+        ) : (
         <div style={{
           background: 'var(--card)', border: '1px solid var(--border)',
           borderRadius: 16, padding: '20px', marginBottom: 16
@@ -579,8 +651,22 @@ export default function GameCheckoutPage() {
             </span>
           </div>
         </div>
+        )}
 
         {/* Refund policy */}
+        {paymentMethod === 'cash' ? (
+          <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 16, padding: '20px', marginBottom: 16
+          }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IoDocumentText size={14} /> CANCELLATION POLICY
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+              Since no payment is taken now, there's nothing to refund. Please cancel your slot as early as possible if you can't make it, so the manager can offer it to someone else.
+            </p>
+          </div>
+        ) : (
         <div style={{
           background: 'var(--card)', border: '1px solid var(--border)',
           borderRadius: 16, padding: '20px', marginBottom: 16
@@ -629,6 +715,7 @@ export default function GameCheckoutPage() {
             </div>
           ))}
         </div>
+        )}
 
         {/* Agree checkbox */}
         <div
@@ -651,16 +738,22 @@ export default function GameCheckoutPage() {
             {agreed && <IoCheckmark size={12} />}
           </div>
           <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
-            I have read and agree to the refund & cancellation policy. I understand that my wallet will be charged{' '}
-            {couponData ? (
-              <>
-                <strong style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>RM {Number(game.price).toFixed(2)}</strong>{' '}
-                <strong style={{ color: '#4ade80' }}>RM {finalPrice.toFixed(2)}</strong>
-              </>
+            {paymentMethod === 'cash' ? (
+              <>I have read and agree to the cancellation policy. I understand I must pay <strong>RM {Number(game.price).toFixed(2)}</strong> by cash or QR at the court before playing.</>
             ) : (
-              <strong>RM {finalPrice.toFixed(2)}</strong>
-            )}{' '}
-            upon confirming.
+              <>
+                I have read and agree to the refund & cancellation policy. I understand that my wallet will be charged{' '}
+                {couponData ? (
+                  <>
+                    <strong style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>RM {Number(game.price).toFixed(2)}</strong>{' '}
+                    <strong style={{ color: '#4ade80' }}>RM {finalPrice.toFixed(2)}</strong>
+                  </>
+                ) : (
+                  <strong>RM {finalPrice.toFixed(2)}</strong>
+                )}{' '}
+                upon confirming.
+              </>
+            )}
           </span>
         </div>
 
@@ -686,11 +779,15 @@ export default function GameCheckoutPage() {
             fontFamily: "'Bebas Neue'", letterSpacing: 2
           }}
         >
-          {confirming ? 'PROCESSING...' : `CONFIRM & PAY RM ${finalPrice.toFixed(2)}`}
+          {confirming
+            ? 'PROCESSING...'
+            : paymentMethod === 'cash' ? 'CONFIRM BOOKING' : `CONFIRM & PAY RM ${finalPrice.toFixed(2)}`}
         </button>
 
         <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginTop: 14 }}>
-          Payment is deducted instantly from your Bolahh wallet.
+          {paymentMethod === 'cash'
+            ? 'No wallet charge. Pay by cash or QR at the court before kickoff.'
+            : 'Payment is deducted instantly from your Bolahh wallet.'}
         </p>
 
       </div>

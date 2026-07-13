@@ -701,19 +701,29 @@ export default function GameDetailPage() {
         {/* Slot bar + join button — only shown when game has NOT started */}
         {!ongoing && !ended && (
           <>
-            {/* Wallet balance hint */}
+            {/* Payment method hint */}
             {!hasJoined && !full && !timedOut && (
-              <div style={{
-                background: walletBalance >= game.price ? 'rgba(74,222,128,0.06)' : 'rgba(224,62,26,0.06)',
-                border: `1px solid ${walletBalance >= game.price ? 'rgba(74,222,128,0.2)' : 'rgba(224,62,26,0.2)'}`,
-                borderRadius: 10, padding: '10px 16px', marginBottom: 16,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13
-              }}>
-                <span style={{ color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><IoWallet size={13} /> Wallet balance</span>
-                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: walletBalance >= game.price ? '#4ade80' : 'var(--red)' }}>
-                  RM {walletBalance.toFixed(2)} {walletBalance >= game.price ? <IoCheckmark size={13} style={{ verticalAlign: 'middle' }} /> : `(need RM ${shortfall.toFixed(2)} more)`}
-                </span>
-              </div>
+              game.allow_pay_at_court ? (
+                <div style={{
+                  background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.25)',
+                  borderRadius: 10, padding: '10px 16px', marginBottom: 16,
+                  display: 'flex', alignItems: 'center', gap: 8
+                }}>
+                  <IoWallet size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
+                  <span style={{ fontFamily: "'Bebas Neue'", fontSize: 15, letterSpacing: 1.5, color: 'var(--accent)' }}>
+                    BOOK NOW, PAY LATER — cash/QR available at court!
+                  </span>
+                </div>
+              ) : (
+                <div style={{
+                  background: 'var(--card2)', border: '1px solid var(--border)',
+                  borderRadius: 10, padding: '10px 16px', marginBottom: 16,
+                  display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)'
+                }}>
+                  <IoWallet size={13} />
+                  Pay with Wallet
+                </div>
+              )
             )}
 
             <div className="fade-up-2" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, marginBottom: 20 }}>
