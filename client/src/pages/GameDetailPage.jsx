@@ -224,7 +224,9 @@ export default function GameDetailPage() {
     if (!silent) setLoading(true);
     const [gameRes, profileRes] = await Promise.all([
       supabase.from('games').select('*, fields(*)').eq('id', id).single(),
-      supabase.from('profiles').select('wallet_balance').eq('id', user.id).single(),
+      user
+        ? supabase.from('profiles').select('wallet_balance').eq('id', user.id).single()
+        : Promise.resolve({ data: null }),
     ]);
     if (gameRes.error || !gameRes.data) { navigate('/home'); return; }
     const gameData = gameRes.data;
@@ -246,8 +248,9 @@ export default function GameDetailPage() {
     const countVal = count || 0;
     setPlayerCount(countVal);
 
-    const { data: existing } = await supabase
-      .from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle();
+    const { data: existing } = user
+      ? await supabase.from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle()
+      : { data: null };
     const joinedVal = !!existing;
     setHasJoined(joinedVal);
 
@@ -301,7 +304,7 @@ export default function GameDetailPage() {
       rProfiles?.forEach(p => { pm[p.id] = p; });
       setRatingProfiles(pm);
 
-      const myIdx = sorted.findIndex(r => r.user_id === user.id);
+      const myIdx = user ? sorted.findIndex(r => r.user_id === user.id) : -1;
       if (myIdx >= 0 && myIdx < 3) {
         setMyPosition(myIdx + 1);
         setTimeout(() => setShowAwardPopup(true), 700);

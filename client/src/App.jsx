@@ -60,7 +60,7 @@ function AnimatedRoutes() {
         <Route path="/game/:id/checkout" element={<PrivateRoute><GameCheckoutPage /></PrivateRoute>} />
         <Route path="/game/:id/cancel" element={<PrivateRoute><GameCancelPage /></PrivateRoute>} />
         <Route path="/game/:id/feedback" element={<PrivateRoute><GameFeedbackPage /></PrivateRoute>} />
-        <Route path="/game/:id" element={<PrivateRoute><GameDetailPage /></PrivateRoute>} />
+        <Route path="/game/:id" element={<GameDetailPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
         <Route path="/game/:id/rate" element={<AdminRoute><GameRatingPage /></AdminRoute>} />

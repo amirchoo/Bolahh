@@ -131,6 +131,27 @@ export default function GameRatingPage() {
   // Base taps before this game — used to compute the per-game delta on submit
   const [baseRatings, setBaseRatings] = useState({});
 
+  // Re-applies any in-progress work saved to localStorage (team assignments, taps,
+  // step, etc). Must run — and finish — before `loading` flips to false anywhere,
+  // otherwise the auto-save effect below can fire on blank defaults first and
+  // wipe out the real progress before it's restored.
+  const restoreSavedProgress = () => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.step)              setStep(p.step);
+        if (p.duration)          setDuration(p.duration);
+        if (p.teamMode)          setTeamMode(p.teamMode);
+        if (p.teamAssign)        setTeamAssign(p.teamAssign);
+        if (p.ratings)           setRatings(p.ratings);
+        if (p.currentMatch != null) setCurrentMatch(p.currentMatch);
+        if (p.motmPlayers)       setMotmPlayers(p.motmPlayers);
+        if (p.goalAssist)        setGoalAssist(p.goalAssist);
+      }
+    } catch {}
+  };
+
   useEffect(() => {
     if (!isPreview) {
       const cached = getCached(`rating_data_${id}`);
@@ -142,6 +163,7 @@ export default function GameRatingPage() {
         setRatings(initRatings);
         const formatNum = parseInt(cached.game?.format) || 5;
         setTeamMode(cached.players.length <= formatNum * 2 ? 2 : 3);
+        restoreSavedProgress();
         setLoading(false);
       }
     }
@@ -191,8 +213,14 @@ export default function GameRatingPage() {
     if (!playerData || playerData.length === 0) { setLoading(false); return; }
 
     const userIds = playerData.map(p => p.user_id);
-    const { data: profileData } = await supabase
-      .from('profiles').select('id, name, avatar_url, total_points, games_played, card_stats').in('id', userIds);
+    // Fetched together (rather than sequentially) so there's no `await` gap between
+    // resetting ratings/teamMode to defaults below and restoring saved progress —
+    // otherwise a render could slip in between and the auto-save effect would
+    // persist the still-default (unrestored) state, clobbering real progress.
+    const [{ data: profileData }, { data: existing }] = await Promise.all([
+      supabase.from('profiles').select('id, name, avatar_url, total_points, games_played, card_stats').in('id', userIds),
+      supabase.from('game_ratings').select('user_id').eq('game_id', id).limit(1),
+    ]);
 
     const profileMap = {};
     profileData?.forEach(p => { profileMap[p.id] = p; });
@@ -225,27 +253,12 @@ export default function GameRatingPage() {
     setTeamMode(userIds.length <= formatNum * 2 ? 2 : 3);
 
     // Check already rated
-    const { data: existing } = await supabase
-      .from('game_ratings').select('user_id').eq('game_id', id).limit(1);
     if (existing && existing.length > 0) setAlreadyRated(true);
 
     setCached(`rating_data_${id}`, { game: gameData, players: userIds, profiles: profileMap, baseRatings: baseMap });
 
     // Restore saved progress if the admin was interrupted mid-session
-    try {
-      const saved = localStorage.getItem(`bolahh_rating_${id}`);
-      if (saved) {
-        const p = JSON.parse(saved);
-        if (p.step)              setStep(p.step);
-        if (p.duration)          setDuration(p.duration);
-        if (p.teamMode)          setTeamMode(p.teamMode);
-        if (p.teamAssign)        setTeamAssign(p.teamAssign);
-        if (p.ratings)           setRatings(p.ratings);
-        if (p.currentMatch != null) setCurrentMatch(p.currentMatch);
-        if (p.motmPlayers)       setMotmPlayers(p.motmPlayers);
-        if (p.goalAssist)        setGoalAssist(p.goalAssist);
-      }
-    } catch {}
+    restoreSavedProgress();
 
     setLoading(false);
   };
