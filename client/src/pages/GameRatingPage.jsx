@@ -413,6 +413,10 @@ export default function GameRatingPage() {
 
       localStorage.removeItem(storageKey);
       clearCached(`rating_data_${id}`);
+
+      // Fire-and-forget — a failed email send shouldn't block/undo the ratings submission.
+      supabase.functions.invoke('send-game-summary', { body: { game_id: id } }).catch(() => {});
+
       setSuccess('Ratings submitted!');
       setAlreadyRated(true);
       setStep('config');

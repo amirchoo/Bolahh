@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { IoEye, IoEyeOff, IoMail } from 'react-icons/io5';
 import { useTranslation } from 'react-i18next';
 import { AREAS } from '../lib/areas';
+import AvatarPicker from '../components/AvatarPicker';
 
 const ZONE_CONFIG = [
   { id: 'Attacker',   labelKey: 'Attacker',   svgLabel: 'ATTACKER',   y: 15,  h: 90, color: '#F09D51' },
@@ -140,7 +141,7 @@ export default function SignupPage() {
   const [stepDir, setStepDir] = useState('forward');
   const [form, setForm] = useState({
     username: '', email: '', password: '', confirmPassword: '',
-    position: '', gender: '', age: '', area: ''
+    avatar: '', position: '', gender: '', age: '', area: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -186,6 +187,7 @@ export default function SignupPage() {
       options: {
         data: {
           username: form.username.trim(),
+          avatar_url: form.avatar,
           position: form.position,
           gender: form.gender,
           age: parseInt(form.age),
@@ -246,7 +248,7 @@ export default function SignupPage() {
 
   const StepBar = () => (
     <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
-      {[1, 2, 3].map(s => (
+      {[1, 2, 3, 4].map(s => (
         <div key={s} style={{
           flex: 1, height: 3, borderRadius: 2,
           background: step >= s ? 'var(--accent)' : 'var(--border)',
@@ -391,8 +393,35 @@ export default function SignupPage() {
             </>
           )}
 
-          {/* ── Step 2: Position picker ── */}
+          {/* ── Step 2: Avatar picker ── */}
           {step === 2 && (
+            <>
+              <BackTitle title={t('signup.avatarTitle')} />
+              <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 24 }}>
+                {t('signup.avatarSubtitle')}
+              </p>
+
+              <AvatarPicker
+                value={form.avatar}
+                onSelect={avatar => setForm({ ...form, avatar })}
+              />
+
+              <button onClick={() => { setError(''); advance(); }} disabled={!form.avatar} style={{
+                width: '100%', marginTop: 24, padding: '14px',
+                background: form.avatar ? 'var(--accent)' : 'var(--card2)',
+                color: form.avatar ? '#fff' : 'var(--muted)',
+                border: `1px solid ${form.avatar ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 10, fontWeight: 700, fontSize: 15,
+                cursor: form.avatar ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s'
+              }}>
+                {t('signup.continueButton')} →
+              </button>
+            </>
+          )}
+
+          {/* ── Step 3: Position picker ── */}
+          {step === 3 && (
             <>
               <BackTitle title={t('signup.positionTitle')} />
               <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
@@ -433,8 +462,8 @@ export default function SignupPage() {
             </>
           )}
 
-          {/* ── Step 3: About you ── */}
-          {step === 3 && (
+          {/* ── Step 4: About you ── */}
+          {step === 4 && (
             <>
               <BackTitle title={t('signup.aboutTitle')} />
               <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 24 }}>

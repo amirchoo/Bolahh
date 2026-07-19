@@ -106,6 +106,10 @@ export default function AdminPage() {
   const [coupons, setCoupons] = useState([]);
   const [couponForm, setCouponForm] = useState({ code: '', discount_percentage: 10, max_uses: '', expires_at: '' });
 
+  // ── Avatar presets state ──────────────────────────────
+  const [avatarPresets, setAvatarPresets] = useState([]);
+  const [uploadingAvatarPreset, setUploadingAvatarPreset] = useState(false);
+
   // ── Field form state ──────────────────────────────────
   const [fieldForm, setFieldForm] = useState({
     name: '', area: '', address: '', field_rules: '', images: [],
@@ -116,7 +120,7 @@ export default function AdminPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates(), fetchBanners(), fetchCoupons(), fetchGameRequests()]);
+    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin()]);
     setLoading(false);
   };
 
@@ -165,6 +169,39 @@ export default function AdminPage() {
     if (error) { showError(error.message); return; }
     setCoupons(prev => prev.filter(c => c.id !== id));
     showSuccess('Coupon deleted.');
+  };
+
+  // ── Avatar preset handlers ─────────────────────────────
+  const fetchAvatarPresetsAdmin = async () => {
+    const { data } = await supabase.from('avatar_presets').select('*').order('created_at', { ascending: true });
+    if (data) setAvatarPresets(data);
+  };
+
+  const handleAvatarPresetUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingAvatarPreset(true);
+    const ext = file.name.split('.').pop();
+    const filename = `${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, file);
+    if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingAvatarPreset(false); return; }
+    const { data } = supabase.storage.from('avatar-presets').getPublicUrl(filename);
+    const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: data.publicUrl });
+    if (insertErr) { showError(insertErr.message); setUploadingAvatarPreset(false); return; }
+    showSuccess('Avatar added.');
+    await fetchAvatarPresetsAdmin();
+    setUploadingAvatarPreset(false);
+    e.target.value = '';
+  };
+
+  const handleDeleteAvatarPreset = async (preset) => {
+    if (!confirm('Delete this avatar?')) return;
+    const path = preset.image_url.split('/avatar-presets/')[1];
+    if (path) await supabase.storage.from('avatar-presets').remove([path]);
+    const { error } = await supabase.from('avatar_presets').delete().eq('id', preset.id);
+    if (error) { showError(error.message); return; }
+    setAvatarPresets(prev => prev.filter(a => a.id !== preset.id));
+    showSuccess('Avatar deleted.');
   };
 
   const fetchFields = async () => {
@@ -479,6 +516,7 @@ export default function AdminPage() {
     { key: 'backgrounds', label: 'Card BG'     },
     { key: 'cardmaker',   label: 'Card Maker'  },
     { key: 'coupons',     label: 'Coupons'     },
+    { key: 'avatars',     label: 'Avatars'     },
     { key: 'requests',    label: 'Game Requests' },
   ];
 
@@ -523,6 +561,7 @@ export default function AdminPage() {
             { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
             { label: 'Saved Card Templates', val: savedTemplates.length, icon: <MdSave size={24} color="var(--accent)" /> },
             { label: 'Game Requests',       val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
+            { label: 'Avatar Presets',      val: avatarPresets.length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -1628,6 +1667,51 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── AVATARS TAB ── */}
+        {activeTab === 'avatars' && (
+          <div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20, marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>AVATAR PRESETS</div>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
+                These are the profile pictures players choose from at signup. Anyone without one already gets assigned a random preset automatically. Recommended: square image, min 200×200px.
+              </p>
+              <label style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '10px 20px', borderRadius: 10,
+                background: uploadingAvatarPreset ? 'var(--card2)' : 'var(--accent)',
+                color: uploadingAvatarPreset ? 'var(--muted)' : '#fff',
+                fontWeight: 700, fontSize: 13, cursor: uploadingAvatarPreset ? 'default' : 'pointer',
+                opacity: uploadingAvatarPreset ? 0.6 : 1,
+              }}>
+                {uploadingAvatarPreset ? 'Uploading...' : '+ Upload Avatar'}
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarPresetUpload} disabled={uploadingAvatarPreset} />
+              </label>
+            </div>
+
+            {avatarPresets.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 14 }}>
+                No avatars uploaded yet.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 16 }}>
+                {avatarPresets.map(preset => (
+                  <div key={preset.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <img src={preset.image_url} alt="" style={{
+                      width: 84, height: 84, borderRadius: '50%', objectFit: 'cover',
+                      border: '2px solid var(--border)', background: 'var(--card)',
+                    }} />
+                    <button onClick={() => handleDeleteAvatarPreset(preset)} style={{
+                      background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+                      border: '1px solid rgba(240,101,67,0.25)', borderRadius: 6,
+                      padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    }}>Delete</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
