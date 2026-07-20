@@ -11,6 +11,7 @@ import { RiTeamLine } from 'react-icons/ri';
 import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
 import FifaCard, { calcOverall } from '../components/FifaCard';
+import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
 import { AREAS } from '../lib/areas';
 
@@ -32,6 +33,7 @@ export default function ProfilePage() {
   const [recentGames, setRecentGames] = useState([]);
   const [deletedGameCount, setDeletedGameCount] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const fileInputRef = useRef(null);
 
   const [cardStats, setCardStats] = useState({ pac: 30, sho: 30, pas: 30, dri: 30, def: 30, phy: 30 });
@@ -204,7 +206,14 @@ export default function ProfilePage() {
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id);
     if (!updateError) setProfile(prev => ({ ...prev, avatar_url: data.publicUrl }));
     setUploadingAvatar(false);
+    setShowAvatarModal(false);
     e.target.value = '';
+  };
+
+  const handlePresetAvatarSelect = async (url) => {
+    setShowAvatarModal(false);
+    const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id);
+    if (!error) setProfile(prev => ({ ...prev, avatar_url: url }));
   };
 
   const handleSave = async () => {
@@ -316,6 +325,48 @@ export default function ProfilePage() {
         .card-tap-wrapper:hover .card-tap-hint { opacity: 1; }
       `}</style>
 
+      {/* Avatar Picker Modal */}
+      {showAvatarModal && (
+        <div
+          onClick={() => setShowAvatarModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(10px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: 16, padding: '24px 16px', overflowY: 'auto',
+          }}
+        >
+          <button onClick={() => setShowAvatarModal(false)} style={{
+            position: 'absolute', top: 16, right: 16,
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+            color: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}><IoClose size={20} /></button>
+
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: '24px 20px', maxWidth: 420 }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)', textAlign: 'center', marginBottom: 4 }}>
+              {t('profile.avatarModal.title')}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginBottom: 18 }}>
+              {t('profile.avatarModal.subtitle')}
+            </div>
+            {uploadingAvatar ? (
+              <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>{t('profile.avatarModal.uploading')}</p>
+            ) : (
+              <AvatarPicker
+                value={profile?.avatar_url}
+                onSelect={handlePresetAvatarSelect}
+                onUploadClick={() => fileInputRef.current?.click()}
+                uploadLabel={t('profile.avatarModal.uploadOwn')}
+                size={76}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Card Share Modal */}
       {showCardModal && (
         <div
@@ -404,7 +455,7 @@ export default function ProfilePage() {
             marginBottom: 20, cursor: 'pointer', position: 'relative',
           }}
         >
-          <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" onAvatarClick={() => fileInputRef.current?.click()} />
+          <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" onAvatarClick={() => setShowAvatarModal(true)} />
           <div className="card-tap-hint" style={{
             marginTop: 8, fontSize: 11, color: 'var(--muted)',
             fontFamily: "'Space Mono'", letterSpacing: 1,

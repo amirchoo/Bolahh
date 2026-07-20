@@ -219,6 +219,12 @@
     "cancelEdit": "Batal Edit",
     "friends": "Rakan",
     "loading": "Memuat profil...",
+    "avatarModal": {
+      "title": "Pilih Avatar",
+      "subtitle": "Pilih ikon atau muat naik foto anda sendiri",
+      "uploadOwn": "Muat naik avatar sendiri",
+      "uploading": "Memuat naik..."
+    },
     "nudge": {
       "addArea": "Tambah kawasan anda supaya pemain berdekatan boleh jumpa anda.",
       "addDetails": "Tambah jantina dan umur untuk lengkapkan profil anda.",

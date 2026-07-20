@@ -219,6 +219,12 @@
     "cancelEdit": "Cancel Edit",
     "friends": "Friends",
     "loading": "Loading profile...",
+    "avatarModal": {
+      "title": "Choose Avatar",
+      "subtitle": "Pick an icon or upload your own photo",
+      "uploadOwn": "Upload your own avatar",
+      "uploading": "Uploading..."
+    },
     "nudge": {
       "addArea": "Add your area so players nearby can find you.",
       "addDetails": "Add your gender and age to finish setting up your profile.",
