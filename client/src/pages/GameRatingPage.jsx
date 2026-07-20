@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached, clearCached } from '../lib/dataCache';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct } from 'react-icons/io5';
+import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline } from 'react-icons/io5';
 import { GiSoccerBall, GiTrophy, GiRunningShoe } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
@@ -460,10 +460,20 @@ export default function GameRatingPage() {
       <div className="page-wrap" style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Header */}
-        <button onClick={() => navigate(`/game/${id}`)} style={{
-          background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '7px 16px', fontSize: 13, marginBottom: 24
-        }}>← Back to Game</button>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+          <button onClick={() => navigate(`/game/${id}`)} style={{
+            background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '7px 16px', fontSize: 13
+          }}>← Back to Game</button>
+          {!isPreview && (
+            <button onClick={() => navigate(`/manager/game/${id}/players`)} style={{
+              background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+              border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
+              padding: '7px 16px', fontSize: 13, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}><IoCallOutline size={14} /> Player Payments / Call Players</button>
+          )}
+        </div>
 
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 36, letterSpacing: 3, color: 'var(--text)', marginBottom: 4 }}>
