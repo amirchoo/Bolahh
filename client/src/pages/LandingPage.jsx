@@ -161,6 +161,9 @@ export default function LandingPage() {
 
   const [heroStats, setHeroStats] = useState({ courts: null, players: null, games: null });
 
+  // Games organised offline/before the app existed, not tracked in the `games` table
+  const GAMES_ORGANISED_OFFSET = 30;
+
   useEffect(() => {
     Promise.all([
       supabase.from('fields').select('*', { count: 'exact', head: true }),
@@ -170,7 +173,7 @@ export default function LandingPage() {
       setHeroStats({
         courts: fields.count ?? 0,
         players: profiles.count ?? 0,
-        games: games.count ?? 0,
+        games: (games.count ?? 0) + GAMES_ORGANISED_OFFSET,
       });
     });
   }, []);
