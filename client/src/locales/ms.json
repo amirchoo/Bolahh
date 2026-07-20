@@ -231,6 +231,7 @@
     },
     "nudge": {
       "addArea": "Tambah kawasan anda supaya pemain berdekatan boleh jumpa anda.",
+      "addPhone": "Tambah nombor telefon anda supaya pengurus boleh hubungi anda jika lewat.",
       "addDetails": "Tambah jantina dan umur untuk lengkapkan profil anda.",
       "update": "Kemaskini"
     },
@@ -239,6 +240,7 @@
       "positionLabel": "POSISI",
       "genderLabel": "JANTINA",
       "ageLabel": "UMUR",
+      "phoneLabel": "NOMBOR TELEFON",
       "areaLabel": "KAWASAN",
       "saving": "Menyimpan...",
       "saveChanges": "Simpan Perubahan",
@@ -289,6 +291,7 @@
       "uploadFailed": "Gagal memuat naik imej.",
       "emptyUsername": "Nama pengguna tidak boleh kosong.",
       "invalidAge": "Umur mestilah antara 10 dan 70.",
+      "invalidPhone": "Sila masukkan nombor telefon Malaysia yang sah.",
       "saveFailed": "Gagal menyimpan. Cuba lagi."
     }
   }

@@ -26,7 +26,8 @@ export default function ProfilePage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', position: '', gender: '', age: '', area: '' });
+  const [form, setForm] = useState({ name: '', position: '', gender: '', age: '', area: '', phone: '' });
+  const [savedPhone, setSavedPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [upcomingGames, setUpcomingGames] = useState([]);
@@ -50,6 +51,7 @@ export default function ProfilePage() {
     if (cachedProfile) {
       setProfile(cachedProfile.profile); setWalletBalance(cachedProfile.walletBalance);
       setForm(cachedProfile.form); setCardStats(cachedProfile.cardStats);
+      setSavedPhone(cachedProfile.form?.phone || '');
       setLoading(false);
     }
     if (cachedGames) {
@@ -99,8 +101,12 @@ export default function ProfilePage() {
 
   const fetchProfile = async (silent = false) => {
     if (!silent) setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles').select('*, wallet_balance').eq('id', user.id).single();
+    const [{ data, error }, { data: phoneRow }] = await Promise.all([
+      supabase.from('profiles').select('*, wallet_balance').eq('id', user.id).single(),
+      supabase.from('player_phone_numbers').select('phone_number').eq('user_id', user.id).maybeSingle(),
+    ]);
+    const existingPhone = phoneRow?.phone_number ? phoneRow.phone_number.replace(/^\+60/, '') : '';
+    setSavedPhone(existingPhone);
     if (error || !data) {
       const username = user.user_metadata?.username || '';
       const position = user.user_metadata?.position || '';
@@ -114,10 +120,11 @@ export default function ProfilePage() {
       if (newProfile) {
         setProfile(newProfile);
         setWalletBalance(newProfile?.wallet_balance || 0);
-        setForm({ name: newProfile.name || '', position: newProfile.position || '', gender: newProfile.gender || '', age: newProfile.age?.toString() || '', area: newProfile.area || '' });
+        setForm({ name: newProfile.name || '', position: newProfile.position || '', gender: newProfile.gender || '', age: newProfile.age?.toString() || '', area: newProfile.area || '', phone: existingPhone });
         fetchCard(newProfile.card_stats);
-        if (user.user_metadata?.phone) {
+        if (!existingPhone && user.user_metadata?.phone) {
           await supabase.from('player_phone_numbers').upsert({ user_id: user.id, phone_number: user.user_metadata.phone });
+          setSavedPhone(user.user_metadata.phone.replace(/^\+60/, ''));
         }
       }
     } else {
@@ -130,15 +137,16 @@ export default function ProfilePage() {
         await supabase.from('profiles').update({ name: username, position, gender, age, area }).eq('id', user.id);
         setProfile({ ...data, name: username, position, gender, age, area });
         setWalletBalance(data?.wallet_balance || 0);
-        setForm({ name: username, position, gender: gender || '', age: age?.toString() || '', area: area || '' });
+        setForm({ name: username, position, gender: gender || '', age: age?.toString() || '', area: area || '', phone: existingPhone });
         fetchCard(data.card_stats);
-        if (user.user_metadata?.phone) {
+        if (!existingPhone && user.user_metadata?.phone) {
           await supabase.from('player_phone_numbers').upsert({ user_id: user.id, phone_number: user.user_metadata.phone });
+          setSavedPhone(user.user_metadata.phone.replace(/^\+60/, ''));
         }
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
-        setForm({ name: data.name || '', position: data.position || '', gender: data.gender || '', age: data.age?.toString() || '', area: data.area || '' });
+        setForm({ name: data.name || '', position: data.position || '', gender: data.gender || '', age: data.age?.toString() || '', area: data.area || '', phone: existingPhone });
         fetchCard(data.card_stats);
       }
     }
@@ -226,13 +234,20 @@ export default function ProfilePage() {
     if (!form.name.trim()) { setSaveMsg(t('profile.errors.emptyUsername')); return; }
     const age = form.age ? parseInt(form.age) : null;
     if (form.age && (isNaN(age) || age < 10 || age > 70)) { setSaveMsg(t('profile.errors.invalidAge')); return; }
+    if (form.phone && !/^1[0-9]{8,9}$/.test(form.phone)) { setSaveMsg(t('profile.errors.invalidPhone')); return; }
     setSaving(true); setSaveMsg('');
     const { error } = await supabase.from('profiles').upsert({
       id: user.id, name: form.name.trim(), position: form.position,
       gender: form.gender || null, age: age || null, area: form.area || null,
     });
-    if (error) { setSaveMsg(t('profile.errors.saveFailed')); }
-    else { setProfile({ ...profile, name: form.name.trim(), position: form.position, gender: form.gender || null, age: age || null, area: form.area || null }); setEditing(false); }
+    if (error) { setSaveMsg(t('profile.errors.saveFailed')); setSaving(false); return; }
+    if (form.phone) {
+      const { error: phoneError } = await supabase.from('player_phone_numbers').upsert({ user_id: user.id, phone_number: `+60${form.phone}` });
+      if (phoneError) { setSaveMsg(t('profile.errors.saveFailed')); setSaving(false); return; }
+      setSavedPhone(form.phone);
+    }
+    setProfile({ ...profile, name: form.name.trim(), position: form.position, gender: form.gender || null, age: age || null, area: form.area || null });
+    setEditing(false);
     setSaving(false);
   };
 
@@ -488,14 +503,14 @@ export default function ProfilePage() {
         <input ref={fileInputRef} type="file" accept={isSubscribed ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png'} style={{ display: 'none' }} onChange={handleAvatarUpload} />
 
         {/* Nudge banner */}
-        {!editing && profile && (!profile.gender || !profile.age || !profile.area) && (
+        {!editing && profile && (!profile.gender || !profile.age || !profile.area || !savedPhone) && (
           <div style={{
             background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.3)',
             borderRadius: 12, padding: '12px 16px', marginBottom: 16,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
           }}>
             <span style={{ fontSize: 13, color: 'var(--accent)' }}>
-              {!profile.area ? t('profile.nudge.addArea') : t('profile.nudge.addDetails')}
+              {!profile.area ? t('profile.nudge.addArea') : !savedPhone ? t('profile.nudge.addPhone') : t('profile.nudge.addDetails')}
             </span>
             <button onClick={() => setEditing(true)} style={{
               background: 'var(--accent)', color: '#fff', border: 'none',
@@ -553,6 +568,26 @@ export default function ProfilePage() {
                 value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} />
             </div>
             <div style={{ marginTop: 14 }}>
+              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.phoneLabel')}</label>
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+                <span style={{
+                  display: 'flex', alignItems: 'center',
+                  background: '#1a1e20', border: '1px solid var(--border)', borderRadius: 8,
+                  padding: '12px 14px', color: 'var(--text)', fontSize: 14,
+                  fontFamily: "'Space Mono'", flexShrink: 0,
+                }}>+60</span>
+                <input
+                  type="tel" placeholder="12-345 6789"
+                  value={form.phone || ''}
+                  onChange={e => setForm({ ...form, phone: e.target.value.replace(/[^0-9]/g, '') })}
+                  style={{ flex: 1 }}
+                />
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                {t('signup.phoneHint')}
+              </div>
+            </div>
+            <div style={{ marginTop: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.areaLabel')}</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {AREAS.map(a => (
@@ -569,7 +604,7 @@ export default function ProfilePage() {
               <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
                 {saving ? t('profile.form.saving') : t('profile.form.saveChanges')}
               </button>
-              <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '' }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
+              <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '', phone: savedPhone }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
                 {t('profile.form.cancel')}
               </button>
             </div>

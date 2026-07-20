@@ -231,6 +231,7 @@
     },
     "nudge": {
       "addArea": "Add your area so players nearby can find you.",
+      "addPhone": "Add your phone number so the manager can reach you if you're late.",
       "addDetails": "Add your gender and age to finish setting up your profile.",
       "update": "Update"
     },
@@ -239,6 +240,7 @@
       "positionLabel": "POSITION",
       "genderLabel": "GENDER",
       "ageLabel": "AGE",
+      "phoneLabel": "PHONE NUMBER",
       "areaLabel": "AREA",
       "saving": "Saving...",
       "saveChanges": "Save Changes",
@@ -289,6 +291,7 @@
       "uploadFailed": "Failed to upload image.",
       "emptyUsername": "Username cannot be empty.",
       "invalidAge": "Age must be between 10 and 70.",
+      "invalidPhone": "Please enter a valid Malaysian phone number.",
       "saveFailed": "Failed to save. Try again."
     }
   }
