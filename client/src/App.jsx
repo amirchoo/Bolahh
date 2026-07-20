@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { useAuth } from './context/AuthContext';
+import ProfileNudgeModal from './components/ProfileNudgeModal';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -86,6 +87,7 @@ function App() {
   return (
     <BrowserRouter>
       <AnimatedRoutes />
+      <ProfileNudgeModal />
       <Analytics />
     </BrowserRouter>
   );

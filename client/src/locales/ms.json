@@ -294,5 +294,11 @@
       "invalidPhone": "Sila masukkan nombor telefon Malaysia yang sah.",
       "saveFailed": "Gagal menyimpan. Cuba lagi."
     }
+  },
+  "profileNudge": {
+    "fallbackName": "kawan",
+    "title": "Hai {{name}}!",
+    "message": "Anda masih ada butiran yang belum diisi dalam profil anda. Lengkapkannya supaya pengurus boleh hubungi anda dan pemain lain boleh jumpa anda.",
+    "button": "Kemaskini Profil"
   }
 }

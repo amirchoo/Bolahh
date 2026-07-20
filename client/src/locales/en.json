@@ -294,5 +294,11 @@
       "invalidPhone": "Please enter a valid Malaysian phone number.",
       "saveFailed": "Failed to save. Try again."
     }
+  },
+  "profileNudge": {
+    "fallbackName": "there",
+    "title": "Hey {{name}}!",
+    "message": "You've got some details missing from your profile. Fill them in so managers can reach you and other players can find you.",
+    "button": "Update Profile"
   }
 }
