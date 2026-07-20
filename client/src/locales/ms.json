@@ -122,6 +122,9 @@
     "genderLabel": "JANTINA",
     "ageLabel": "UMUR",
     "agePlaceholder": "cth. 22",
+    "phoneLabel": "NOMBOR TELEFON",
+    "phonePlaceholder": "12-345 6789",
+    "phoneHint": "Hanya ditunjukkan kepada pengurus jika anda lewat untuk perlawanan yang anda sertai.",
     "areaLabel": "KAWASAN ANDA",
     "creating": "Sedang membuat akaun...",
     "createAccount": "Buat Akaun",
@@ -154,6 +157,7 @@
       "passwordShort": "Kata laluan mestilah sekurang-kurangnya 6 aksara.",
       "noGender": "Sila pilih jantina anda.",
       "invalidAge": "Sila masukkan umur yang sah (10–70).",
+      "invalidPhone": "Sila masukkan nombor telefon Malaysia yang sah.",
       "noArea": "Sila pilih kawasan anda.",
       "usernameTaken": "Nama pengguna telah digunakan.",
       "emailRegistered": "E-mel ini telah berdaftar. Sila log masuk."

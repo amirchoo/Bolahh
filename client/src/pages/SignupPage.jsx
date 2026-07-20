@@ -141,7 +141,7 @@ export default function SignupPage() {
   const [stepDir, setStepDir] = useState('forward');
   const [form, setForm] = useState({
     username: '', email: '', password: '', confirmPassword: '',
-    avatar: '', position: '', gender: '', age: '', area: ''
+    avatar: '', position: '', gender: '', age: '', area: '', phone: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -179,6 +179,7 @@ export default function SignupPage() {
     const age = parseInt(form.age);
     if (!form.age || isNaN(age) || age < 10 || age > 70) { setError(t('signup.errors.invalidAge')); return; }
     if (!form.area) { setError(t('signup.errors.noArea')); return; }
+    if (!/^1[0-9]{8,9}$/.test(form.phone)) { setError(t('signup.errors.invalidPhone')); return; }
 
     setLoading(true);
     const { error: signUpError } = await supabase.auth.signUp({
@@ -191,7 +192,8 @@ export default function SignupPage() {
           position: form.position,
           gender: form.gender,
           age: parseInt(form.age),
-          area: form.area
+          area: form.area,
+          phone: `+60${form.phone}`
         }
       }
     });
@@ -493,6 +495,27 @@ export default function SignupPage() {
                     value={form.age}
                     onChange={e => setForm({ ...form, age: e.target.value })}
                   />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>{t('signup.phoneLabel')}</label>
+                  <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+                    <span style={{
+                      display: 'flex', alignItems: 'center',
+                      background: '#1a1e20', border: '1px solid var(--border)', borderRadius: 8,
+                      padding: '12px 14px', color: 'var(--text)', fontSize: 14,
+                      fontFamily: "'Space Mono'", flexShrink: 0,
+                    }}>+60</span>
+                    <input
+                      type="tel" placeholder={t('signup.phonePlaceholder')}
+                      value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value.replace(/[^0-9]/g, '') })}
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                    {t('signup.phoneHint')}
+                  </div>
                 </div>
 
                 <div>

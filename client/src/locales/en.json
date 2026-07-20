@@ -122,6 +122,9 @@
     "genderLabel": "GENDER",
     "ageLabel": "AGE",
     "agePlaceholder": "e.g. 22",
+    "phoneLabel": "PHONE NUMBER",
+    "phonePlaceholder": "12-345 6789",
+    "phoneHint": "Only shown to the manager if you're late for a game you've joined.",
     "areaLabel": "YOUR AREA",
     "creating": "Creating account...",
     "createAccount": "Create Account",
@@ -154,6 +157,7 @@
       "passwordShort": "Password must be at least 6 characters.",
       "noGender": "Please select your gender.",
       "invalidAge": "Please enter a valid age (10–70).",
+      "invalidPhone": "Please enter a valid Malaysian phone number.",
       "noArea": "Please select your area.",
       "usernameTaken": "Username has been used.",
       "emailRegistered": "This email is already registered. Please sign in instead."

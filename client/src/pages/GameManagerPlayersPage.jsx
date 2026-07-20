@@ -7,7 +7,7 @@ import { IconLoading } from '../components/Icons';
 import { clearCached } from '../lib/dataCache';
 import { MdDateRange, MdAccessTime } from 'react-icons/md';
 import { FaLocationDot } from 'react-icons/fa6';
-import { IoWalletOutline, IoQrCodeOutline } from 'react-icons/io5';
+import { IoWalletOutline, IoQrCodeOutline, IoCallOutline } from 'react-icons/io5';
 
 const formatDate = (dateStr) => {
   const date = new Date(dateStr);
@@ -51,12 +51,17 @@ export default function GameManagerPlayersPage() {
 
     const userIds = [...new Set((playerRows || []).map(p => p.user_id))];
     let profileMap = {};
+    let phoneMap = {};
     if (userIds.length > 0) {
-      const { data: profilesData } = await supabase.from('profiles').select('id, name, avatar_url').in('id', userIds);
+      const [{ data: profilesData }, { data: phoneData }] = await Promise.all([
+        supabase.from('profiles').select('id, name, avatar_url').in('id', userIds),
+        supabase.from('player_phone_numbers').select('user_id, phone_number').in('user_id', userIds),
+      ]);
       (profilesData || []).forEach(p => { profileMap[p.id] = p; });
+      (phoneData || []).forEach(p => { phoneMap[p.user_id] = p.phone_number; });
     }
 
-    setRows((playerRows || []).map(p => ({ ...p, profile: profileMap[p.user_id] })));
+    setRows((playerRows || []).map(p => ({ ...p, profile: profileMap[p.user_id], phone: phoneMap[p.user_id] })));
     setLoading(false);
   };
 
@@ -176,6 +181,14 @@ export default function GameManagerPlayersPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                  {row.phone && (
+                    <a href={`tel:${row.phone}`} title={`Call ${row.phone}`} style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      background: 'var(--card2)', color: 'var(--text)',
+                      border: '1px solid var(--border)', borderRadius: 8,
+                      padding: '6px 10px', fontSize: 12, fontFamily: "'Space Mono'", textDecoration: 'none',
+                    }}><IoCallOutline size={13} />{row.phone}</a>
+                  )}
                   <span style={{
                     background: isPending ? 'rgba(240,157,81,0.12)' : 'rgba(74,222,128,0.1)',
                     color: isPending ? 'var(--accent)' : '#4ade80',

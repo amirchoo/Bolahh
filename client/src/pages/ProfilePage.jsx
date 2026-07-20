@@ -116,6 +116,9 @@ export default function ProfilePage() {
         setWalletBalance(newProfile?.wallet_balance || 0);
         setForm({ name: newProfile.name || '', position: newProfile.position || '', gender: newProfile.gender || '', age: newProfile.age?.toString() || '', area: newProfile.area || '' });
         fetchCard(newProfile.card_stats);
+        if (user.user_metadata?.phone) {
+          await supabase.from('player_phone_numbers').upsert({ user_id: user.id, phone_number: user.user_metadata.phone });
+        }
       }
     } else {
       if (!data.name && user.user_metadata?.username) {
@@ -129,6 +132,9 @@ export default function ProfilePage() {
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: username, position, gender: gender || '', age: age?.toString() || '', area: area || '' });
         fetchCard(data.card_stats);
+        if (user.user_metadata?.phone) {
+          await supabase.from('player_phone_numbers').upsert({ user_id: user.id, phone_number: user.user_metadata.phone });
+        }
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
