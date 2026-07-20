@@ -122,6 +122,9 @@
     "genderLabel": "GENDER",
     "ageLabel": "AGE",
     "agePlaceholder": "e.g. 22",
+    "phoneLabel": "PHONE NUMBER",
+    "phonePlaceholder": "12-345 6789",
+    "phoneHint": "Only shown to the manager if you're late for a game you've joined.",
     "areaLabel": "YOUR AREA",
     "creating": "Creating account...",
     "createAccount": "Create Account",
@@ -129,6 +132,8 @@
     "signIn": "Sign in",
     "continueButton": "Continue",
     "checking": "Checking...",
+    "avatarTitle": "PICK YOUR AVATAR",
+    "avatarSubtitle": "Choose a profile picture to represent you",
     "positionTitle": "YOUR POSITION",
     "positionSubtitle": "Tap the zone where you play on the pitch",
     "positionSkip": "Skip for now",
@@ -152,6 +157,7 @@
       "passwordShort": "Password must be at least 6 characters.",
       "noGender": "Please select your gender.",
       "invalidAge": "Please enter a valid age (10–70).",
+      "invalidPhone": "Please enter a valid Malaysian phone number.",
       "noArea": "Please select your area.",
       "usernameTaken": "Username has been used.",
       "emailRegistered": "This email is already registered. Please sign in instead."
@@ -217,8 +223,15 @@
     "cancelEdit": "Cancel Edit",
     "friends": "Friends",
     "loading": "Loading profile...",
+    "avatarModal": {
+      "title": "Choose Avatar",
+      "subtitle": "Pick an icon or upload your own photo",
+      "uploadOwn": "Upload your own avatar",
+      "uploading": "Uploading..."
+    },
     "nudge": {
       "addArea": "Add your area so players nearby can find you.",
+      "addPhone": "Add your phone number so the manager can reach you if you're late.",
       "addDetails": "Add your gender and age to finish setting up your profile.",
       "update": "Update"
     },
@@ -227,6 +240,7 @@
       "positionLabel": "POSITION",
       "genderLabel": "GENDER",
       "ageLabel": "AGE",
+      "phoneLabel": "PHONE NUMBER",
       "areaLabel": "AREA",
       "saving": "Saving...",
       "saveChanges": "Save Changes",
@@ -277,7 +291,14 @@
       "uploadFailed": "Failed to upload image.",
       "emptyUsername": "Username cannot be empty.",
       "invalidAge": "Age must be between 10 and 70.",
+      "invalidPhone": "Please enter a valid Malaysian phone number.",
       "saveFailed": "Failed to save. Try again."
     }
+  },
+  "profileNudge": {
+    "fallbackName": "there",
+    "title": "Hey {{name}}!",
+    "message": "You've got some details missing from your profile. Fill them in so managers can reach you and other players can find you.",
+    "button": "Update Profile"
   }
 }

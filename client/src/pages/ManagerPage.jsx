@@ -50,15 +50,11 @@ export default function ManagerPage() {
     description: '', game_rules: '', shoes_type: [], allow_pay_at_court: false
   });
 
-  const [pendingPayments, setPendingPayments] = useState([]);
-  const [markingPaidId, setMarkingPaidId] = useState(null);
-
   useEffect(() => {
     const cached = getCached('manager_data');
     if (cached) {
       setFields(cached.fields); setGames(cached.games); setPlayers(cached.players);
       setFeedback(cached.feedback || []); setSportsmanship(cached.sportsmanship || []);
-      setPendingPayments(cached.pendingPayments || []);
       setLoading(false);
     }
     fetchAll(!!cached);
@@ -68,10 +64,9 @@ export default function ManagerPage() {
     if (!silent) setLoading(true);
     const [fieldsData, gamesData, playersData] = await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
     const { feedback: feedbackData, sportsmanship: sportsmanshipData } = await fetchFeedback();
-    const pendingData = await fetchPendingPayments(gamesData);
     setCached('manager_data', {
       fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [],
-      feedback: feedbackData, sportsmanship: sportsmanshipData, pendingPayments: pendingData,
+      feedback: feedbackData, sportsmanship: sportsmanshipData,
     });
     setLoading(false);
   };
@@ -141,48 +136,6 @@ export default function ManagerPage() {
     setFeedback(feedbackWithNames);
     setSportsmanship(sportsmanshipList);
     return { feedback: feedbackWithNames, sportsmanship: sportsmanshipList };
-  };
-
-  const fetchPendingPayments = async (gamesList) => {
-    const gameIds = (gamesList || []).map(g => g.id);
-    if (gameIds.length === 0) { setPendingPayments([]); return []; }
-
-    const { data: pendingRows } = await supabase
-      .from('game_players')
-      .select('id, game_id, user_id')
-      .in('game_id', gameIds)
-      .eq('payment_method', 'cash')
-      .eq('payment_status', 'pending');
-
-    if (!pendingRows || pendingRows.length === 0) { setPendingPayments([]); return []; }
-
-    const userIds = [...new Set(pendingRows.map(p => p.user_id))];
-    const { data: profilesData } = await supabase.from('profiles').select('id, name').in('id', userIds);
-    const profileMap = {};
-    (profilesData || []).forEach(p => { profileMap[p.id] = p; });
-    const gameMap = {};
-    (gamesList || []).forEach(g => { gameMap[g.id] = g; });
-
-    const result = pendingRows.map(p => ({
-      ...p,
-      username: profileMap[p.user_id]?.name || 'Player',
-      game: gameMap[p.game_id],
-    }));
-    setPendingPayments(result);
-    return result;
-  };
-
-  const handleMarkPaid = async (row) => {
-    setMarkingPaidId(row.id);
-    const { error } = await supabase
-      .from('game_players')
-      .update({ payment_status: 'paid', amount_paid: row.game?.price ?? 0 })
-      .eq('id', row.id);
-    setMarkingPaidId(null);
-    if (error) { showError(error.message); return; }
-    setPendingPayments(prev => prev.filter(p => p.id !== row.id));
-    clearCached('manager_data');
-    showSuccess('Marked as paid.');
   };
 
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
@@ -574,37 +527,6 @@ export default function ManagerPage() {
               {renderGameForm(false, gameForm, setGameForm)}
             </div>
 
-            {/* Pending cash payments */}
-            {pendingPayments.length > 0 && (
-              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
-                  Pending Cash Payments ({pendingPayments.length})
-                </div>
-                {pendingPayments.map((p, i) => (
-                  <div key={p.id} style={{
-                    padding: '12px 20px',
-                    borderBottom: i < pendingPayments.length - 1 ? '1px solid var(--border)' : 'none',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
-                  }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.username}</div>
-                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{p.game?.title} · RM {p.game?.price} due at court</div>
-                    </div>
-                    <button
-                      onClick={() => handleMarkPaid(p)}
-                      disabled={markingPaidId === p.id}
-                      style={{
-                        background: 'rgba(74,222,128,0.1)', color: '#4ade80',
-                        border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8,
-                        padding: '6px 14px', fontSize: 12, fontWeight: 700, flexShrink: 0,
-                        opacity: markingPaidId === p.id ? 0.6 : 1
-                      }}
-                    >{markingPaidId === p.id ? 'Saving...' : 'Mark Paid'}</button>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Games list */}
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
@@ -613,11 +535,17 @@ export default function ManagerPage() {
               {games.length === 0 ? (
                 <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No games yet.</div>
               ) : games.map((game, i) => (
-                <div key={game.id} style={{
-                  padding: '14px 20px',
-                  borderBottom: i < games.length - 1 ? '1px solid var(--border)' : 'none',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
-                }}>
+                <div key={game.id}
+                  onClick={() => navigate(`/manager/game/${game.id}/players`)}
+                  style={{
+                    padding: '14px 20px',
+                    borderBottom: i < games.length - 1 ? '1px solid var(--border)' : 'none',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                    cursor: 'pointer', transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(240,157,81,0.04)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{game.title}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{game.fields?.name} · <MdOutlineCalendarMonth size={12} />{game.date} · {game.format}</div>
@@ -632,7 +560,7 @@ export default function ManagerPage() {
                       )}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => navigate(`/game/${game.id}/rate`)} style={{
                       background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
                       border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,

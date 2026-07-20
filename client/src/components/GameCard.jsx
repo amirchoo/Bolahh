@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FaLocationDot } from 'react-icons/fa6';
@@ -32,7 +33,11 @@ export default function GameCard({ game }) {
   // Below this fill level, showing the raw headcount reads as "nobody wants this game"
   // and discourages joining — lead with opportunity framing instead until it fills up more.
   const showCount = full || pct >= 40;
-  const coverImage = Array.isArray(game.fields?.images) ? game.fields.images[0] : null;
+  const images = game.fields?.images;
+  const coverImage = useMemo(() => {
+    if (!Array.isArray(images) || images.length === 0) return null;
+    return images[Math.floor(Math.random() * images.length)];
+  }, [images, game.id]);
 
   const now = new Date();
   const [gy, gm, gd] = game.date.split('-').map(Number);

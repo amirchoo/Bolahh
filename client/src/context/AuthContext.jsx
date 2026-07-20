@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { fetchAvatarPresets } from '../components/AvatarPicker';
 
 const AuthContext = createContext();
 
@@ -40,7 +41,7 @@ export function AuthProvider({ children }) {
   const checkAdmin = async (userId, userEmail) => {
     const { data } = await supabase
       .from('profiles')
-      .select('is_admin, name')
+      .select('is_admin, name, avatar_url')
       .eq('id', userId)
       .single();
 
@@ -49,6 +50,14 @@ export function AuthProvider({ children }) {
     // users can freely edit profile.name but cannot change their auth email without verification.
     setIsSuperAdmin(data?.name === 'bolahhadmin' && userEmail === import.meta.env.VITE_SUPER_ADMIN_EMAIL);
     setLoading(false);
+
+    if (!data?.avatar_url) {
+      fetchAvatarPresets().then(options => {
+        if (!options.length) return;
+        const randomAvatar = options[Math.floor(Math.random() * options.length)];
+        supabase.from('profiles').update({ avatar_url: randomAvatar }).eq('id', userId);
+      });
+    }
   };
 
   return (

@@ -122,6 +122,9 @@
     "genderLabel": "JANTINA",
     "ageLabel": "UMUR",
     "agePlaceholder": "cth. 22",
+    "phoneLabel": "NOMBOR TELEFON",
+    "phonePlaceholder": "12-345 6789",
+    "phoneHint": "Hanya ditunjukkan kepada pengurus jika anda lewat untuk perlawanan yang anda sertai.",
     "areaLabel": "KAWASAN ANDA",
     "creating": "Sedang membuat akaun...",
     "createAccount": "Buat Akaun",
@@ -129,6 +132,8 @@
     "signIn": "Log Masuk",
     "continueButton": "Teruskan",
     "checking": "Menyemak...",
+    "avatarTitle": "PILIH AVATAR ANDA",
+    "avatarSubtitle": "Pilih gambar profil untuk mewakili anda",
     "positionTitle": "POSISI ANDA",
     "positionSubtitle": "Ketik zon di mana anda bermain di padang",
     "positionSkip": "Langkau buat masa ini",
@@ -152,6 +157,7 @@
       "passwordShort": "Kata laluan mestilah sekurang-kurangnya 6 aksara.",
       "noGender": "Sila pilih jantina anda.",
       "invalidAge": "Sila masukkan umur yang sah (10–70).",
+      "invalidPhone": "Sila masukkan nombor telefon Malaysia yang sah.",
       "noArea": "Sila pilih kawasan anda.",
       "usernameTaken": "Nama pengguna telah digunakan.",
       "emailRegistered": "E-mel ini telah berdaftar. Sila log masuk."
@@ -217,8 +223,15 @@
     "cancelEdit": "Batal Edit",
     "friends": "Rakan",
     "loading": "Memuat profil...",
+    "avatarModal": {
+      "title": "Pilih Avatar",
+      "subtitle": "Pilih ikon atau muat naik foto anda sendiri",
+      "uploadOwn": "Muat naik avatar sendiri",
+      "uploading": "Memuat naik..."
+    },
     "nudge": {
       "addArea": "Tambah kawasan anda supaya pemain berdekatan boleh jumpa anda.",
+      "addPhone": "Tambah nombor telefon anda supaya pengurus boleh hubungi anda jika lewat.",
       "addDetails": "Tambah jantina dan umur untuk lengkapkan profil anda.",
       "update": "Kemaskini"
     },
@@ -227,6 +240,7 @@
       "positionLabel": "POSISI",
       "genderLabel": "JANTINA",
       "ageLabel": "UMUR",
+      "phoneLabel": "NOMBOR TELEFON",
       "areaLabel": "KAWASAN",
       "saving": "Menyimpan...",
       "saveChanges": "Simpan Perubahan",
@@ -277,7 +291,14 @@
       "uploadFailed": "Gagal memuat naik imej.",
       "emptyUsername": "Nama pengguna tidak boleh kosong.",
       "invalidAge": "Umur mestilah antara 10 dan 70.",
+      "invalidPhone": "Sila masukkan nombor telefon Malaysia yang sah.",
       "saveFailed": "Gagal menyimpan. Cuba lagi."
     }
+  },
+  "profileNudge": {
+    "fallbackName": "kawan",
+    "title": "Hai {{name}}!",
+    "message": "Anda masih ada butiran yang belum diisi dalam profil anda. Lengkapkannya supaya pengurus boleh hubungi anda dan pemain lain boleh jumpa anda.",
+    "button": "Kemaskini Profil"
   }
 }

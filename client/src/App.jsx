@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { useAuth } from './context/AuthContext';
+import ProfileNudgeModal from './components/ProfileNudgeModal';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -11,6 +12,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import GameDetailPage from './pages/GameDetailPage';
 import GameRatingPage from './pages/GameRatingPage';
 import ManagerPage from './pages/ManagerPage';
+import GameManagerPlayersPage from './pages/GameManagerPlayersPage';
 import AdminPage from './pages/AdminPage';
 import FriendsPage from './pages/FriendsPage';
 import WalletTopupPage from './pages/WalletTopupPage';
@@ -65,6 +67,7 @@ function AnimatedRoutes() {
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
         <Route path="/game/:id/rate" element={<AdminRoute><GameRatingPage /></AdminRoute>} />
         <Route path="/manager" element={<AdminRoute><ManagerPage /></AdminRoute>} />
+        <Route path="/manager/game/:id/players" element={<AdminRoute><GameManagerPlayersPage /></AdminRoute>} />
         <Route path="/admin" element={<SuperAdminRoute><AdminPage /></SuperAdminRoute>} />
         <Route path="/friends" element={<PrivateRoute><FriendsPage /></PrivateRoute>} />
         <Route path="/leaderboard" element={<PrivateRoute><LeaderboardPage /></PrivateRoute>} />
@@ -84,6 +87,7 @@ function App() {
   return (
     <BrowserRouter>
       <AnimatedRoutes />
+      <ProfileNudgeModal />
       <Analytics />
     </BrowserRouter>
   );
