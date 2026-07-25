@@ -86,6 +86,7 @@
     "emailPlaceholder": "player@email.com or username",
     "passwordLabel": "PASSWORD",
     "forgotPassword": "Forgot password?",
+    "rememberMe": "Remember me",
     "signingIn": "Signing in...",
     "signIn": "Sign In",
     "noAccount": "Don't have an account?",

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, setRememberMe } from '../lib/supabaseClient';
 import { AiFillEyeInvisible as IconEyeHide, AiFillEye as IconEyeShow } from 'react-icons/ai';
 import { IoMail } from 'react-icons/io5';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ export default function LoginPage() {
   const from = location.state?.from;
   const { t } = useTranslation();
   const [form, setForm] = useState({ identifier: '', password: '' });
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -44,6 +45,7 @@ export default function LoginPage() {
       email = profile.email;
     }
 
+    setRememberMe(remember);
     const { error } = await supabase.auth.signInWithPassword({ email, password: form.password });
     if (error) {
       if (error.message.toLowerCase().includes('invalid')) {
@@ -230,6 +232,16 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, cursor: 'pointer', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={e => setRemember(e.target.checked)}
+            style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--text)' }}>{t('login.rememberMe')}</span>
+        </label>
 
         <button onClick={handleLogin} disabled={loading} style={{
           width: '100%', marginTop: 24, padding: '14px',
