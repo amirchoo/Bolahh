@@ -34,6 +34,7 @@ export default function GameManagerPlayersPage() {
   const [loading, setLoading] = useState(true);
   const [markingPaidId, setMarkingPaidId] = useState(null);
   const [error, setError] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -63,6 +64,16 @@ export default function GameManagerPlayersPage() {
 
     setRows((playerRows || []).map(p => ({ ...p, profile: profileMap[p.user_id], phone: phoneMap[p.user_id] })));
     setLoading(false);
+  };
+
+  const handleCopyPhone = async (row) => {
+    try {
+      await navigator.clipboard.writeText(row.phone);
+    } catch {
+      return;
+    }
+    setCopiedId(row.id);
+    setTimeout(() => setCopiedId(prev => (prev === row.id ? null : prev)), 1500);
   };
 
   const handleMarkPaid = async (row) => {
@@ -165,36 +176,52 @@ export default function GameManagerPlayersPage() {
               <div key={row.id} style={{
                 padding: '14px 20px',
                 borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  {row.profile?.avatar_url
-                    ? <img src={row.profile.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                    : <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--card2)', border: '1px solid var(--border)', flexShrink: 0 }} />
-                  }
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.profile?.name || 'Player'}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
-                      {isCash ? <IoQrCodeOutline size={12} /> : <IoWalletOutline size={12} />}
-                      {isCash ? 'Cash / QR at court' : 'Wallet'}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    {row.profile?.avatar_url
+                      ? <img src={row.profile.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      : <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--card2)', border: '1px solid var(--border)', flexShrink: 0 }} />
+                    }
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.profile?.name || 'Player'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
+                        {isCash ? <IoQrCodeOutline size={12} /> : <IoWalletOutline size={12} />}
+                        {isCash ? 'Cash / QR at court' : 'Wallet'}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                  {row.phone && (
-                    <a href={`tel:${row.phone}`} title={`Call ${row.phone}`} style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      background: 'var(--card2)', color: 'var(--text)',
-                      border: '1px solid var(--border)', borderRadius: 8,
-                      padding: '6px 10px', fontSize: 12, fontFamily: "'Space Mono'", textDecoration: 'none',
-                    }}><IoCallOutline size={13} />{row.phone}</a>
-                  )}
                   <span style={{
                     background: isPending ? 'rgba(240,157,81,0.12)' : 'rgba(74,222,128,0.1)',
                     color: isPending ? 'var(--accent)' : '#4ade80',
                     border: `1px solid ${isPending ? 'rgba(240,157,81,0.3)' : 'rgba(74,222,128,0.3)'}`,
-                    borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700,
+                    borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, flexShrink: 0,
                   }}>{isPending ? 'PENDING' : 'PAID'}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {row.phone && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPhone(row)}
+                        title="Tap to copy"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 5,
+                          background: copiedId === row.id ? 'rgba(74,222,128,0.1)' : 'var(--card2)',
+                          color: copiedId === row.id ? '#4ade80' : 'var(--text)',
+                          border: `1px solid ${copiedId === row.id ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
+                          borderRadius: 8, padding: '6px 10px', fontSize: 12, fontFamily: "'Space Mono'",
+                        }}
+                      >{copiedId === row.id ? 'Copied!' : row.phone}</button>
+                      <a href={`tel:${row.phone}`} title={`Call ${row.phone}`} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: 30, height: 30, flexShrink: 0,
+                        background: 'var(--card2)', color: 'var(--accent)',
+                        border: '1px solid var(--border)', borderRadius: 8,
+                      }}><IoCallOutline size={14} /></a>
+                    </>
+                  )}
                   {isCash && isPending && (
                     <button
                       onClick={() => handleMarkPaid(row)}
@@ -203,7 +230,7 @@ export default function GameManagerPlayersPage() {
                         background: 'rgba(74,222,128,0.1)', color: '#4ade80',
                         border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8,
                         padding: '6px 12px', fontSize: 12, fontWeight: 700,
-                        opacity: markingPaidId === row.id ? 0.6 : 1
+                        opacity: markingPaidId === row.id ? 0.6 : 1, marginLeft: 'auto',
                       }}
                     >{markingPaidId === row.id ? 'Saving...' : 'Mark Paid'}</button>
                   )}
