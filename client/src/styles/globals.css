@@ -65,6 +65,7 @@ select option {
 button {
   cursor: pointer;
   font-family: 'DM Sans', sans-serif;
+  touch-action: manipulation;
 }
 
 ::-webkit-scrollbar { width: 5px; }
@@ -145,5 +146,13 @@ input:focus, select:focus, textarea:focus {
   }
   .summary-chips-col {
     display: none;
+  }
+}
+
+/* Rating page — stack the two team columns instead of squeezing them
+   side-by-side once there isn't enough width per player box */
+@media (max-width: 640px) {
+  .rating-teams-grid {
+    grid-template-columns: 1fr !important;
   }
 }

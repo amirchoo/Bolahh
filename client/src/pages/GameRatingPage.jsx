@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getRank } from '../lib/rankUtils';
 import { getCardTheme, calcOverall } from '../components/FifaCard';
-import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline } from 'react-icons/io5';
+import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline, IoChevronDown } from 'react-icons/io5';
 import { GiSoccerBall, GiTrophy, GiRunningShoe } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
@@ -122,6 +122,8 @@ export default function GameRatingPage() {
   // Step: 'config' | 'setup' | 'schedule' | 'rating'
   const [step, setStep] = useState('config');
   const [currentMatch, setCurrentMatch] = useState(0);
+  const [expandedUid, setExpandedUid] = useState(null);
+  useEffect(() => { setExpandedUid(null); }, [currentMatch]);
 
   const [duration, setDuration] = useState(120);
   const [teamMode, setTeamMode] = useState(null);
@@ -818,7 +820,7 @@ export default function GameRatingPage() {
             </div>
 
             {/* Two team columns */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+            <div className="rating-teams-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
               {[{ team: match.home, players: homePlayers }, { team: match.away, players: awayPlayers }].map(({ team, players: teamUids }) => {
                 const tc = TEAM_COLORS[team];
                 return (
@@ -843,6 +845,7 @@ export default function GameRatingPage() {
                       const liveOvr = calcOverall(liveCardStats);
                       const liveRank = getRank(liveOvr);
                       const rt = getCardTheme(liveRank);
+                      const isExpanded = expandedUid === uid;
 
                       return (
                         <div key={uid} style={{
@@ -850,36 +853,46 @@ export default function GameRatingPage() {
                           borderRadius: 12, padding: 12, marginBottom: 10,
                           transition: 'border-color 0.15s, background 0.2s',
                         }}>
-                          {/* Player info */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          {/* Collapsed header — tap to expand/collapse the rating controls */}
+                          <div
+                            onClick={() => setExpandedUid(isExpanded ? null : uid)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: isExpanded ? 10 : 0 }}
+                          >
                             <div style={{
                               width: 28, height: 28, borderRadius: '50%', background: tc.text,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontSize: 12, fontWeight: 700, color: '#1e2123', flexShrink: 0
                             }}>{bib}</div>
-                            <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: rt.text }}>{p?.name}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: rt.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
+                              <div style={{
+                                fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700,
+                                color: rt.text, background: rt.statBg,
+                                border: `1px solid ${rt.border}`, borderRadius: 5,
+                                padding: '2px 7px', letterSpacing: 0.3,
+                                display: 'inline-block', marginTop: 3,
+                              }}>{liveRank.toUpperCase()} · {liveOvr} OVR</div>
+                            </div>
                             {totalDelta !== 0 && (
                               <div style={{
                                 fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
                                 color: totalDelta > 0 ? '#4ade80' : '#f87171',
                                 background: totalDelta > 0 ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
                                 border: `1px solid ${totalDelta > 0 ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'}`,
-                                borderRadius: 5, padding: '2px 6px',
+                                borderRadius: 5, padding: '2px 6px', flexShrink: 0,
                               }}>
-                                {totalDelta > 0 ? `+${totalDelta}` : totalDelta} this game
+                                {totalDelta > 0 ? `+${totalDelta}` : totalDelta}
                               </div>
                             )}
+                            <IoChevronDown size={16} style={{
+                              color: rt.text, flexShrink: 0,
+                              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.2s',
+                            }} />
                           </div>
 
-                          {/* Live rank badge */}
-                          <div style={{
-                            fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
-                            color: rt.text, background: rt.statBg,
-                            border: `1px solid ${rt.border}`, borderRadius: 5,
-                            padding: '3px 8px', letterSpacing: 0.3,
-                            display: 'inline-block', marginBottom: 10,
-                          }}>{liveRank.toUpperCase()} · {liveOvr} OVR</div>
-
+                          {isExpanded && (
+                          <>
                           {/* Goal / Assist counters */}
                           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                             {[
@@ -965,6 +978,8 @@ export default function GameRatingPage() {
                               );
                             })}
                           </div>
+                          </>
+                          )}
                         </div>
                       );
                     })}
