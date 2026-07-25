@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached, clearCached } from '../lib/dataCache';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
+import { getRank } from '../lib/rankUtils';
+import { getCardTheme, calcOverall } from '../components/FifaCard';
 import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline } from 'react-icons/io5';
 import { GiSoccerBall, GiTrophy, GiRunningShoe } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
@@ -820,7 +822,7 @@ export default function GameRatingPage() {
               {[{ team: match.home, players: homePlayers }, { team: match.away, players: awayPlayers }].map(({ team, players: teamUids }) => {
                 const tc = TEAM_COLORS[team];
                 return (
-                  <div key={team}>
+                  <div key={team} style={{ background: tc.bg, border: `1px solid ${tc.border}`, borderRadius: 14, padding: 10 }}>
                     <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text, marginBottom: 10 }}>TEAM {team}</div>
                     {teamUids.map((uid) => {
                       const p = profiles[uid];
@@ -832,26 +834,36 @@ export default function GameRatingPage() {
                       // Total delta across all stats for this player
                       const totalDelta = CARD_STATS.reduce((sum, { key }) => sum + ((stats[key] || 0) - (base[key] || 0)), 0);
 
+                      // Live OVR/rank from this player's current (in-progress) stats, so the
+                      // box re-themes the instant a tap pushes them into a new tier.
+                      const liveCardStats = {};
+                      CARD_STATS.forEach(({ key, label }) => {
+                        liveCardStats[label.toLowerCase()] = Math.max(30, Math.min(99, 30 + (stats[key] || 0)));
+                      });
+                      const liveOvr = calcOverall(liveCardStats);
+                      const liveRank = getRank(liveOvr);
+                      const rt = getCardTheme(liveRank);
+
                       return (
                         <div key={uid} style={{
-                          background: 'var(--card)', border: `1px solid ${totalDelta !== 0 ? tc.border : 'var(--border)'}`,
+                          background: rt.bg, border: `${totalDelta !== 0 ? 3 : 2}px solid ${rt.border}`,
                           borderRadius: 12, padding: 12, marginBottom: 10,
-                          transition: 'border-color 0.15s',
+                          transition: 'border-color 0.15s, background 0.2s',
                         }}>
                           {/* Player info */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                             <div style={{
                               width: 28, height: 28, borderRadius: '50%', background: tc.text,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontSize: 12, fontWeight: 700, color: '#1e2123', flexShrink: 0
                             }}>{bib}</div>
-                            <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{p?.name}</div>
+                            <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: rt.text }}>{p?.name}</div>
                             {totalDelta !== 0 && (
                               <div style={{
                                 fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
                                 color: totalDelta > 0 ? '#4ade80' : '#f87171',
-                                background: totalDelta > 0 ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
-                                border: `1px solid ${totalDelta > 0 ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}`,
+                                background: totalDelta > 0 ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
+                                border: `1px solid ${totalDelta > 0 ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'}`,
                                 borderRadius: 5, padding: '2px 6px',
                               }}>
                                 {totalDelta > 0 ? `+${totalDelta}` : totalDelta} this game
@@ -859,31 +871,40 @@ export default function GameRatingPage() {
                             )}
                           </div>
 
+                          {/* Live rank badge */}
+                          <div style={{
+                            fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                            color: rt.text, background: rt.statBg,
+                            border: `1px solid ${rt.border}`, borderRadius: 5,
+                            padding: '3px 8px', letterSpacing: 0.3,
+                            display: 'inline-block', marginBottom: 10,
+                          }}>{liveRank.toUpperCase()} · {liveOvr} OVR</div>
+
                           {/* Goal / Assist counters */}
                           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                             {[
-                              { type: 'goals',   label: 'GOAL',   icon: <GiSoccerBall size={13} />, color: '#F09D51', bg: 'rgba(240,157,81,0.12)', border: 'rgba(240,157,81,0.35)' },
-                              { type: 'assists', label: 'ASSIST', icon: <GiRunningShoe size={13} />, color: '#4ade80', bg: 'rgba(74,222,128,0.12)',  border: 'rgba(74,222,128,0.35)' },
-                            ].map(({ type, label, icon, color, bg, border }) => {
+                              { type: 'goals',   label: 'GOAL',   icon: <GiSoccerBall size={13} /> },
+                              { type: 'assists', label: 'ASSIST', icon: <GiRunningShoe size={13} /> },
+                            ].map(({ type, label, icon }) => {
                               const count = goalAssist[uid]?.[type] || 0;
                               return (
                                 <div key={type} style={{
                                   flex: 1, display: 'flex', alignItems: 'center', gap: 4,
-                                  background: count > 0 ? bg : 'var(--card2)',
-                                  border: `1px solid ${count > 0 ? border : 'var(--border)'}`,
+                                  background: count > 0 ? rt.statBg : 'transparent',
+                                  border: `1px solid ${count > 0 ? rt.border : rt.muted}`,
                                   borderRadius: 8, padding: '4px 6px',
                                   transition: 'all 0.12s',
                                 }}>
-                                  <span style={{ color: count > 0 ? color : 'var(--muted)' }}>{icon}</span>
-                                  <span style={{ fontSize: 9, color: count > 0 ? color : 'var(--muted)', fontWeight: 700, letterSpacing: 0.5, flex: 1 }}>{label}</span>
+                                  <span style={{ color: count > 0 ? rt.text : rt.muted }}>{icon}</span>
+                                  <span style={{ fontSize: 9, color: count > 0 ? rt.text : rt.muted, fontWeight: 700, letterSpacing: 0.5, flex: 1 }}>{label}</span>
                                   <button type="button" onClick={() => updateGoalAssist(uid, type, -1)} style={{
                                     background: 'none', border: 'none', cursor: count > 0 ? 'pointer' : 'default',
-                                    color: count > 0 ? '#f87171' : 'var(--border)', fontSize: 13, fontWeight: 700,
-                                    padding: '0 2px', lineHeight: 1, opacity: count > 0 ? 1 : 0.25,
+                                    color: count > 0 ? '#f87171' : rt.muted, fontSize: 13, fontWeight: 700,
+                                    padding: '0 2px', lineHeight: 1, opacity: count > 0 ? 1 : 0.4,
                                   }}>−</button>
                                   <span style={{
                                     fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700,
-                                    color: count > 0 ? color : 'var(--muted)', minWidth: 14, textAlign: 'center',
+                                    color: count > 0 ? rt.text : rt.muted, minWidth: 14, textAlign: 'center',
                                   }}>{count}</span>
                                   <button type="button" onClick={() => updateGoalAssist(uid, type, 1)} style={{
                                     background: 'none', border: 'none', cursor: 'pointer',
@@ -897,7 +918,7 @@ export default function GameRatingPage() {
 
                           {/* 6 stat pads — 3×2 grid with [−] VALUE [+] */}
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
-                            {CARD_STATS.map(({ key, label, color }) => {
+                            {CARD_STATS.map(({ key, label }) => {
                               const taps     = stats[key] || 0;
                               const baseTaps = base[key] || 0;
                               const cardVal  = Math.max(30, Math.min(99, 30 + taps));
@@ -906,27 +927,27 @@ export default function GameRatingPage() {
                               return (
                                 <div key={key} style={{
                                   borderRadius: 8,
-                                  border: `1.5px solid ${delta !== 0 ? color : 'var(--border)'}`,
-                                  background: delta !== 0 ? `${color}18` : 'var(--card2)',
+                                  border: `1.5px solid ${delta !== 0 ? rt.border : 'transparent'}`,
+                                  background: rt.statBg,
                                   transition: 'all 0.12s',
                                 }}>
                                   <div style={{
                                     fontFamily: "'Space Mono'", fontSize: 7, fontWeight: 700,
-                                    color: delta !== 0 ? color : 'var(--muted)',
+                                    color: delta !== 0 ? rt.text : rt.muted,
                                     letterSpacing: 1, textAlign: 'center', paddingTop: 5,
                                   }}>{label}</div>
                                   <div style={{ display: 'flex', alignItems: 'center' }}>
                                     <button type="button" onClick={() => updateStat(uid, key, -1)} style={{
                                       flex: 1, background: 'none', border: 'none',
                                       cursor: canDecrease ? 'pointer' : 'default',
-                                      color: canDecrease ? '#f87171' : 'var(--border)',
+                                      color: canDecrease ? '#f87171' : rt.muted,
                                       fontSize: 15, fontWeight: 700, padding: '3px 0',
-                                      opacity: canDecrease ? 1 : 0.2, lineHeight: 1,
+                                      opacity: canDecrease ? 1 : 0.3, lineHeight: 1,
                                     }}>−</button>
                                     <div style={{ flex: 2, textAlign: 'center' }}>
                                       <div style={{
                                         fontFamily: "'Bebas Neue'", fontSize: 20, lineHeight: 1,
-                                        color: delta !== 0 ? color : 'var(--muted)',
+                                        color: delta !== 0 ? rt.text : rt.muted,
                                       }}>{cardVal}</div>
                                       <div style={{
                                         fontFamily: "'Space Mono'", fontSize: 8, fontWeight: 700, lineHeight: 1.5,
