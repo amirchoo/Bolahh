@@ -14,6 +14,7 @@ import FifaCard, { calcOverall } from '../components/FifaCard';
 import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
 import { AREAS } from '../lib/areas';
+import { resizeImageFile } from '../lib/imageResize';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
 const GENDERS = ['Male', 'Female', 'Rather not say'];
@@ -214,7 +215,9 @@ export default function ProfilePage() {
     setUploadingAvatar(true);
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
+    // GIFs skip resizing — canvas would flatten the animation to a single frame
+    const uploadBody = file.type === 'image/gif' ? file : await resizeImageFile(file).catch(() => file);
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, uploadBody, { upsert: true, contentType: file.type });
     if (uploadError) { setSaveMsg(t('profile.errors.uploadFailed')); setUploadingAvatar(false); return; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id);

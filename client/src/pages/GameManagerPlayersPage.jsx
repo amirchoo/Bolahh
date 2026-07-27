@@ -181,7 +181,14 @@ export default function GameManagerPlayersPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                     {row.profile?.avatar_url
                       ? <img src={row.profile.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                      : <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--card2)', border: '1px solid var(--border)', flexShrink: 0 }} />
+                      : (
+                        <div style={{
+                          width: 34, height: 34, borderRadius: '50%', background: 'var(--card2)',
+                          border: '1px solid var(--border)', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 700, color: 'var(--muted)',
+                        }}>{(row.profile?.name?.[0] || '?').toUpperCase()}</div>
+                      )
                     }
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.profile?.name || 'Player'}</div>

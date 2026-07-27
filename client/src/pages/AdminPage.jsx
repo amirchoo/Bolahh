@@ -13,6 +13,7 @@ import FifaCard, { buildCustomTheme, getCardTheme, POSITION_ABBR, STATS, STICKER
 import { drawCardImage } from '../lib/cardCanvas';
 import { RANKS, getRankColor } from '../lib/rankUtils';
 import { AREAS } from '../lib/areas';
+import { resizeImageFile } from '../lib/imageResize';
 
 const DEFAULT_DESIGN = {
   gradFrom: '#b8860b', gradMid: '#ffd700', gradTo: '#b8860b',
@@ -183,7 +184,8 @@ export default function AdminPage() {
     setUploadingAvatarPreset(true);
     const ext = file.name.split('.').pop();
     const filename = `${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, file);
+    const uploadBody = file.type === 'image/gif' ? file : await resizeImageFile(file).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, uploadBody, { contentType: file.type });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingAvatarPreset(false); return; }
     const { data } = supabase.storage.from('avatar-presets').getPublicUrl(filename);
     const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: data.publicUrl });
