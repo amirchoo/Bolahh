@@ -120,10 +120,10 @@ export default function GameRulesDisplay({ gameRules, format }) {
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 4 }}>
-        <StatCard label="Duration" value={rules.duration || '—'} />
+        <StatCard label="Duration" value={rules.duration || '-'} />
         <StatCard label="Format" value={formatLabel} />
-        <StatCard label="Half Length" value={rules.halfLength || '—'} />
-        <StatCard label="Halves / Team" value={rules.halvesPerTeam || '—'} />
+        <StatCard label="Half Length" value={rules.halfLength || '-'} />
+        <StatCard label="Halves / Team" value={rules.halvesPerTeam || '-'} />
       </div>
 
       {/* Sections */}

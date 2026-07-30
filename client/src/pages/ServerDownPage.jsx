@@ -48,7 +48,7 @@ export default function ServerDownPage() {
           lineHeight: 1.6,
         }}>
           We're having trouble connecting to the server right now.
-          The game will be back soon — hang tight.
+          The game will be back soon. Hang tight.
         </p>
 
         <div style={{

@@ -136,7 +136,7 @@ export default function LeaderboardPage() {
             </div>
           )}
           <div style={{ fontFamily: "'Space Mono'", fontSize: 6, color: theme.text, fontWeight: 700, marginTop: 2, letterSpacing: 0.5 }}>
-            {POSITION_ABBR[player.position] || '—'}
+            {POSITION_ABBR[player.position] || '-'}
           </div>
         </div>
 

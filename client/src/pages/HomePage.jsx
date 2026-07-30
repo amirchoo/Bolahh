@@ -56,6 +56,7 @@ export default function HomePage() {
   const [ratedGames, setRatedGames] = useState([]);
   const [requestedToday, setRequestedToday] = useState(false);
   const [requestingGames, setRequestingGames] = useState(false);
+  const [showAreaPrompt, setShowAreaPrompt] = useState(false);
   const days14 = get14Days();
   const dateScrollRef = useRef(null);
   const scrollDates = (dir) => {
@@ -82,16 +83,25 @@ export default function HomePage() {
       .then(({ data }) => setRequestedToday(!!data));
   }, [user]);
 
-  const handleRequestGames = async () => {
-    if (!user || requestedToday || requestingGames) return;
+  const submitGameRequest = async (area) => {
     setRequestingGames(true);
     const { error } = await supabase.from('game_requests').insert({
       user_id: user.id,
       name: userProfile?.name || null,
-      area: userProfile?.area || null,
+      area: area || null,
     });
     setRequestingGames(false);
+    setShowAreaPrompt(false);
     if (!error || error.code === '23505') setRequestedToday(true);
+  };
+
+  const handleRequestGames = () => {
+    if (!user || requestedToday || requestingGames) return;
+    // Falls back to asking for the area on the spot (without touching the
+    // profile) whenever it isn't already set there — this is the only
+    // reliable source of an area for this request otherwise.
+    if (userProfile?.area) submitGameRequest(userProfile.area);
+    else setShowAreaPrompt(true);
   };
 
   const isGameVisible = (game, playerCount) => {
@@ -223,7 +233,7 @@ export default function HomePage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {requestedToday ? 'Bolahh is notified — more games coming!' : requestingGames ? 'Sending...' : 'Request More Games'}
+              {requestedToday ? 'Bolahh is notified, more games coming!' : requestingGames ? 'Sending...' : 'Request More Games'}
             </button>
           )}
         </div>
@@ -334,7 +344,7 @@ export default function HomePage() {
               RECENTLY RATED
             </h2>
             <p style={{ color: 'var(--text)', fontSize: 13, marginBottom: 16, opacity: 0.7 }}>
-              Catch up on match results — tap a game to see the full summary.
+              Catch up on match results. Tap a game to see the full summary.
             </p>
             <div className="hide-scrollbar" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8 }}>
               {ratedGames.map(game => (
@@ -381,6 +391,44 @@ export default function HomePage() {
 
         <HomeFooter />
       </div>
+
+      {showAreaPrompt && (
+        <div
+          onClick={() => setShowAreaPrompt(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 2000,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 16, padding: '24px 20px', maxWidth: 380, width: '100%',
+          }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>
+              Which area are you in?
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
+              This just helps us know where to add more games. It won't change your profile.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {CITY_AREAS.map(a => (
+                <button
+                  key={a}
+                  onClick={() => submitGameRequest(a)}
+                  disabled={requestingGames}
+                  style={{
+                    background: 'var(--card2)', color: 'var(--text)',
+                    border: '1px solid var(--border)', borderRadius: 8,
+                    padding: '8px 14px', fontSize: 13, fontWeight: 500,
+                    opacity: requestingGames ? 0.6 : 1,
+                  }}
+                >{a}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

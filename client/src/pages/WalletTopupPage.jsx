@@ -187,7 +187,7 @@ export default function WalletTopupPage() {
             CURRENT BALANCE
           </div>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 52, color: '#fff', lineHeight: 1, letterSpacing: 2 }}>
-            RM {loading || verifying ? '—' : balance.toFixed(2)}
+            RM {loading || verifying ? '-' : balance.toFixed(2)}
           </div>
           {verifying && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>Confirming payment…</div>}
         </div>

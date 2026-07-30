@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { getRank } from '../lib/rankUtils';
 import { getCardTheme, calcOverall } from '../components/FifaCard';
 import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline, IoChevronDown } from 'react-icons/io5';
-import { GiSoccerBall, GiTrophy, GiRunningShoe } from 'react-icons/gi';
+import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
 const MOTM_META = {
@@ -114,7 +114,6 @@ export default function GameRatingPage() {
   const [alreadyRated, setAlreadyRated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [motmPlayers, setMotmPlayers] = useState([]);
-  const [goalAssist, setGoalAssist] = useState({});
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -130,7 +129,7 @@ export default function GameRatingPage() {
 
   // Team assignments: { userId: 'A' | 'B' | 'C' }
   const [teamAssign, setTeamAssign] = useState({});
-  // Ratings: { userId: { goals, assists, ... } } — tracks TOTAL lifetime taps (adjusted this session)
+  // Ratings: { userId: { shooting_quality, passing_quality, ... } } — tracks TOTAL lifetime taps (adjusted this session)
   const [ratings, setRatings] = useState({});
   // Base taps before this game — used to compute the per-game delta on submit
   const [baseRatings, setBaseRatings] = useState({});
@@ -151,7 +150,6 @@ export default function GameRatingPage() {
         if (p.ratings)           setRatings(p.ratings);
         if (p.currentMatch != null) setCurrentMatch(p.currentMatch);
         if (p.motmPlayers)       setMotmPlayers(p.motmPlayers);
-        if (p.goalAssist)        setGoalAssist(p.goalAssist);
       }
     } catch {}
   };
@@ -177,14 +175,8 @@ export default function GameRatingPage() {
   // Persist progress to localStorage so a phone screen-off / tab refresh doesn't lose work
   useEffect(() => {
     if (loading || isPreview) return;
-    localStorage.setItem(storageKey, JSON.stringify({ step, duration, teamMode, teamAssign, ratings, currentMatch, motmPlayers, goalAssist }));
-  }, [step, duration, teamMode, teamAssign, ratings, currentMatch, loading, goalAssist]);
-
-  // Persist goal/assist separately so summary page can read it even before submit
-  useEffect(() => {
-    if (loading || isPreview) return;
-    localStorage.setItem(`bolahh_goal_assist_${id}`, JSON.stringify(goalAssist));
-  }, [goalAssist, loading]);
+    localStorage.setItem(storageKey, JSON.stringify({ step, duration, teamMode, teamAssign, ratings, currentMatch, motmPlayers }));
+  }, [step, duration, teamMode, teamAssign, ratings, currentMatch, loading]);
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -343,13 +335,6 @@ export default function GameRatingPage() {
     }));
   };
 
-  const updateGoalAssist = (uid, type, delta) => {
-    setGoalAssist(prev => {
-      const curr = prev[uid] || { goals: 0, assists: 0 };
-      return { ...prev, [uid]: { ...curr, [type]: Math.max(0, (curr[type] || 0) + delta) } };
-    });
-  };
-
   const toggleMotm = (uid) => {
     setMotmPlayers(prev => {
       if (prev.includes(uid)) return prev.filter(id => id !== uid);
@@ -379,8 +364,8 @@ export default function GameRatingPage() {
           game_id: id,
           user_id: uid,
           rated_by: currentUser.id,
-          goals:             goalAssist[uid]?.goals   || 0,
-          assists:           goalAssist[uid]?.assists || 0,
+          goals: 0,
+          assists: 0,
           shooting_quality:  d_sho,
           passing_quality:   d_pas,
           good_defending:    d_def,
@@ -420,6 +405,7 @@ export default function GameRatingPage() {
 
       // Fire-and-forget — a failed email send shouldn't block/undo the ratings submission.
       supabase.functions.invoke('send-game-summary', { body: { game_id: id } }).catch(() => {});
+      supabase.functions.invoke('send-award-email', { body: { game_id: id } }).catch(() => {});
 
       setSuccess('Ratings submitted!');
       setAlreadyRated(true);
@@ -893,42 +879,6 @@ export default function GameRatingPage() {
 
                           {isExpanded && (
                           <>
-                          {/* Goal / Assist counters */}
-                          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                            {[
-                              { type: 'goals',   label: 'GOAL',   icon: <GiSoccerBall size={13} /> },
-                              { type: 'assists', label: 'ASSIST', icon: <GiRunningShoe size={13} /> },
-                            ].map(({ type, label, icon }) => {
-                              const count = goalAssist[uid]?.[type] || 0;
-                              return (
-                                <div key={type} style={{
-                                  flex: 1, display: 'flex', alignItems: 'center', gap: 4,
-                                  background: count > 0 ? rt.statBg : 'transparent',
-                                  border: `1px solid ${count > 0 ? rt.border : rt.muted}`,
-                                  borderRadius: 8, padding: '4px 6px',
-                                  transition: 'all 0.12s',
-                                }}>
-                                  <span style={{ color: count > 0 ? rt.text : rt.muted }}>{icon}</span>
-                                  <span style={{ fontSize: 9, color: count > 0 ? rt.text : rt.muted, fontWeight: 700, letterSpacing: 0.5, flex: 1 }}>{label}</span>
-                                  <button type="button" onClick={() => updateGoalAssist(uid, type, -1)} style={{
-                                    background: 'none', border: 'none', cursor: count > 0 ? 'pointer' : 'default',
-                                    color: count > 0 ? '#f87171' : rt.muted, fontSize: 13, fontWeight: 700,
-                                    padding: '0 2px', lineHeight: 1, opacity: count > 0 ? 1 : 0.4,
-                                  }}>−</button>
-                                  <span style={{
-                                    fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700,
-                                    color: count > 0 ? rt.text : rt.muted, minWidth: 14, textAlign: 'center',
-                                  }}>{count}</span>
-                                  <button type="button" onClick={() => updateGoalAssist(uid, type, 1)} style={{
-                                    background: 'none', border: 'none', cursor: 'pointer',
-                                    color: '#4ade80', fontSize: 13, fontWeight: 700,
-                                    padding: '0 2px', lineHeight: 1,
-                                  }}>+</button>
-                                </div>
-                              );
-                            })}
-                          </div>
-
                           {/* 6 stat pads — 3×2 grid with [−] VALUE [+] */}
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                             {CARD_STATS.map(({ key, label }) => {

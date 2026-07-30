@@ -9,7 +9,7 @@ import { refundGamePlayers } from '../lib/refundGamePlayers';
 import { GiSoccerBall } from 'react-icons/gi';
 import { MdOutlineCalendarMonth, MdOutlineStadium, MdSave, MdOutlineCancel } from 'react-icons/md';
 import { FaPeopleGroup, FaLocationDot } from 'react-icons/fa6';
-import { IoStar, IoStarOutline } from 'react-icons/io5';
+import { IoStar, IoStarOutline, IoChevronDown } from 'react-icons/io5';
 import { LuMedal } from 'react-icons/lu';
 import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
@@ -28,7 +28,7 @@ export default function ManagerPage() {
   const [games, setGames] = useState([]);
   const [players, setPlayers] = useState([]);
   const [feedback, setFeedback] = useState([]);
-  const [sportsmanship, setSportsmanship] = useState([]);
+  const [sportsmanship, setSportsmanship] = useState({});
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -37,6 +37,7 @@ export default function ManagerPage() {
   const [cancelingGame, setCancelingGame] = useState(null);
   const [cancelReason, setCancelReason] = useState('Rain');
   const [cancelling, setCancelling] = useState(false);
+  const [expandedFeedbackGame, setExpandedFeedbackGame] = useState(null);
 
   const [gameForm, setGameForm] = useState({
     title: '', field_id: '', area: '', format: '5v5',
@@ -54,7 +55,7 @@ export default function ManagerPage() {
     const cached = getCached('manager_data');
     if (cached) {
       setFields(cached.fields); setGames(cached.games); setPlayers(cached.players);
-      setFeedback(cached.feedback || []); setSportsmanship(cached.sportsmanship || []);
+      setFeedback(cached.feedback || []); setSportsmanship(cached.sportsmanship || {});
       setLoading(false);
     }
     fetchAll(!!cached);
@@ -97,28 +98,39 @@ export default function ManagerPage() {
   const fetchFeedback = async () => {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     const { data: ownGames } = await supabase
-      .from('games').select('id, title').eq('created_by', currentUser?.id);
+      .from('games').select('id, title, date').eq('created_by', currentUser?.id)
+      .order('date', { ascending: false });
     const gameIds = (ownGames || []).map(g => g.id);
     const gameTitleMap = {};
     (ownGames || []).forEach(g => { gameTitleMap[g.id] = g.title; });
 
     if (gameIds.length === 0) {
-      setFeedback([]); setSportsmanship([]);
-      return { feedback: [], sportsmanship: [] };
+      setFeedback([]); setSportsmanship({});
+      return { feedback: [], sportsmanship: {} };
     }
 
     const { data: feedbackRows } = await supabase
       .from('game_feedback').select('*').in('game_id', gameIds).order('created_at', { ascending: false });
     const { data: sportsmanshipRows } = await supabase
-      .from('player_sportsmanship_ratings').select('rater_id, rated_id, rating').in('game_id', gameIds);
+      .from('player_sportsmanship_ratings').select('game_id, rater_id, rated_id, rating, tags').in('game_id', gameIds);
 
-    const agg = {};
+    // Aggregated per game, not globally, so ratings can be shown alongside that
+    // game's own feedback instead of as one combined all-time leaderboard.
+    const aggByGame = {};
     (sportsmanshipRows || []).forEach(r => {
-      if (!agg[r.rated_id]) agg[r.rated_id] = { sum: 0, count: 0 };
-      agg[r.rated_id].sum += r.rating; agg[r.rated_id].count += 1;
+      if (!aggByGame[r.game_id]) aggByGame[r.game_id] = {};
+      if (!aggByGame[r.game_id][r.rated_id]) aggByGame[r.game_id][r.rated_id] = { sum: 0, count: 0, tagCounts: {} };
+      aggByGame[r.game_id][r.rated_id].sum += r.rating;
+      aggByGame[r.game_id][r.rated_id].count += 1;
+      (r.tags || []).forEach(tag => {
+        aggByGame[r.game_id][r.rated_id].tagCounts[tag] = (aggByGame[r.game_id][r.rated_id].tagCounts[tag] || 0) + 1;
+      });
     });
 
-    const profileIds = [...new Set([...(feedbackRows || []).map(f => f.user_id), ...Object.keys(agg)])];
+    const profileIds = [...new Set([
+      ...(feedbackRows || []).map(f => f.user_id),
+      ...(sportsmanshipRows || []).map(r => r.rated_id),
+    ])];
     let profileMap = {};
     if (profileIds.length > 0) {
       const { data: profilesData } = await supabase.from('profiles').select('id, name').in('id', profileIds);
@@ -129,13 +141,22 @@ export default function ManagerPage() {
       ...f, gameTitle: gameTitleMap[f.game_id], userName: profileMap[f.user_id]?.name || 'Player',
     }));
 
-    const sportsmanshipList = Object.entries(agg)
-      .map(([uid, { sum, count }]) => ({ id: uid, name: profileMap[uid]?.name || 'Player', avg: sum / count, count }))
-      .sort((a, b) => a.avg - b.avg);
+    const sportsmanshipByGame = {};
+    Object.entries(aggByGame).forEach(([gid, players]) => {
+      sportsmanshipByGame[gid] = {
+        gameTitle: gameTitleMap[gid],
+        items: Object.entries(players)
+          .map(([uid, { sum, count, tagCounts }]) => ({
+            id: uid, name: profileMap[uid]?.name || 'Player', avg: sum / count, count,
+            tags: Object.entries(tagCounts).sort((a, b) => b[1] - a[1]),
+          }))
+          .sort((a, b) => a.avg - b.avg),
+      };
+    });
 
     setFeedback(feedbackWithNames);
-    setSportsmanship(sportsmanshipList);
-    return { feedback: feedbackWithNames, sportsmanship: sportsmanshipList };
+    setSportsmanship(sportsmanshipByGame);
+    return { feedback: feedbackWithNames, sportsmanship: sportsmanshipByGame };
   };
 
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
@@ -591,57 +612,122 @@ export default function ManagerPage() {
         )}
 
         {/* ── FEEDBACK TAB ── */}
-        {activeTab === 'feedback' && (
-          <div>
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
-                Game & Venue Feedback ({feedback.length})
-              </div>
-              {feedback.length === 0 ? (
-                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No feedback submitted yet.</div>
-              ) : feedback.map((f, i) => (
-                <div key={f.id} style={{
-                  padding: '14px 20px',
-                  borderBottom: i < feedback.length - 1 ? '1px solid var(--border)' : 'none',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{f.gameTitle}</div>
-                    <div style={{ display: 'flex', gap: 1 }}>
-                      {[1, 2, 3, 4, 5].map(n => n <= f.venue_rating
-                        ? <IoStar key={n} size={14} color="var(--accent)" />
-                        : <IoStarOutline key={n} size={14} color="var(--muted)" />)}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: f.venue_comment ? 4 : 0 }}>{f.userName}</div>
-                  {f.venue_comment && (
-                    <div style={{ fontSize: 13, color: 'var(--text)', opacity: 0.85 }}>{f.venue_comment}</div>
-                  )}
-                </div>
-              ))}
-            </div>
+        {activeTab === 'feedback' && (() => {
+          // Group both venue feedback and sportsmanship ratings by game, so a manager
+          // opens one game and sees everything for it together, instead of one flat
+          // feedback list plus a separate all-time sportsmanship leaderboard.
+          const feedbackByGame = {};
+          feedback.forEach(f => {
+            if (!feedbackByGame[f.game_id]) feedbackByGame[f.game_id] = { gameTitle: f.gameTitle, items: [] };
+            feedbackByGame[f.game_id].items.push(f);
+          });
 
+          const gameOrder = [...new Set([...Object.keys(feedbackByGame), ...Object.keys(sportsmanship)])];
+          const totalFeedback = feedback.length;
+
+          return (
+          <div>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
-                Sportsmanship Ratings ({sportsmanship.length})
+                Game & Venue Feedback ({totalFeedback})
               </div>
-              {sportsmanship.length === 0 ? (
-                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No sportsmanship ratings yet.</div>
-              ) : sportsmanship.map((s, i) => (
-                <div key={s.id} style={{
-                  padding: '12px 20px',
-                  borderBottom: i < sportsmanship.length - 1 ? '1px solid var(--border)' : 'none',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
-                }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{s.name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: s.avg < 3 ? 'var(--red)' : 'var(--accent)' }}>{s.avg.toFixed(1)}</span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>({s.count} rating{s.count !== 1 ? 's' : ''})</span>
+              {gameOrder.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No feedback or ratings submitted yet.</div>
+              ) : gameOrder.map((gid, gi) => {
+                const feedbackGroup = feedbackByGame[gid];
+                const sportsmanshipEntry = sportsmanship[gid];
+                const sportsmanshipGroup = sportsmanshipEntry?.items || [];
+                const gameTitle = feedbackGroup?.gameTitle || sportsmanshipEntry?.gameTitle || 'Game';
+                const isExpanded = expandedFeedbackGame === gid;
+                const avgRating = feedbackGroup
+                  ? feedbackGroup.items.reduce((sum, f) => sum + (f.venue_rating || 0), 0) / feedbackGroup.items.length
+                  : null;
+                return (
+                  <div key={gid} style={{ borderBottom: gi < gameOrder.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <div
+                      onClick={() => setExpandedFeedbackGame(isExpanded ? null : gid)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                        padding: '14px 20px', cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{gameTitle}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                        {avgRating != null && (
+                          <div style={{ display: 'flex', gap: 1 }}>
+                            {[1, 2, 3, 4, 5].map(n => n <= Math.round(avgRating)
+                              ? <IoStar key={n} size={13} color="var(--accent)" />
+                              : <IoStarOutline key={n} size={13} color="var(--muted)" />)}
+                          </div>
+                        )}
+                        {feedbackGroup && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{feedbackGroup.items.length} review{feedbackGroup.items.length !== 1 ? 's' : ''}</span>}
+                        {sportsmanshipGroup.length > 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{sportsmanshipGroup.length} rated</span>}
+                        <IoChevronDown size={14} style={{
+                          color: 'var(--muted)',
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.2s',
+                        }} />
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div style={{ background: 'var(--card2)', borderTop: '1px solid var(--border)' }}>
+                        {feedbackGroup && feedbackGroup.items.map((f, i) => (
+                          <div key={f.id} style={{
+                            padding: '10px 20px',
+                            borderBottom: (i < feedbackGroup.items.length - 1 || sportsmanshipGroup.length > 0) ? '1px solid var(--border)' : 'none',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{f.userName}</div>
+                              <div style={{ display: 'flex', gap: 1 }}>
+                                {[1, 2, 3, 4, 5].map(n => n <= f.venue_rating
+                                  ? <IoStar key={n} size={12} color="var(--accent)" />
+                                  : <IoStarOutline key={n} size={12} color="var(--muted)" />)}
+                              </div>
+                            </div>
+                            {f.venue_comment && (
+                              <div style={{ fontSize: 13, color: 'var(--text)', opacity: 0.85 }}>{f.venue_comment}</div>
+                            )}
+                          </div>
+                        ))}
+                        {sportsmanshipGroup.length > 0 && (
+                          <div style={{ padding: '10px 20px 4px' }}>
+                            <div style={{ fontSize: 11, letterSpacing: 1, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase' }}>Sportsmanship</div>
+                            {sportsmanshipGroup.map((s, i) => (
+                              <div key={s.id} style={{
+                                padding: '8px 0',
+                                borderBottom: i < sportsmanshipGroup.length - 1 ? '1px solid var(--border)' : 'none',
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.name}</div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: s.avg < 3 ? 'var(--red)' : 'var(--accent)' }}>{s.avg.toFixed(1)}</span>
+                                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>({s.count} rating{s.count !== 1 ? 's' : ''})</span>
+                                  </div>
+                                </div>
+                                {s.tags.length > 0 && (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+                                    {s.tags.map(([tag, count]) => (
+                                      <span key={tag} style={{
+                                        padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600,
+                                        background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                                        border: '1px solid rgba(240,157,81,0.25)',
+                                      }}>{tag}{count > 1 ? ` ×${count}` : ''}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Field Request CTA */}
         <div style={{ ...sectionCard, marginTop: 24, textAlign: 'center' }}>

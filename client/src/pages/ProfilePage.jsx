@@ -14,6 +14,7 @@ import FifaCard, { calcOverall } from '../components/FifaCard';
 import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
 import { AREAS } from '../lib/areas';
+import { resizeImageFile } from '../lib/imageResize';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
 const GENDERS = ['Male', 'Female', 'Rather not say'];
@@ -105,7 +106,11 @@ export default function ProfilePage() {
       supabase.from('profiles').select('*, wallet_balance').eq('id', user.id).single(),
       supabase.from('player_phone_numbers').select('phone_number').eq('user_id', user.id).maybeSingle(),
     ]);
-    const existingPhone = phoneRow?.phone_number ? phoneRow.phone_number.replace(/^\+60/, '') : '';
+    let existingPhone = phoneRow?.phone_number ? phoneRow.phone_number.replace(/^\+60/, '') : '';
+    if (!existingPhone && user.user_metadata?.phone) {
+      await supabase.from('player_phone_numbers').upsert({ user_id: user.id, phone_number: user.user_metadata.phone });
+      existingPhone = user.user_metadata.phone.replace(/^\+60/, '');
+    }
     setSavedPhone(existingPhone);
     if (error || !data) {
       const username = user.user_metadata?.username || '';
@@ -113,36 +118,32 @@ export default function ProfilePage() {
       const gender = user.user_metadata?.gender || '';
       const age = user.user_metadata?.age || null;
       const area = user.user_metadata?.area || '';
+      const avatar_url = user.user_metadata?.avatar_url || '';
       const { data: newProfile } = await supabase
         .from('profiles')
-        .upsert({ id: user.id, name: username, position, gender, age, area, is_admin: false })
+        .upsert({ id: user.id, name: username, position, gender, age, area, avatar_url, is_admin: false })
         .select().single();
       if (newProfile) {
         setProfile(newProfile);
         setWalletBalance(newProfile?.wallet_balance || 0);
         setForm({ name: newProfile.name || '', position: newProfile.position || '', gender: newProfile.gender || '', age: newProfile.age?.toString() || '', area: newProfile.area || '', phone: existingPhone });
         fetchCard(newProfile.card_stats);
-        if (!existingPhone && user.user_metadata?.phone) {
-          await supabase.from('player_phone_numbers').upsert({ user_id: user.id, phone_number: user.user_metadata.phone });
-          setSavedPhone(user.user_metadata.phone.replace(/^\+60/, ''));
-        }
       }
     } else {
-      if (!data.name && user.user_metadata?.username) {
-        const username = user.user_metadata.username;
-        const position = user.user_metadata?.position || data.position || '';
-        const gender = user.user_metadata?.gender || data.gender || '';
-        const age = user.user_metadata?.age || data.age || null;
-        const area = user.user_metadata?.area || data.area || '';
-        await supabase.from('profiles').update({ name: username, position, gender, age, area }).eq('id', user.id);
-        setProfile({ ...data, name: username, position, gender, age, area });
+      const needsNameSync = !data.name && user.user_metadata?.username;
+      const needsAvatarBackfill = !data.avatar_url && user.user_metadata?.avatar_url;
+      if (needsNameSync || needsAvatarBackfill) {
+        const username = needsNameSync ? user.user_metadata.username : (data.name || '');
+        const position = needsNameSync ? (user.user_metadata?.position || data.position || '') : data.position || '';
+        const gender = needsNameSync ? (user.user_metadata?.gender || data.gender || '') : data.gender || '';
+        const age = needsNameSync ? (user.user_metadata?.age || data.age || null) : data.age || null;
+        const area = needsNameSync ? (user.user_metadata?.area || data.area || '') : data.area || '';
+        const avatar_url = data.avatar_url || user.user_metadata?.avatar_url || '';
+        await supabase.from('profiles').update({ name: username, position, gender, age, area, avatar_url }).eq('id', user.id);
+        setProfile({ ...data, name: username, position, gender, age, area, avatar_url });
         setWalletBalance(data?.wallet_balance || 0);
         setForm({ name: username, position, gender: gender || '', age: age?.toString() || '', area: area || '', phone: existingPhone });
         fetchCard(data.card_stats);
-        if (!existingPhone && user.user_metadata?.phone) {
-          await supabase.from('player_phone_numbers').upsert({ user_id: user.id, phone_number: user.user_metadata.phone });
-          setSavedPhone(user.user_metadata.phone.replace(/^\+60/, ''));
-        }
       } else {
         setProfile(data);
         setWalletBalance(data?.wallet_balance || 0);
@@ -214,7 +215,9 @@ export default function ProfilePage() {
     setUploadingAvatar(true);
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
+    // GIFs skip resizing — canvas would flatten the animation to a single frame
+    const uploadBody = file.type === 'image/gif' ? file : await resizeImageFile(file).catch(() => file);
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, uploadBody, { upsert: true, contentType: file.type });
     if (uploadError) { setSaveMsg(t('profile.errors.uploadFailed')); setUploadingAvatar(false); return; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id);

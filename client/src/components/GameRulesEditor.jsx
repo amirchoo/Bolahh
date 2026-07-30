@@ -22,7 +22,7 @@ const TEMPLATES = {
       {
         title: 'MATCH STRUCTURE',
         rules: [
-          { iconKey: 'grid',  title: 'Round-robin format',    type: 'info',       description: 'Each team plays against every other team 3 times — 6 halves in total per team. Every team receives equal game time throughout the session.' },
+          { iconKey: 'grid',  title: 'Round-robin format',    type: 'info',       description: 'Each team plays against every other team 3 times, 6 halves in total per team. Every team receives equal game time throughout the session.' },
           { iconKey: 'sync',  title: 'Goalkeeper rotation',   type: 'info',       description: 'The goalkeeper is rotated every 6 minutes. Every player serves as goalkeeper exactly twice over the course of the full match.' },
           { iconKey: 'timer', title: 'Equal playing time',    type: 'info',       description: 'Game time is distributed equally for all players. No player should have significantly more or less field time than others.' },
         ],

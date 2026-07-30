@@ -6,7 +6,7 @@ import { IoWallet, IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaRankingStar, FaLocationDot, FaArrowTrendUp } from 'react-icons/fa6';
 import { TbPlayCard7Filled } from 'react-icons/tb';
 import { IoSearchCircleOutline } from 'react-icons/io5';
-import { GiSoccerBall, GiRunningShoe, GiTrophy } from 'react-icons/gi';
+import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
 
 const SECTIONS = [
   { id: 'flow',        label: 'How It Works' },
@@ -137,7 +137,7 @@ export default function GuidePage() {
               },
               {
                 num: '03', icon: <GiSoccerBall size={22} />, title: 'Show Up & Play',
-                desc: 'Head to the field at the scheduled time. Play your match. Goals, assists, and good plays all count towards your post-match rating.',
+                desc: 'Head to the field at the scheduled time. Play your match. Good plays all count towards your post-match rating.',
               },
               {
                 num: '04', icon: <FaRankingStar size={22} />, title: 'Get Rated & Build Your OVR',
@@ -283,7 +283,7 @@ export default function GuidePage() {
             borderRadius: 12, padding: '14px 18px', fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 20,
           }}>
             <span style={{ color: 'var(--text)', fontWeight: 600 }}>How to climb: </span>
-             Join more games and perform well. Our trusted manager rates your stats after each match. Goals, assists, and good plays push your stats up. Higher stats raise your OVR, which moves you up the board.
+             Join more games and perform well. Our trusted manager rates your stats after each match. Good plays push your stats up. Higher stats raise your OVR, which moves you up the board.
           </div>
 
           <button
@@ -346,15 +346,8 @@ export default function GuidePage() {
             ))}
           </div>
 
-          {/* Goals & assists + trend arrow */}
+          {/* Trend arrow */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px' }}>
-              <GiSoccerBall size={20} color="#FECA57" style={{ flexShrink: 0 }} />
-              <GiRunningShoe size={20} color="#00D2D3" style={{ flexShrink: 0 }} />
-              <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: 0 }}>
-                Goals and assists are also tracked and shown on your match summary, display only, they don't affect your card stats.
-              </p>
-            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px' }}>
               <FaArrowTrendUp size={22} color="#4ade80" style={{ flexShrink: 0 }} />
               <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: 0 }}>

@@ -13,6 +13,7 @@ import FifaCard, { buildCustomTheme, getCardTheme, POSITION_ABBR, STATS, STICKER
 import { drawCardImage } from '../lib/cardCanvas';
 import { RANKS, getRankColor } from '../lib/rankUtils';
 import { AREAS } from '../lib/areas';
+import { resizeImageFile } from '../lib/imageResize';
 
 const DEFAULT_DESIGN = {
   gradFrom: '#b8860b', gradMid: '#ffd700', gradTo: '#b8860b',
@@ -183,7 +184,8 @@ export default function AdminPage() {
     setUploadingAvatarPreset(true);
     const ext = file.name.split('.').pop();
     const filename = `${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, file);
+    const uploadBody = file.type === 'image/gif' ? file : await resizeImageFile(file).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, uploadBody, { contentType: file.type });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingAvatarPreset(false); return; }
     const { data } = supabase.storage.from('avatar-presets').getPublicUrl(filename);
     const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: data.publicUrl });
@@ -294,7 +296,7 @@ export default function AdminPage() {
     }, { count: 'exact' }).eq('id', editingField);
     if (error) { showError(error.message); return; }
     if (count === 0) {
-      showError('Update blocked — your Supabase RLS policy is preventing this. Run the SQL fix below in your Supabase SQL editor.');
+      showError('Update blocked. Your Supabase RLS policy is preventing this. Run the SQL fix below in your Supabase SQL editor.');
       console.error('RLS FIX — run in Supabase SQL editor:\ncreate policy "Admins can update any field" on fields\n  for update using (\n    exists (select 1 from profiles where id = auth.uid() and is_admin = true)\n  );');
       return;
     }
@@ -643,7 +645,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                     >
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><IoCamera size={24} color="var(--muted)" /></div>
                       <div style={{ fontSize: 13, color: 'var(--muted)' }}>{uploadingBannerImg ? 'Uploading...' : 'Click to upload banner image'}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, opacity: 0.6 }}>Recommended: 16:5 ratio — e.g. 1600×500px</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, opacity: 0.6 }}>Recommended: 16:5 ratio (e.g. 1600×500px)</div>
                     </div>
                   )}
                   <input id="banner-img-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBannerImageUpload} />
@@ -1722,7 +1724,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
             <div style={{ background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.2)', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
               <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>ONE-TIME SETUP</div>
               <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.7, marginBottom: 8 }}>
-                If you haven't created the game_requests table yet, run this SQL in your Supabase SQL editor. request_date is generated automatically from created_at in Malaysia time — don't insert it directly.
+                If you haven't created the game_requests table yet, run this SQL in your Supabase SQL editor. request_date is generated automatically from created_at in Malaysia time, don't insert it directly.
               </p>
               <code style={{ display: 'block', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: 'var(--text)', fontFamily: "'Space Mono'", lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{`create table game_requests (
   id uuid default gen_random_uuid() primary key,

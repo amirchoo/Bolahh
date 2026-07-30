@@ -404,9 +404,9 @@ export default function LandingPage() {
 
             <div className={`reveal ${heroVisible ? 'visible' : ''} reveal-delay-4 hero-stats`} style={{ display: 'flex', gap: 32, marginTop: 40 }}>
               {[
-                [heroStats.courts === null ? '—' : heroStats.courts, t('landing.stats.courts')],
-                [heroStats.players === null ? '—' : heroStats.players, t('landing.stats.activePlayers')],
-                [heroStats.games === null ? '—' : heroStats.games, t('landing.stats.gamesOrganised')],
+                [heroStats.courts === null ? '-' : heroStats.courts, t('landing.stats.courts')],
+                [heroStats.players === null ? '-' : heroStats.players, t('landing.stats.activePlayers')],
+                [heroStats.games === null ? '-' : heroStats.games, t('landing.stats.gamesOrganised')],
               ].map(([num, label]) => (
                 <div key={label}>
                   <div style={{ fontFamily: "'Bebas Neue'", fontSize: 36, color: '#F09D51', lineHeight: 1, letterSpacing: 1 }}>{num}</div>
@@ -585,7 +585,7 @@ export default function LandingPage() {
                       {[['PAC',0],['SHO',1],['PAS',2],['DRI',3],['DEF',4],['PHY',5]].map(([k, idx]) => (
                         <div key={k} style={{ background: isNovis ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.18)', borderRadius:3, padding:'3px 2px', textAlign:'center' }}>
                           <div style={{ fontFamily:"'Space Mono'", fontSize:9, fontWeight:700, color: isNovis ? '#444' : tc, lineHeight:1 }}>
-                            {isNovis ? '—' : sampleStats[idx]}
+                            {isNovis ? '-' : sampleStats[idx]}
                           </div>
                           <div style={{ fontFamily:"'Space Mono'", fontSize:6, color: isNovis ? '#333' : tcMuted, letterSpacing:0.3, marginTop:1 }}>{k}</div>
                         </div>

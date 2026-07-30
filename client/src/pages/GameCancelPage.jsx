@@ -40,6 +40,7 @@ export default function GameCancelPage() {
   const [game, setGame] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [amountPaid, setAmountPaid] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
@@ -52,13 +53,14 @@ export default function GameCancelPage() {
     const [gameRes, profileRes, joinedRes] = await Promise.all([
       supabase.from('games').select('*, fields(*)').eq('id', id).single(),
       supabase.from('profiles').select('wallet_balance').eq('id', user.id).single(),
-      supabase.from('game_players').select('id, amount_paid').eq('game_id', id).eq('user_id', user.id).maybeSingle(),
+      supabase.from('game_players').select('id, amount_paid, payment_method').eq('game_id', id).eq('user_id', user.id).maybeSingle(),
     ]);
     if (gameRes.error || !gameRes.data) { navigate('/home'); return; }
     if (!joinedRes.data) { navigate(`/game/${id}`); return; }
     setGame(gameRes.data);
     setWalletBalance(profileRes.data?.wallet_balance || 0);
     setAmountPaid(joinedRes.data.amount_paid ?? gameRes.data.price);
+    setPaymentMethod(joinedRes.data.payment_method || 'wallet');
     setLoading(false);
   };
 
@@ -72,6 +74,15 @@ export default function GameCancelPage() {
     const hoursUntilGame = (gameStart - new Date()) / (1000 * 60 * 60);
     const { pct, label } = getRefundTier(hoursUntilGame);
     const refundAmount = parseFloat((amountPaid * pct).toFixed(2));
+
+    await supabase.from('game_cancellations').insert({
+      game_id: id,
+      user_id: user.id,
+      payment_method: paymentMethod,
+      amount_paid: amountPaid,
+      refund_amount: refundAmount,
+      reason: label,
+    });
 
     const { error: leaveErr, count } = await supabase
       .from('game_players')
