@@ -405,6 +405,7 @@ export default function GameRatingPage() {
 
       // Fire-and-forget — a failed email send shouldn't block/undo the ratings submission.
       supabase.functions.invoke('send-game-summary', { body: { game_id: id } }).catch(() => {});
+      supabase.functions.invoke('send-award-email', { body: { game_id: id } }).catch(() => {});
 
       setSuccess('Ratings submitted!');
       setAlreadyRated(true);

@@ -6,6 +6,24 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Mirrors GameDetailPage.jsx's STAT_KEYS/calcAwardPoints exactly, so the winners emailed
+// here are always the same 3 players shown as Ballers of the Match in-app.
+const STAT_KEYS = [
+  { key: 'shooting_quality',   weight: 3 },
+  { key: 'passing_quality',    weight: 2 },
+  { key: 'successful_dribble', weight: 1 },
+  { key: 'good_defending',     weight: 1 },
+  { key: 'good_keeping',       weight: 1 },
+  { key: 'good_chance',        weight: 1 },
+];
+const calcAwardPoints = (r: Record<string, number>) =>
+  STAT_KEYS.reduce((sum, { key, weight }) => sum + (r[key] || 0) * weight, 0);
+
+// Every winner gets the same celebratory treatment — no 1st/2nd/3rd distinction shown,
+// just a shared gold "Baller of the Match" theme, deliberately distinct from the regular
+// brand-orange emails so it reads as a special occasion.
+const GOLD = '#FFD700';
+
 function formatTime12h(timeStr: string) {
   const [h, m] = timeStr.split(':').map(Number);
   const ampm = h >= 12 ? 'PM' : 'AM';
@@ -20,11 +38,8 @@ function buildEmailHtml(opts: {
   dateStr: string;
   timeStr: string;
   gameUrl: string;
-  feedbackUrl: string;
 }) {
-  const { playerName, gameTitle, fieldName, dateStr, timeStr, gameUrl, feedbackUrl } = opts;
-  // Colors/fonts match the app 1:1 (client/src/styles/globals.css) and the
-  // send-game-reminder function's template, for a consistent look across emails.
+  const { playerName, gameTitle, fieldName, dateStr, timeStr, gameUrl } = opts;
   return `
   <!DOCTYPE html>
   <html>
@@ -36,7 +51,7 @@ function buildEmailHtml(opts: {
   </head>
   <body style="margin:0; background:#111213;">
   <div style="font-family:'DM Sans', Arial, sans-serif; background:#111213; padding:32px 16px; color:#e8e9eb;">
-    <div style="max-width:480px; margin:0 auto; background:#1a1b1d; border:1px solid #2e3032; border-radius:14px; overflow:hidden;">
+    <div style="max-width:480px; margin:0 auto; background:#1a1b1d; border:1.5px solid ${GOLD}; border-radius:14px; overflow:hidden; box-shadow:0 0 24px rgba(255,215,0,0.15);">
       <div style="padding:18px 24px 4px;">
         <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
           <tr>
@@ -45,30 +60,23 @@ function buildEmailHtml(opts: {
           </tr>
         </table>
       </div>
-      <div style="background:#F09D51; padding:20px 24px; margin-top:14px;">
-        <div style="font-family:'Bebas Neue', Arial, sans-serif; font-size:26px; font-weight:400; letter-spacing:1.5px; color:#111213;">GAME SUMMARY IS HERE</div>
+      <div style="background:${GOLD}; padding:22px 24px; margin-top:14px; text-align:center;">
+        <div style="font-size:32px; line-height:1; margin-bottom:6px;">🏆</div>
+        <div style="font-family:'Bebas Neue', Arial, sans-serif; font-size:26px; font-weight:400; letter-spacing:1.5px; color:#111213;">BALLER OF THE MATCH</div>
       </div>
       <div style="padding:24px;">
         <p style="margin:0 0 16px; font-size:15px; line-height:1.6;">Hey ${playerName || 'there'},</p>
         <p style="margin:0 0 16px; font-size:15px; line-height:1.6;">
-          Thanks for playing <strong style="color:#F09D51;">${gameTitle}</strong>. Your match summary, including stats, ratings and MVP awards, is now ready to view.
+          Congrats! You're the Baller of the Match for <strong style="color:#F09D51;">${gameTitle}</strong>. Your performance stood out today, nice work out there.
         </p>
         <div style="background:#222426; border:1px solid #2e3032; border-radius:10px; padding:14px 16px; margin-bottom:20px; font-family:'Space Mono', 'Courier New', monospace; font-size:13px; line-height:1.9; color:#e8e9eb;">
           <div>📍 ${fieldName}</div>
           <div>📅 ${dateStr}</div>
           <div>🕒 ${timeStr}</div>
         </div>
-        <div style="text-align:center; margin-bottom:20px;">
-          <a href="${gameUrl}" style="display:inline-block; background:#F09D51; color:#111213; font-weight:700; font-size:14px; padding:12px 28px; border-radius:8px; text-decoration:none;">
+        <div style="text-align:center; margin-bottom:4px;">
+          <a href="${gameUrl}" style="display:inline-block; background:${GOLD}; color:#111213; font-weight:700; font-size:14px; padding:12px 28px; border-radius:8px; text-decoration:none;">
             View Match Summary
-          </a>
-        </div>
-        <p style="margin:0 0 12px; font-size:14px; line-height:1.6; color:#6b6d6f;">
-          Got a minute? Let us know how the venue was and rate your teammates' sportsmanship. It helps us make every game better.
-        </p>
-        <div style="text-align:center;">
-          <a href="${feedbackUrl}" style="color:#F09D51; font-size:13px; font-weight:600; text-decoration:none;">
-            Give Feedback →
           </a>
         </div>
       </div>
@@ -118,18 +126,53 @@ serve(async (req) => {
       });
     }
 
-    const { data: gamePlayers } = await supabase
-      .from('game_players').select('user_id').eq('game_id', game_id);
+    const { data: ratingRows } = await supabase
+      .from('game_ratings')
+      .select('user_id, shooting_quality, passing_quality, good_defending, good_keeping, successful_dribble, good_chance, admin_bonus')
+      .eq('game_id', game_id);
 
-    const userIds = (gamePlayers || []).map(p => p.user_id);
-    if (userIds.length === 0) {
+    if (!ratingRows || ratingRows.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
     }
 
-    const { data: profiles } = await supabase
-      .from('profiles').select('id, name, email').in('id', userIds);
+    const agg: Record<string, any> = {};
+    ratingRows.forEach(r => {
+      if (!agg[r.user_id]) {
+        agg[r.user_id] = {
+          user_id: r.user_id, shooting_quality: 0, passing_quality: 0,
+          good_defending: 0, good_keeping: 0, successful_dribble: 0, good_chance: 0, admin_bonus: 0,
+        };
+      }
+      STAT_KEYS.forEach(({ key }) => { agg[r.user_id][key] += r[key as keyof typeof r] || 0; });
+      if ((r.admin_bonus || 0) > 0) agg[r.user_id].admin_bonus = r.admin_bonus;
+    });
 
-    const recipients = (profiles || []).filter(p => !!p.email);
+    const aggValues = Object.values(agg);
+    const hasOfficialMotm = aggValues.some((r: any) => r.admin_bonus > 0);
+    let sorted;
+    if (hasOfficialMotm) {
+      const motmOrder = aggValues.filter((r: any) => r.admin_bonus > 0).sort((a: any, b: any) => a.admin_bonus - b.admin_bonus);
+      const others = aggValues.filter((r: any) => !r.admin_bonus).sort((a: any, b: any) => calcAwardPoints(b) - calcAwardPoints(a));
+      sorted = [...motmOrder, ...others];
+    } else {
+      sorted = [...aggValues].sort((a: any, b: any) => calcAwardPoints(b) - calcAwardPoints(a));
+    }
+
+    const winners = sorted.slice(0, 3).filter((r: any) => calcAwardPoints(r) > 0 || r.admin_bonus > 0);
+    if (winners.length === 0) {
+      return new Response(JSON.stringify({ sent: 0 }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
+    }
+
+    const winnerIds = winners.map((w: any) => w.user_id);
+    const { data: profiles } = await supabase
+      .from('profiles').select('id, name, email').in('id', winnerIds);
+    const profileMap: Record<string, { name: string; email: string }> = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+    const recipients = winners
+      .map((w: any) => ({ ...w, profile: profileMap[w.user_id] }))
+      .filter((w: any) => !!w.profile?.email);
+
     if (recipients.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
     }
@@ -142,21 +185,19 @@ serve(async (req) => {
     });
     const timeStr = game.time ? formatTime12h(game.time) : '';
     const gameUrl = `https://bolahh.com/game/${game_id}`;
-    const feedbackUrl = `${gameUrl}/feedback`;
 
-    const emails = recipients.map(p => ({
+    const emails = recipients.map((w: any) => ({
       from: fromAddr,
-      to: p.email,
-      subject: `Game Summary for ${game.title} is here!`,
+      to: w.profile.email,
+      subject: `Congrats, you're the Baller of the Match!`,
       html: buildEmailHtml({
-        playerName: p.name,
+        playerName: w.profile.name,
         gameTitle: game.title,
         fieldName: game.fields?.name || game.area || 'the venue',
-        dateStr, timeStr, gameUrl, feedbackUrl,
+        dateStr, timeStr, gameUrl,
       }),
     }));
 
-    // Resend's batch endpoint accepts up to 100 emails per call — plenty for a single game roster.
     const res = await fetch('https://api.resend.com/emails/batch', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
@@ -175,7 +216,7 @@ serve(async (req) => {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('send-game-summary error:', err);
+    console.error('send-award-email error:', err);
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500, headers: { ...CORS, 'Content-Type': 'application/json' },
     });
