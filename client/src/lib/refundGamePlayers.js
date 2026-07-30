@@ -2,9 +2,9 @@ import { supabase } from './supabaseClient';
 
 export async function refundGamePlayers(gameId, gameTitle, gamePrice, reasonLabel) {
   const { data: gamePlayers } = await supabase
-    .from('game_players').select('user_id, amount_paid').eq('game_id', gameId);
+    .from('game_players').select('user_id, amount_paid, payment_method').eq('game_id', gameId);
 
-  await Promise.all((gamePlayers || []).map(async ({ user_id: uid, amount_paid }) => {
+  await Promise.all((gamePlayers || []).map(async ({ user_id: uid, amount_paid, payment_method }) => {
     const refundAmount = amount_paid ?? gamePrice;
     const { data: freshProfile } = await supabase
       .from('profiles').select('wallet_balance').eq('id', uid).single();
@@ -17,6 +17,14 @@ export async function refundGamePlayers(gameId, gameTitle, gamePrice, reasonLabe
       amount: refundAmount,
       description: `Game cancelled (${reasonLabel}): ${gameTitle}`,
       balance_after: newBalance,
+    });
+    await supabase.from('game_cancellations').insert({
+      game_id: gameId,
+      user_id: uid,
+      payment_method,
+      amount_paid,
+      refund_amount: refundAmount,
+      reason: reasonLabel,
     });
   }));
 

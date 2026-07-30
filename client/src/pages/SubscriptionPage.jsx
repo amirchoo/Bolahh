@@ -181,7 +181,7 @@ export default function SubscriptionPage() {
             <div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>WALLET BALANCE</div>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 38, color: '#fff', letterSpacing: 2, lineHeight: 1 }}>
-                RM {loading ? '—' : balance.toFixed(2)}
+                RM {loading ? '-' : balance.toFixed(2)}
               </div>
             </div>
             {!loading && balance < SUBSCRIPTION_COST && (

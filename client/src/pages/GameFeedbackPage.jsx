@@ -6,6 +6,11 @@ import Navbar from '../components/Navbar';
 import { IoStar, IoStarOutline, IoCheckmarkCircle, IoCloseCircle, IoRemoveCircle } from 'react-icons/io5';
 import { GiSoccerBall } from 'react-icons/gi';
 
+const SPORTSMANSHIP_TAGS = [
+  'Good Passing', 'Good Shooting', 'Good Dribbling',
+  'Good Defending', 'Great Teammate', 'Good Manner',
+];
+
 function StarPicker({ value, onChange, size = 26 }) {
   return (
     <div style={{ display: 'flex', gap: 4 }}>
@@ -36,6 +41,7 @@ export default function GameFeedbackPage() {
   const [venueRating, setVenueRating] = useState(0);
   const [venueComment, setVenueComment] = useState('');
   const [sportsmanship, setSportsmanship] = useState({});
+  const [sportsmanshipTags, setSportsmanshipTags] = useState({});
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -82,6 +88,14 @@ export default function GameFeedbackPage() {
     setSportsmanship(prev => ({ ...prev, [uid]: rating }));
   };
 
+  const toggleTag = (uid, tag) => {
+    setSportsmanshipTags(prev => {
+      const current = prev[uid] || [];
+      const next = current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag];
+      return { ...prev, [uid]: next };
+    });
+  };
+
   const handleSubmit = async () => {
     if (!venueRating) return;
     setSaving(true); setError('');
@@ -98,6 +112,7 @@ export default function GameFeedbackPage() {
       if (ratedEntries.length > 0) {
         const rows = ratedEntries.map(([rated_id, rating]) => ({
           game_id: id, rater_id: user.id, rated_id, rating,
+          tags: sportsmanshipTags[rated_id] || [],
         }));
         const { error: sportsmanshipError } = await supabase.from('player_sportsmanship_ratings').insert(rows);
         if (sportsmanshipError) throw new Error(sportsmanshipError.message);
@@ -188,17 +203,48 @@ export default function GameFeedbackPage() {
         {players.length > 0 && (
           <div style={cardStyle}>
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>SPORTSMANSHIP</div>
-            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>Optional — rate the manner of players you played with or against.</p>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>Optional. Rate the manner of players you played with or against.</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {players.map(p => (
-                <div key={p.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                  padding: '8px 12px', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10,
-                }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.name || 'Player'}</span>
-                  <StarPicker value={sportsmanship[p.id] || 0} onChange={(n) => setSportsmanshipRating(p.id, n)} size={18} />
-                </div>
-              ))}
+              {players.map(p => {
+                const rated = (sportsmanship[p.id] || 0) > 0;
+                const tagsForPlayer = sportsmanshipTags[p.id] || [];
+                return (
+                  <div key={p.id} style={{
+                    padding: '10px 12px', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.name || 'Player'}</span>
+                      <StarPicker value={sportsmanship[p.id] || 0} onChange={(n) => setSportsmanshipRating(p.id, n)} size={18} />
+                    </div>
+                    <div style={{
+                      display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10,
+                      opacity: rated ? 1 : 0.4, transition: 'opacity 0.15s',
+                    }}>
+                      {SPORTSMANSHIP_TAGS.map(tag => {
+                        const active = tagsForPlayer.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            disabled={!rated}
+                            onClick={() => toggleTag(p.id, tag)}
+                            style={{
+                              padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                              background: active ? 'rgba(240,157,81,0.15)' : 'var(--card)',
+                              color: active ? 'var(--accent)' : 'var(--muted)',
+                              border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                              cursor: rated ? 'pointer' : 'default',
+                            }}
+                          >{tag}</button>
+                        );
+                      })}
+                    </div>
+                    {!rated && (
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Rate this player to unlock tags</div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

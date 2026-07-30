@@ -15,7 +15,7 @@ import { FaLocationDot, FaWhatsapp, FaTelegram } from "react-icons/fa6";
 import { FaLink } from "react-icons/fa";
 import { IoWallet, IoTimer, IoClose, IoCheckmark, IoInformationCircleOutline } from 'react-icons/io5';
 import { FaArrowTrendUp, FaArrowTrendDown } from 'react-icons/fa6';
-import { GiSoccerBall, GiTrophy, GiRunningShoe } from 'react-icons/gi';
+import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import GameRulesDisplay from '../components/GameRulesDisplay';
 import FifaCard from '../components/FifaCard';
@@ -35,24 +35,6 @@ const POSITION_META = {
   1: { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', label: '1ST PLACE', shadowColor: 'rgba(255,215,0,0.45)' },
   2: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND PLACE', shadowColor: 'rgba(192,192,192,0.3)' },
   3: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD PLACE', shadowColor: 'rgba(205,127,50,0.3)' },
-};
-
-const GoalAssistBadges = ({ rating }) => {
-  if (!rating || (!rating.goals && !rating.assists)) return null;
-  return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-      {rating.goals > 0 && (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: '#FECA57' }}>
-          <GiSoccerBall size={13} />{rating.goals}
-        </span>
-      )}
-      {rating.assists > 0 && (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: '#00D2D3' }}>
-          <GiRunningShoe size={13} />{rating.assists}
-        </span>
-      )}
-    </div>
-  );
 };
 
 function AwardPopup({ position, profile, points, rating, onClose }) {
@@ -285,7 +267,7 @@ export default function GameDetailPage() {
     }
 
     const { data: ratingCheck } = await supabase
-      .from('game_ratings').select('user_id, goals, assists, shooting_quality, passing_quality, good_defending, good_keeping, successful_dribble, good_chance, admin_bonus')
+      .from('game_ratings').select('user_id, shooting_quality, passing_quality, good_defending, good_keeping, successful_dribble, good_chance, admin_bonus')
       .eq('game_id', id);
     const ratedVal = !!(ratingCheck && ratingCheck.length > 0);
     setIsRated(ratedVal);
@@ -293,9 +275,7 @@ export default function GameDetailPage() {
     if (ratedVal && ratingCheck.length > 0) {
       const agg = {};
       ratingCheck.forEach(r => {
-        if (!agg[r.user_id]) agg[r.user_id] = { user_id: r.user_id, goals: 0, assists: 0, shooting_quality: 0, passing_quality: 0, good_defending: 0, good_keeping: 0, successful_dribble: 0, good_chance: 0, admin_bonus: 0 };
-        agg[r.user_id].goals += r.goals || 0;
-        agg[r.user_id].assists += r.assists || 0;
+        if (!agg[r.user_id]) agg[r.user_id] = { user_id: r.user_id, shooting_quality: 0, passing_quality: 0, good_defending: 0, good_keeping: 0, successful_dribble: 0, good_chance: 0, admin_bonus: 0 };
         STAT_KEYS.forEach(({ key }) => { agg[r.user_id][key] += r[key] || 0; });
         if ((r.admin_bonus || 0) > 0) agg[r.user_id].admin_bonus = r.admin_bonus;
       });
@@ -711,7 +691,7 @@ export default function GameDetailPage() {
                 }}>
                   <IoWallet size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
                   <span style={{ fontFamily: "'Bebas Neue'", fontSize: 15, letterSpacing: 1.5, color: 'var(--accent)' }}>
-                    BOOK NOW, PAY LATER — cash/QR available at court!
+                    BOOK NOW, PAY LATER: cash/QR available at court!
                   </span>
                 </div>
               ) : (
@@ -846,7 +826,6 @@ export default function GameDetailPage() {
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                               <StatChips rating={r} size="sm" />
-                              <GoalAssistBadges rating={r} />
                             </div>
                           </div>
                         );
@@ -885,7 +864,6 @@ export default function GameDetailPage() {
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             <span style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: rankColor }}>{rank}</span>
-                            <GoalAssistBadges rating={r} />
                           </div>
                         </div>
                         <div className="summary-chips-col" style={{ flexShrink: 1, minWidth: 0, maxWidth: 130 }}>

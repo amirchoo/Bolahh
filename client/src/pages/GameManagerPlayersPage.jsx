@@ -7,7 +7,7 @@ import { IconLoading } from '../components/Icons';
 import { clearCached } from '../lib/dataCache';
 import { MdDateRange, MdAccessTime } from 'react-icons/md';
 import { FaLocationDot } from 'react-icons/fa6';
-import { IoWalletOutline, IoQrCodeOutline, IoCallOutline } from 'react-icons/io5';
+import { IoWalletOutline, IoQrCodeOutline, IoCallOutline, IoCloseCircleOutline } from 'react-icons/io5';
 
 const formatDate = (dateStr) => {
   const date = new Date(dateStr);
@@ -25,12 +25,21 @@ const formatTime = (timeStr) => {
   return `${timeStr} ${ampm}`;
 };
 
+const formatDateTime = (isoStr) => {
+  if (!isoStr) return '';
+  const date = new Date(isoStr);
+  return date.toLocaleString('en-MY', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+};
+
 export default function GameManagerPlayersPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [game, setGame] = useState(null);
   const [rows, setRows] = useState([]);
+  const [cancellations, setCancellations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [markingPaidId, setMarkingPaidId] = useState(null);
   const [error, setError] = useState('');
@@ -44,13 +53,23 @@ export default function GameManagerPlayersPage() {
     if (!gameData || gameData.created_by !== user.id) { navigate('/manager'); return; }
     setGame(gameData);
 
-    const { data: playerRows } = await supabase
-      .from('game_players')
-      .select('id, user_id, amount_paid, payment_method, payment_status, joined_at')
-      .eq('game_id', id)
-      .order('joined_at', { ascending: true });
+    const [{ data: playerRows }, { data: cancelRows }] = await Promise.all([
+      supabase
+        .from('game_players')
+        .select('id, user_id, amount_paid, payment_method, payment_status, joined_at')
+        .eq('game_id', id)
+        .order('joined_at', { ascending: true }),
+      supabase
+        .from('game_cancellations')
+        .select('id, user_id, payment_method, amount_paid, refund_amount, reason, cancelled_at')
+        .eq('game_id', id)
+        .order('cancelled_at', { ascending: false }),
+    ]);
 
-    const userIds = [...new Set((playerRows || []).map(p => p.user_id))];
+    const userIds = [...new Set([
+      ...(playerRows || []).map(p => p.user_id),
+      ...(cancelRows || []).map(c => c.user_id),
+    ])];
     let profileMap = {};
     let phoneMap = {};
     if (userIds.length > 0) {
@@ -63,6 +82,7 @@ export default function GameManagerPlayersPage() {
     }
 
     setRows((playerRows || []).map(p => ({ ...p, profile: profileMap[p.user_id], phone: phoneMap[p.user_id] })));
+    setCancellations((cancelRows || []).map(c => ({ ...c, profile: profileMap[c.user_id] })));
     setLoading(false);
   };
 
@@ -246,6 +266,56 @@ export default function GameManagerPlayersPage() {
             );
           })}
         </div>
+
+        {cancellations.length > 0 && (
+          <>
+            <div style={{ ...sectionTitle, marginTop: 24 }}>CANCELLED ({cancellations.length})</div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+              {cancellations.map((c, i) => {
+                const isCash = c.payment_method === 'cash';
+                return (
+                  <div key={c.id} style={{
+                    padding: '14px 20px',
+                    borderBottom: i < cancellations.length - 1 ? '1px solid var(--border)' : 'none',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      {c.profile?.avatar_url
+                        ? <img src={c.profile.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, opacity: 0.6 }} />
+                        : (
+                          <div style={{
+                            width: 34, height: 34, borderRadius: '50%', background: 'var(--card2)',
+                            border: '1px solid var(--border)', flexShrink: 0, opacity: 0.6,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 13, fontWeight: 700, color: 'var(--muted)',
+                          }}>{(c.profile?.name?.[0] || '?').toUpperCase()}</div>
+                        )
+                      }
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.profile?.name || 'Player'}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
+                          {isCash ? <IoQrCodeOutline size={12} /> : <IoWalletOutline size={12} />}
+                          {formatDateTime(c.cancelled_at)}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <span style={{
+                        display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end',
+                        background: 'rgba(224,62,26,0.08)', color: 'var(--red)',
+                        border: '1px solid rgba(224,62,26,0.3)',
+                        borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700,
+                      }}><IoCloseCircleOutline size={12} />{c.reason || 'Cancelled'}</span>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, fontFamily: "'Space Mono'" }}>
+                        Refund RM {Number(c.refund_amount || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

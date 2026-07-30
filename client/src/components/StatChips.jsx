@@ -2,12 +2,12 @@
  * Inline stat badge chips — shows earned stat increments (e.g. SHO+3, PAS+2).
  * Props: rating (object with stat keys), size ('sm' | 'md')
  *
- * Stat keys: goals, assists, successful_dribble, good_defending, good_keeping, good_chance
+ * Stat keys: shooting_quality, passing_quality, successful_dribble, good_defending, good_keeping, good_chance
  */
 
 const STAT_KEYS = [
-  { key: 'goals',              label: 'SHO', color: '#f87171' },
-  { key: 'assists',            label: 'PAS', color: '#4ade80' },
+  { key: 'shooting_quality',   label: 'SHO', color: '#f87171' },
+  { key: 'passing_quality',    label: 'PAS', color: '#4ade80' },
   { key: 'successful_dribble', label: 'DRI', color: '#F09D51' },
   { key: 'good_defending',     label: 'DEF', color: '#a78bfa' },
   { key: 'good_keeping',       label: 'PHY', color: '#34d399' },

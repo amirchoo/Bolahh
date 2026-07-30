@@ -233,7 +233,7 @@ export default function HomePage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {requestedToday ? 'Bolahh is notified — more games coming!' : requestingGames ? 'Sending...' : 'Request More Games'}
+              {requestedToday ? 'Bolahh is notified, more games coming!' : requestingGames ? 'Sending...' : 'Request More Games'}
             </button>
           )}
         </div>
@@ -344,7 +344,7 @@ export default function HomePage() {
               RECENTLY RATED
             </h2>
             <p style={{ color: 'var(--text)', fontSize: 13, marginBottom: 16, opacity: 0.7 }}>
-              Catch up on match results — tap a game to see the full summary.
+              Catch up on match results. Tap a game to see the full summary.
             </p>
             <div className="hide-scrollbar" style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8 }}>
               {ratedGames.map(game => (
@@ -409,7 +409,7 @@ export default function HomePage() {
               Which area are you in?
             </div>
             <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
-              This just helps us know where to add more games — it won't change your profile.
+              This just helps us know where to add more games. It won't change your profile.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {CITY_AREAS.map(a => (
