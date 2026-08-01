@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ import { GiSoccerBall } from 'react-icons/gi';
 import { MdOutlineCalendarMonth, MdOutlineStadium, MdSave, MdOutlineCancel } from 'react-icons/md';
 import { FaPeopleGroup, FaLocationDot } from 'react-icons/fa6';
 import { IoStar, IoStarOutline, IoChevronDown } from 'react-icons/io5';
+import { isNegativePlayerTag } from '../lib/feedbackTags';
 import { LuMedal } from 'react-icons/lu';
 import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
@@ -20,10 +21,42 @@ import GameRulesEditor from '../components/GameRulesEditor';
 const SHOES = ['IN (Indoor Futsal Boots)', 'TF (Turf Boots)', 'Sport Shoes', 'AG (Artificial Ground Boots)'];
 const FORMATS = ['5v5', '6v6', '7v7'];
 
+// ── PREVIEW / DEV MODE ────────────────────────────────────────────────────────
+// Covers the 3 grouping cases the Feedback tab handles: a game with both venue
+// feedback and sportsmanship ratings, one with feedback only, one with ratings only.
+const MOCK_FEEDBACK = [
+  { id: 'f1', game_id: 'g1', gameTitle: 'Friday Night Futsal', userName: 'Amir Hazif', venue_rating: 5, venue_comment: 'Great pitch, would play again!', tags: ['Good Venue', 'Well Maintained'] },
+  { id: 'f2', game_id: 'g1', gameTitle: 'Friday Night Futsal', userName: 'Hafiz Noor', venue_rating: 4, venue_comment: 'A bit far but nice facilities.', tags: ['Clean Facilities'] },
+  { id: 'f3', game_id: 'g2', gameTitle: 'Weekend Warriors', userName: 'Razif Shah', venue_rating: 3, venue_comment: null, tags: ['Good Lighting'] },
+];
+const MOCK_SPORTSMANSHIP = {
+  g1: {
+    gameTitle: 'Friday Night Futsal',
+    items: [
+      { id: 'u1', name: 'Danial Amin', avg: 4.5, count: 2, tags: [['Great Teammate', 2], ['Good Passing', 1]] },
+      { id: 'u2', name: 'Syafiq Rizal', avg: 2.0, count: 1, tags: [['Bad Manner', 1], ["Doesn't Communicate", 1]] },
+    ],
+  },
+  g3: {
+    gameTitle: 'Sunday Social Match',
+    items: [
+      { id: 'u3', name: 'Irfan Zaki', avg: 5.0, count: 3, tags: [['Good Shooting', 2], ['Likes to Communicate', 1]] },
+    ],
+  },
+};
+// ──────────────────────────────────────────────────────────────────────────────
+
 export default function ManagerPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = usePersistedState('manager_tab', 'overview');
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get('preview') === '1';
+  const [persistedTab, setPersistedTab] = usePersistedState('manager_tab', 'overview');
+  const [previewTab, setPreviewTab] = useState('feedback');
+  // Preview mode uses its own tab state so poking around a mock feedback tab
+  // never overwrites the real persisted tab from a genuine manager session.
+  const activeTab = isPreview ? previewTab : persistedTab;
+  const setActiveTab = isPreview ? setPreviewTab : setPersistedTab;
   const [fields, setFields] = useState([]);
   const [games, setGames] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -52,6 +85,12 @@ export default function ManagerPage() {
   });
 
   useEffect(() => {
+    if (isPreview) {
+      setFeedback(MOCK_FEEDBACK);
+      setSportsmanship(MOCK_SPORTSMANSHIP);
+      setLoading(false);
+      return;
+    }
     const cached = getCached('manager_data');
     if (cached) {
       setFields(cached.fields); setGames(cached.games); setPlayers(cached.players);
@@ -685,7 +724,18 @@ export default function ManagerPage() {
                               </div>
                             </div>
                             {f.venue_comment && (
-                              <div style={{ fontSize: 13, color: 'var(--text)', opacity: 0.85 }}>{f.venue_comment}</div>
+                              <div style={{ fontSize: 13, color: 'var(--text)', opacity: 0.85, marginBottom: (f.tags || []).length > 0 ? 6 : 0 }}>{f.venue_comment}</div>
+                            )}
+                            {(f.tags || []).length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                {f.tags.map(tag => (
+                                  <span key={tag} style={{
+                                    padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600,
+                                    background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                                    border: '1px solid rgba(240,157,81,0.25)',
+                                  }}>{tag}</span>
+                                ))}
+                              </div>
                             )}
                           </div>
                         ))}
@@ -706,13 +756,17 @@ export default function ManagerPage() {
                                 </div>
                                 {s.tags.length > 0 && (
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
-                                    {s.tags.map(([tag, count]) => (
-                                      <span key={tag} style={{
-                                        padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600,
-                                        background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
-                                        border: '1px solid rgba(240,157,81,0.25)',
-                                      }}>{tag}{count > 1 ? ` ×${count}` : ''}</span>
-                                    ))}
+                                    {s.tags.map(([tag, count]) => {
+                                      const negative = isNegativePlayerTag(tag);
+                                      return (
+                                        <span key={tag} style={{
+                                          padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600,
+                                          background: negative ? 'rgba(224,62,26,0.1)' : 'rgba(240,157,81,0.1)',
+                                          color: negative ? 'var(--red)' : 'var(--accent)',
+                                          border: `1px solid ${negative ? 'rgba(224,62,26,0.25)' : 'rgba(240,157,81,0.25)'}`,
+                                        }}>{tag}{count > 1 ? ` ×${count}` : ''}</span>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>

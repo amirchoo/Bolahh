@@ -1,15 +1,26 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { IoStar, IoStarOutline, IoCheckmarkCircle, IoCloseCircle, IoRemoveCircle } from 'react-icons/io5';
 import { GiSoccerBall } from 'react-icons/gi';
+import { TEAM_COLORS, VENUE_TAGS, POSITIVE_PLAYER_TAGS, NEGATIVE_PLAYER_TAGS } from '../lib/feedbackTags';
 
-const SPORTSMANSHIP_TAGS = [
-  'Good Passing', 'Good Shooting', 'Good Dribbling',
-  'Good Defending', 'Great Teammate', 'Good Manner',
+// ── PREVIEW / DEV MODE ────────────────────────────────────────────────────────
+const MOCK_GAME = {
+  id: 'preview', title: 'Preview Game',
+  fields: { name: 'Futsal Arena KL' },
+};
+const MOCK_PLAYERS = [
+  { id: 'p1', name: 'Amir Hazif',   avatar_url: null, team_assignment: 'A', bib_number: 1 },
+  { id: 'p2', name: 'Hafiz Noor',   avatar_url: null, team_assignment: 'A', bib_number: 2 },
+  { id: 'p3', name: 'Razif Shah',   avatar_url: null, team_assignment: 'A', bib_number: 3 },
+  { id: 'p4', name: 'Danial Amin',  avatar_url: null, team_assignment: 'B', bib_number: 1 },
+  { id: 'p5', name: 'Syafiq Rizal', avatar_url: null, team_assignment: 'B', bib_number: 2 },
+  { id: 'p6', name: 'Irfan Zaki',   avatar_url: null, team_assignment: 'B', bib_number: 3 },
 ];
+// ──────────────────────────────────────────────────────────────────────────────
 
 function StarPicker({ value, onChange, size = 26 }) {
   return (
@@ -30,7 +41,9 @@ function StarPicker({ value, onChange, size = 26 }) {
 export default function GameFeedbackPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get('preview') === '1' && isAdmin;
 
   const [loading, setLoading] = useState(true);
   const [notEligible, setNotEligible] = useState(false);
@@ -40,6 +53,7 @@ export default function GameFeedbackPage() {
 
   const [venueRating, setVenueRating] = useState(0);
   const [venueComment, setVenueComment] = useState('');
+  const [venueTags, setVenueTags] = useState([]);
   const [sportsmanship, setSportsmanship] = useState({});
   const [sportsmanshipTags, setSportsmanshipTags] = useState({});
 
@@ -52,6 +66,13 @@ export default function GameFeedbackPage() {
 
   const fetchData = async () => {
     setLoading(true);
+
+    if (isPreview) {
+      setGame(MOCK_GAME);
+      setPlayers(MOCK_PLAYERS);
+      setLoading(false);
+      return;
+    }
 
     const { data: gameData } = await supabase
       .from('games').select('*, fields(name)').eq('id', id).single();
@@ -73,12 +94,20 @@ export default function GameFeedbackPage() {
     if (existing) { setAlreadySubmitted(true); setLoading(false); return; }
 
     const { data: gamePlayers } = await supabase
-      .from('game_players').select('user_id').eq('game_id', id);
-    const otherIds = (gamePlayers || []).map(p => p.user_id).filter(uid => uid !== user.id);
-    if (otherIds.length > 0) {
+      .from('game_players').select('user_id, team_assignment, bib_number').eq('game_id', id);
+    const otherRows = (gamePlayers || []).filter(p => p.user_id !== user.id);
+    if (otherRows.length > 0) {
+      const otherIds = otherRows.map(p => p.user_id);
       const { data: profilesData } = await supabase
         .from('profiles').select('id, name, avatar_url').in('id', otherIds);
-      setPlayers(profilesData || []);
+      const profileMap = {};
+      (profilesData || []).forEach(p => { profileMap[p.id] = p; });
+      setPlayers(otherRows.map(row => ({
+        ...profileMap[row.user_id],
+        id: row.user_id,
+        team_assignment: row.team_assignment,
+        bib_number: row.bib_number,
+      })));
     }
 
     setLoading(false);
@@ -96,8 +125,13 @@ export default function GameFeedbackPage() {
     });
   };
 
+  const toggleVenueTag = (tag) => {
+    setVenueTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
+
   const handleSubmit = async () => {
     if (!venueRating) return;
+    if (isPreview) { setError(''); alert('Preview mode. No data written.'); return; }
     setSaving(true); setError('');
     try {
       const { error: feedbackError } = await supabase.from('game_feedback').insert({
@@ -105,6 +139,7 @@ export default function GameFeedbackPage() {
         user_id: user.id,
         venue_rating: venueRating,
         venue_comment: venueComment.trim() || null,
+        tags: venueTags,
       });
       if (feedbackError) throw new Error(feedbackError.message);
 
@@ -198,6 +233,32 @@ export default function GameFeedbackPage() {
               color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
             }}
           />
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12,
+            opacity: venueRating ? 1 : 0.4, transition: 'opacity 0.15s',
+          }}>
+            {VENUE_TAGS.map(tag => {
+              const active = venueTags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  disabled={!venueRating}
+                  onClick={() => toggleVenueTag(tag)}
+                  style={{
+                    padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                    background: active ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: active ? 'var(--accent)' : 'var(--muted)',
+                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                    cursor: venueRating ? 'pointer' : 'default',
+                  }}
+                >{tag}</button>
+              );
+            })}
+          </div>
+          {!venueRating && (
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Rate the venue to unlock tags</div>
+          )}
         </div>
 
         {players.length > 0 && (
@@ -208,19 +269,30 @@ export default function GameFeedbackPage() {
               {players.map(p => {
                 const rated = (sportsmanship[p.id] || 0) > 0;
                 const tagsForPlayer = sportsmanshipTags[p.id] || [];
+                const tc = p.team_assignment ? TEAM_COLORS[p.team_assignment] : null;
                 return (
                   <div key={p.id} style={{
                     padding: '10px 12px', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.name || 'Player'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        {tc && p.bib_number != null && (
+                          <span style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+                            background: tc.bg, border: `1px solid ${tc.border}`,
+                            color: tc.text, fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700,
+                          }}>{p.bib_number}</span>
+                        )}
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name || 'Player'}</span>
+                      </div>
                       <StarPicker value={sportsmanship[p.id] || 0} onChange={(n) => setSportsmanshipRating(p.id, n)} size={18} />
                     </div>
                     <div style={{
                       display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10,
                       opacity: rated ? 1 : 0.4, transition: 'opacity 0.15s',
                     }}>
-                      {SPORTSMANSHIP_TAGS.map(tag => {
+                      {POSITIVE_PLAYER_TAGS.map(tag => {
                         const active = tagsForPlayer.includes(tag);
                         return (
                           <button
@@ -233,6 +305,29 @@ export default function GameFeedbackPage() {
                               background: active ? 'rgba(240,157,81,0.15)' : 'var(--card)',
                               color: active ? 'var(--accent)' : 'var(--muted)',
                               border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                              cursor: rated ? 'pointer' : 'default',
+                            }}
+                          >{tag}</button>
+                        );
+                      })}
+                    </div>
+                    <div style={{
+                      display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6,
+                      opacity: rated ? 1 : 0.4, transition: 'opacity 0.15s',
+                    }}>
+                      {NEGATIVE_PLAYER_TAGS.map(tag => {
+                        const active = tagsForPlayer.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            disabled={!rated}
+                            onClick={() => toggleTag(p.id, tag)}
+                            style={{
+                              padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                              background: active ? 'rgba(224,62,26,0.12)' : 'var(--card)',
+                              color: active ? 'var(--red)' : 'var(--muted)',
+                              border: `1px solid ${active ? 'var(--red)' : 'var(--border)'}`,
                               cursor: rated ? 'pointer' : 'default',
                             }}
                           >{tag}</button>
