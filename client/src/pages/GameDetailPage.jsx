@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached } from '../lib/dataCache';
 import { useAuth } from '../context/AuthContext';
@@ -13,10 +13,11 @@ import { LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { FaLocationDot, FaWhatsapp, FaTelegram } from "react-icons/fa6";
 import { FaLink } from "react-icons/fa";
-import { IoWallet, IoTimer, IoClose, IoCheckmark, IoInformationCircleOutline } from 'react-icons/io5';
+import { IoWallet, IoTimer, IoClose, IoCheckmark, IoInformationCircleOutline, IoStar, IoStarOutline } from 'react-icons/io5';
 import { FaArrowTrendUp, FaArrowTrendDown } from 'react-icons/fa6';
 import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
 import { getRank, getRankColor } from '../lib/rankUtils';
+import { isNegativePlayerTag } from '../lib/feedbackTags';
 import GameRulesDisplay from '../components/GameRulesDisplay';
 import FifaCard from '../components/FifaCard';
 
@@ -36,6 +37,42 @@ const POSITION_META = {
   2: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND PLACE', shadowColor: 'rgba(192,192,192,0.3)' },
   3: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD PLACE', shadowColor: 'rgba(205,127,50,0.3)' },
 };
+
+// ── PREVIEW / DEV MODE ────────────────────────────────────────────────────────
+// Yesterday, so `ended` always computes true regardless of when this is viewed.
+const _yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+const MOCK_DATE = `${_yesterday.getFullYear()}-${String(_yesterday.getMonth() + 1).padStart(2, '0')}-${String(_yesterday.getDate()).padStart(2, '0')}`;
+
+const MOCK_FIELD = {
+  name: 'Futsal Arena KL', images: ['/pitchpic.jpg'],
+  field_rules: 'No metal studs. Bring your own bibs if possible.',
+  has_toilet: true, has_parking: true, has_shop: true, has_shoe_rent: false,
+};
+const MOCK_GAME = {
+  id: 'preview', title: 'Preview Game', area: 'Shah Alam', format: '5v5',
+  date: MOCK_DATE, time: '20:00', slots: 10, price: 15,
+  description: 'A friendly social match, all skill levels welcome.',
+  game_rules: null, shoes_type: 'IN (Indoor Futsal Boots), Sport Shoes',
+  allow_pay_at_court: true, created_by: 'preview-admin', fields: MOCK_FIELD,
+};
+const MOCK_PLAYERS = [
+  { id: 'p1', name: 'Amir Hazif',   avatar_url: null, position: 'Attacker',   total_points: 52, is_subscribed: false },
+  { id: 'p2', name: 'Hafiz Noor',   avatar_url: null, position: 'Midfielder', total_points: 44, is_subscribed: false },
+  { id: 'p3', name: 'Razif Shah',   avatar_url: null, position: 'Defender',   total_points: 41, is_subscribed: false },
+  { id: 'p4', name: 'Danial Amin',  avatar_url: null, position: 'Attacker',   total_points: 63, is_subscribed: true  },
+];
+const MOCK_SORTED_RATINGS = [
+  { user_id: 'p4', shooting_quality: 3, passing_quality: 2, good_defending: 0, good_keeping: 0, successful_dribble: 1, good_chance: 1, admin_bonus: 1 },
+  { user_id: 'p1', shooting_quality: 1, passing_quality: 1, good_defending: 0, good_keeping: 0, successful_dribble: 2, good_chance: 0, admin_bonus: 0 },
+  { user_id: 'p2', shooting_quality: 0, passing_quality: 2, good_defending: 1, good_keeping: 0, successful_dribble: 0, good_chance: 0, admin_bonus: 0 },
+  { user_id: 'p3', shooting_quality: 0, passing_quality: 0, good_defending: 2, good_keeping: 1, successful_dribble: 0, good_chance: 0, admin_bonus: 0 },
+];
+const MOCK_RATING_PROFILES = MOCK_PLAYERS.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+const MOCK_MY_FEEDBACK = {
+  avg: 4.5, count: 2,
+  tags: [['Great Teammate', 2], ['Good Passing', 1], ['Bad Manner', 1]],
+};
+// ──────────────────────────────────────────────────────────────────────────────
 
 function AwardPopup({ position, profile, points, rating, onClose }) {
   const meta = POSITION_META[position];
@@ -163,6 +200,8 @@ export default function GameDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get('preview') === '1' && isAdmin;
   const userId = user?.id;
 
   const [game, setGame] = useState(null);
@@ -186,6 +225,7 @@ export default function GameDetailPage() {
   const [hasFeedback, setHasFeedback] = useState(false);
   const [showAwardPopup, setShowAwardPopup] = useState(false);
   const [myPosition, setMyPosition] = useState(null);
+  const [myFeedback, setMyFeedback] = useState(null);
 
   // Full standings list is shuffled (not ranked by points) so it doesn't read as a leaderboard —
   // the top-3 award ranking above it already covers that.
@@ -208,12 +248,24 @@ export default function GameDetailPage() {
       setIsRated(cached.isRated || false);
       setManagerName(cached.managerName || null);
       setHasFeedback(cached.hasFeedback || false);
+      setMyFeedback(cached.myFeedback || null);
       setLoading(false);
     }
     fetchGame(!!cached);
   }, [id]);
 
   const fetchGame = async (silent = false) => {
+    if (isPreview) {
+      setGame(MOCK_GAME); setField(MOCK_FIELD);
+      setPlayerCount(MOCK_PLAYERS.length); setHasJoined(true);
+      setPlayers(MOCK_PLAYERS); setIsOwner(false);
+      setWalletBalance(50); setManagerName('Preview Admin');
+      setHasFeedback(true); setIsRated(true);
+      setSortedRatings(MOCK_SORTED_RATINGS); setRatingProfiles(MOCK_RATING_PROFILES);
+      setMyFeedback(MOCK_MY_FEEDBACK);
+      setLoading(false);
+      return;
+    }
     if (!silent) setLoading(true);
     const [gameRes, profileRes] = await Promise.all([
       supabase.from('games').select('*, fields(*)').eq('id', id).single(),
@@ -302,11 +354,31 @@ export default function GameDetailPage() {
       }
     }
 
+    // Only rating/tags the current user received are fetched, rater_id is never
+    // selected at all, so there is no way for the UI to surface who left them.
+    let myFeedbackVal = null;
+    if (user) {
+      const { data: myRatings } = await supabase
+        .from('player_sportsmanship_ratings').select('rating, tags')
+        .eq('game_id', id).eq('rated_id', user.id);
+      if (myRatings && myRatings.length > 0) {
+        const avg = myRatings.reduce((sum, r) => sum + r.rating, 0) / myRatings.length;
+        const tagCounts = {};
+        myRatings.forEach(r => (r.tags || []).forEach(tag => { tagCounts[tag] = (tagCounts[tag] || 0) + 1; }));
+        myFeedbackVal = {
+          avg, count: myRatings.length,
+          tags: Object.entries(tagCounts).sort((a, b) => b[1] - a[1]),
+        };
+      }
+    }
+    setMyFeedback(myFeedbackVal);
+
     setCached(`game_${id}`, {
       game: gameData, field: fieldData, isOwner: isOwnerVal,
       walletBalance: walletBal, playerCount: countVal,
       hasJoined: joinedVal, players: playersVal, isRated: ratedVal,
       managerName: creatorProfile?.name || null, hasFeedback: feedbackVal,
+      myFeedback: myFeedbackVal,
     });
     setLoading(false);
   };
@@ -774,6 +846,41 @@ export default function GameDetailPage() {
         {/* ── MATCH SUMMARY (inline, shown when game has ended) ── */}
         {ended && (
           <div className="fade-up-2" style={{ marginBottom: 20 }}>
+            {myFeedback && myFeedback.count > 0 && (
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 18, marginBottom: 16 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>
+                  FEEDBACK FOR YOU
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+                  What players who played with or against you said. Anonymous, kept between you and Bolahh.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: (myFeedback.tags.length > 0) ? 12 : 0 }}>
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    {[1, 2, 3, 4, 5].map(n => n <= Math.round(myFeedback.avg)
+                      ? <IoStar key={n} size={16} color="var(--accent)" />
+                      : <IoStarOutline key={n} size={16} color="var(--muted)" />)}
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    {myFeedback.avg.toFixed(1)} average from {myFeedback.count} rating{myFeedback.count !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {myFeedback.tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {myFeedback.tags.map(([tag, count]) => {
+                      const negative = isNegativePlayerTag(tag);
+                      return (
+                        <span key={tag} style={{
+                          padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                          background: negative ? 'rgba(224,62,26,0.1)' : 'rgba(240,157,81,0.1)',
+                          color: negative ? 'var(--red)' : 'var(--accent)',
+                          border: `1px solid ${negative ? 'rgba(224,62,26,0.25)' : 'rgba(240,157,81,0.25)'}`,
+                        }}>{tag}{count > 1 ? ` ×${count}` : ''}</span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             {isRated && sortedRatings.length > 0 ? (
               <>
                 {/* Baller of The Match */}

@@ -398,6 +398,16 @@ export default function GameRatingPage() {
           .eq('id', uid);
 
         if (updateError) throw new Error('Profile update failed: ' + updateError.message);
+
+        // Persist team/bib so the feedback page can show them later — otherwise
+        // this only ever lived in this session's in-memory/localStorage state.
+        const team = teamAssign[uid];
+        if (team) {
+          await supabase
+            .from('game_players')
+            .update({ team_assignment: team, bib_number: getBibNumber(uid, team) })
+            .eq('game_id', id).eq('user_id', uid);
+        }
       }
 
       localStorage.removeItem(storageKey);
