@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { IoCheckmark, IoClose, IoLockClosed } from 'react-icons/io5';
+import { IoCheckmark, IoClose, IoLockClosed, IoQrCode, IoCard } from 'react-icons/io5';
 
 const TOPUP_OPTIONS = [5, 10, 15, 30, 50, 100];
 
@@ -14,6 +14,7 @@ export default function WalletTopupPage() {
 
   const [balance,      setBalance]      = useState(0);
   const [selected,     setSelected]     = useState(null);
+  const [method,       setMethod]       = useState('fpx'); // 'fpx' | 'qr'
   const [loading,      setLoading]      = useState(true);
   const [processing,   setProcessing]   = useState(false);
   const [verifying,    setVerifying]    = useState(false);
@@ -132,11 +133,12 @@ export default function WalletTopupPage() {
             'Authorization': `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
-            amount:    selected,
-            userId:    user.id,
-            userEmail: user.email,
-            userName:  profile?.username || user.email,
-            returnUrl: window.location.origin + '/wallet/topup',
+            amount:        selected,
+            userId:        user.id,
+            userEmail:     user.email,
+            userName:      profile?.username || user.email,
+            returnUrl:     window.location.origin + '/wallet/topup',
+            paymentMethod: method,
           }),
         }
       );
@@ -271,6 +273,35 @@ export default function WalletTopupPage() {
               </div>
             </div>
 
+            {/* Payment Method Selection */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1.5, marginBottom: 14, fontWeight: 700, fontFamily: "'Space Mono'" }}>
+                PAYMENT METHOD
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <button onClick={() => setMethod('fpx')} style={{
+                  background: method === 'fpx' ? 'rgba(240,157,81,0.15)' : 'var(--card)',
+                  border: `2px solid ${method === 'fpx' ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 12, padding: '14px 10px', cursor: 'pointer',
+                  transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6
+                }}>
+                  <IoCard size={20} color={method === 'fpx' ? 'var(--accent)' : 'var(--muted)'} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: method === 'fpx' ? 'var(--accent)' : 'var(--text)' }}>Online Banking</span>
+                  <span style={{ fontSize: 10, color: 'var(--muted)' }}>FPX bank transfer</span>
+                </button>
+                <button onClick={() => setMethod('qr')} style={{
+                  background: method === 'qr' ? 'rgba(240,157,81,0.15)' : 'var(--card)',
+                  border: `2px solid ${method === 'qr' ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 12, padding: '14px 10px', cursor: 'pointer',
+                  transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6
+                }}>
+                  <IoQrCode size={20} color={method === 'qr' ? 'var(--accent)' : 'var(--muted)'} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: method === 'qr' ? 'var(--accent)' : 'var(--text)' }}>DuitNow QR</span>
+                  <span style={{ fontSize: 10, color: 'var(--muted)' }}>Scan to pay</span>
+                </button>
+              </div>
+            </div>
+
             {/* ToyyibPay notice */}
             <div style={{
               background: 'var(--card)', border: '1px solid var(--border)',
@@ -281,7 +312,9 @@ export default function WalletTopupPage() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Secure Payment via ToyyibPay</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-                  FPX online banking &amp; credit card accepted. You will be redirected to ToyyibPay to complete payment.
+                  {method === 'qr'
+                    ? 'You will be redirected to ToyyibPay to scan a DuitNow QR code with your banking app.'
+                    : 'You will be redirected to ToyyibPay to complete your FPX bank transfer.'}
                 </div>
               </div>
             </div>

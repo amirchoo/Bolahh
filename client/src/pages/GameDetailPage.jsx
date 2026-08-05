@@ -768,12 +768,14 @@ export default function GameDetailPage() {
                 </div>
               ) : (
                 <div style={{
-                  background: 'var(--card2)', border: '1px solid var(--border)',
+                  background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.25)',
                   borderRadius: 10, padding: '10px 16px', marginBottom: 16,
-                  display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)'
+                  display: 'flex', alignItems: 'center', gap: 8
                 }}>
-                  <IoWallet size={13} />
-                  Pay with Wallet
+                  <IoWallet size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
+                  <span style={{ fontFamily: "'Bebas Neue'", fontSize: 15, letterSpacing: 1.5, color: 'var(--accent)' }}>
+                    PAY ONLINE WITH WALLET OR QR
+                  </span>
                 </div>
               )
             )}

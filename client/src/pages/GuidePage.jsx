@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { RANKS } from '../lib/rankUtils';
 import { IoWallet, IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaRankingStar, FaLocationDot, FaArrowTrendUp } from 'react-icons/fa6';
 import { TbPlayCard7Filled } from 'react-icons/tb';
@@ -56,9 +55,132 @@ function getRankColor(name) {
   return '#FFD700';
 }
 
-function rankOvr(r) {
-  return `${r.minOvr}–${r.maxOvr}`;
-}
+// Plab-style tiered rank guide, grounded in Bolahh's real OVR bands and 6-stat system.
+// Row categories map to the actual tap categories admins rate players on in GameRatingPage
+// (Passing Quality, Successful Dribble, Good Defending, Shooting Quality, Good Chance).
+// Richer breakdowns unlock at higher tiers, same progressive structure as the reference guide.
+const RANK_GROUPS = [
+  {
+    tier: 'Novis', color: '#7088a0',
+    intro: 'Everyone starts here. Play your first game and get rated to reveal where you actually stand.',
+    levels: [
+      {
+        name: 'Novis', badge: '–', ovr: '0–30',
+        headline: 'Level not yet revealed.',
+        rows: [],
+        footnote: 'Every Baller starts at a flat 30 across all 6 stats. Get rated in your first game to unlock your Bolahh Card.',
+      },
+    ],
+  },
+  {
+    tier: 'Gangsa', color: '#cd7f32',
+    intro: "You've started playing and picking up the fundamentals: first touches, first tackles, first real reps.",
+    levels: [
+      {
+        name: 'Gangsa III', badge: 'III', ovr: '31–39',
+        headline: 'Just getting comfortable with the ball.',
+        rows: [
+          { label: 'Passing', desc: 'Gets the ball to a teammate, though not always cleanly.' },
+          { label: 'Defending', desc: 'Chases the play but positioning is still a work in progress.' },
+        ],
+      },
+      {
+        name: 'Gangsa II', badge: 'II', ovr: '40–49',
+        headline: 'Starting to link up play with the team.',
+        rows: [
+          { label: 'Passing', desc: 'More consistent short passes and first touches.' },
+          { label: 'Dribbling', desc: 'Can beat a player one-on-one in space.' },
+          { label: 'Defending', desc: 'Better at tracking runs, still learning to hold shape.' },
+        ],
+      },
+      {
+        name: 'Gangsa I', badge: 'I', ovr: '50–60',
+        headline: 'A dependable bronze-tier Baller.',
+        rows: [
+          { label: 'Passing', desc: 'Reliable under light pressure, starting to pick out runs.' },
+          { label: 'Dribbling', desc: 'Comfortable carrying the ball forward.' },
+          { label: 'Defending', desc: 'Positions well and wins the ball back regularly.' },
+          { label: 'Finishing', desc: 'Converts clear chances with growing confidence.' },
+        ],
+      },
+    ],
+  },
+  {
+    tier: 'Perak', color: '#6ec8e8',
+    intro: 'Consistent, composed, and starting to shape games. Perak players are trusted picks in any lineup.',
+    levels: [
+      {
+        name: 'Perak III', badge: 'III', ovr: '61–69',
+        headline: 'Composed on the ball, a level above Gangsa.',
+        rows: [
+          { label: 'Passing', desc: 'Picks the right pass more often than not, even under pressure.' },
+          { label: 'Dribbling', desc: 'Beats defenders with purpose, not just pace.' },
+          { label: 'Defending', desc: 'Reads passing lanes and cuts them off.' },
+          { label: 'Finishing', desc: 'Clinical in one-on-ones with the keeper.' },
+        ],
+      },
+      {
+        name: 'Perak II', badge: 'II', ovr: '70–74',
+        headline: 'Sharper decisions, bigger impact on the game.',
+        rows: [
+          { label: 'Passing', desc: 'Vision to spot the killer pass before it opens up.' },
+          { label: 'Attacking Instinct', desc: 'Regularly in the right place to create or finish a chance.' },
+          { label: 'Defending', desc: "Anticipates the opponent's next move." },
+          { label: 'Finishing', desc: "Efficient, doesn't need many chances to score." },
+        ],
+      },
+      {
+        name: 'Perak I', badge: 'I', ovr: '75–79',
+        headline: 'One of the most complete players on the pitch.',
+        rows: [
+          { label: 'Passing', desc: 'Dictates tempo and controls possession.' },
+          { label: 'Dribbling', desc: 'Breaks lines under pressure, not just in space.' },
+          { label: 'Defending', desc: 'Wins duels and organises the players around them.' },
+          { label: 'Attacking Instinct', desc: "A constant threat, knocking on Emas's door." },
+        ],
+      },
+    ],
+  },
+  {
+    tier: 'Emas', color: '#FFD700',
+    intro: 'The top of the ladder. Emas players carry games and set the standard everyone else chases.',
+    levels: [
+      {
+        name: 'Emas III', badge: 'III', ovr: '80–85',
+        headline: 'Elite floor, every stat is a genuine strength.',
+        rows: [
+          { label: 'Passing', desc: 'Elite range and accuracy, sets the tempo of the match.' },
+          { label: 'Dribbling', desc: 'Unpredictable and hard to dispossess.' },
+          { label: 'Defending', desc: "Shuts down the opponent's best player." },
+          { label: 'Finishing', desc: 'Ruthless in front of goal.' },
+          { label: 'Attacking Instinct', desc: 'Creates danger every time they touch the ball.' },
+        ],
+      },
+      {
+        name: 'Emas II', badge: 'II', ovr: '86–94',
+        headline: 'Among the best in the Bolahh community.',
+        rows: [
+          { label: 'Passing', desc: "Vision that unlocks defences most players can't see." },
+          { label: 'Dribbling', desc: 'Turns 1v1s into highlight reels.' },
+          { label: 'Defending', desc: 'A wall, near-impossible to beat in a duel.' },
+          { label: 'Finishing', desc: 'Converts half-chances into goals.' },
+          { label: 'Attacking Instinct', desc: 'The player every team wants on their side.' },
+        ],
+      },
+      {
+        name: 'Emas I', badge: 'I', ovr: '95–99',
+        headline: 'Max tier. The very best of Bolahh.',
+        rows: [
+          { label: 'Passing', desc: 'Every pass has purpose and precision.' },
+          { label: 'Dribbling', desc: 'Beats players at will, in any situation.' },
+          { label: 'Defending', desc: 'Dominant physically and positionally.' },
+          { label: 'Finishing', desc: 'Clinical from anywhere in the box.' },
+          { label: 'Attacking Instinct', desc: 'Game-defining, the standard everyone else chases.' },
+        ],
+      },
+    ],
+  },
+];
 
 function SectionHead({ id, sup, title }) {
   return (
@@ -71,12 +193,21 @@ function SectionHead({ id, sup, title }) {
 
 export default function GuidePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeSection, setActiveSection] = useState('flow');
+  const [activeRankTab, setActiveRankTab] = useState('Novis');
 
   const scrollTo = (id) => {
     setActiveSection(id);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  // Support deep links like /guide#ranks (e.g. from the "How does the rank system
+  // work?" link on the profile page).
+  useEffect(() => {
+    const id = location.hash?.slice(1);
+    if (id) scrollTo(id);
+  }, [location.hash]);
 
   const divider = <div style={{ height: 1, background: 'var(--border)', margin: '48px 0' }} />;
 
@@ -180,49 +311,82 @@ export default function GuidePage() {
             Every player starts as <span style={{ color: '#7088a0', fontWeight: 600 }}>Novis</span>. Get rated after games to build your OVR and climb through Gangsa, Perak, and Emas tiers. Each tier has its own card theme.
           </p>
 
-          {/* Tier groups */}
-          {[
-            { tier: 'Novis',  color: '#7088a0', desc: 'New players. No card customisation yet. Unlock your card by playing your first game.' },
-            { tier: 'Gangsa', color: '#cd7f32', desc: 'Bronze tier (31–60 OVR). You\'ve played and your card is unlocked. Build up your stats and start climbing.' },
-            { tier: 'Perak',  color: '#6ec8e8', desc: 'Silver tier (61–79 OVR). Consistent performers. Your card reflects real skill at this point.' },
-            { tier: 'Emas',   color: '#FFD700', desc: 'Gold tier (80–99 OVR). Top of the ladder. Near-max stats and the coveted gold card theme.' },
-          ].map(group => {
-            const groupRanks = RANKS.filter(r =>
-              group.tier === 'Novis' ? r.name === 'Novis' : r.name.startsWith(group.tier)
-            );
-            return (
-              <div key={group.tier} style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: group.color, boxShadow: `0 0 8px ${group.color}`, flexShrink: 0 }} />
-                  <span style={{ fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 1.5, color: group.color }}>{group.tier.toUpperCase()}</span>
-                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>{group.desc}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingLeft: 20 }}>
-                  {groupRanks.map(r => {
-                    const ts = getTierStyle(r.name);
-                    return (
-                      <div key={r.name} style={{
-                        background: ts.bg, border: `1.5px solid ${ts.border}`,
-                        borderRadius: 10, padding: '8px 14px',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                        minWidth: 80,
-                      }}>
-                        <span style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 1, color: ts.tc }}>{r.name}</span>
-                        <span style={{ fontFamily: "'Space Mono'", fontSize: 9, color: ts.muted, fontWeight: 700 }}>{rankOvr(r)} OVR</span>
+          {/* Tier tabs */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+            {RANK_GROUPS.map(group => {
+              const active = activeRankTab === group.tier;
+              return (
+                <button
+                  key={group.tier}
+                  onClick={() => setActiveRankTab(group.tier)}
+                  style={{
+                    background: active ? `${group.color}22` : 'var(--card)',
+                    color: active ? group.color : 'var(--muted)',
+                    border: `1.5px solid ${active ? group.color : 'var(--border)'}`,
+                    borderRadius: 20, padding: '8px 18px', fontSize: 13, fontWeight: 700,
+                    fontFamily: "'Bebas Neue'", letterSpacing: 1.5, cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                >{group.tier.toUpperCase()}</button>
+              );
+            })}
+          </div>
+
+          {RANK_GROUPS.filter(g => g.tier === activeRankTab).map(group => (
+            <div key={group.tier}>
+              <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, marginBottom: 20 }}>{group.intro}</p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {group.levels.map(level => {
+                  const ts = getTierStyle(level.name);
+                  return (
+                    <div key={level.name} style={{
+                      background: 'var(--card)', border: '1px solid var(--border)',
+                      borderRadius: 14, padding: '18px 20px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <span style={{
+                          flexShrink: 0, width: 30, height: 30, borderRadius: 8,
+                          background: ts.bg, border: `1.5px solid ${ts.border}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontFamily: "'Bebas Neue'", fontSize: 13, color: ts.tc,
+                        }}>{level.badge}</span>
+                        <span style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)' }}>{level.name}</span>
+                        <span style={{
+                          marginLeft: 'auto', fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700,
+                          color: group.color, background: `${group.color}18`, border: `1px solid ${group.color}40`,
+                          borderRadius: 6, padding: '3px 8px',
+                        }}>{level.ovr} OVR</span>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      <p style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', margin: '0 0 10px' }}>{level.headline}</p>
+
+                      {level.rows.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {level.rows.map(row => (
+                            <div key={row.label} style={{ fontSize: 12, lineHeight: 1.6 }}>
+                              <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{row.label}</span>
+                              <span style={{ color: 'var(--muted)' }}>: {row.desc}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {level.footnote && (
+                        <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, margin: '10px 0 0' }}>{level.footnote}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
 
           <div style={{
-            marginTop: 16, background: 'var(--card)', border: '1px solid var(--border)',
+            marginTop: 20, background: 'var(--card)', border: '1px solid var(--border)',
             borderRadius: 12, padding: '14px 18px', fontSize: 13, color: 'var(--muted)', lineHeight: 1.7,
           }}>
-            <span style={{ color: 'var(--text)', fontWeight: 600 }}>Note: </span>
-            You must have played at least 1 game to move out of Novis.
+            <span style={{ color: 'var(--text)', fontWeight: 600 }}>How OVR is calculated: </span>
+            Your OVR is the average of your 6 Bolahh Card stats (PAC, SHO, PAS, DRI, DEF, PHY). Every rated game nudges those stats up or down, which automatically moves your OVR and your tier. PHY specifically tracks goalkeeping contributions, so it matters most if you play in goal.
           </div>
         </section>
 

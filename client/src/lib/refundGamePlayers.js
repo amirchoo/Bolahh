@@ -2,10 +2,12 @@ import { supabase } from './supabaseClient';
 
 export async function refundGamePlayers(gameId, gameTitle, gamePrice, reasonLabel) {
   const { data: gamePlayers } = await supabase
-    .from('game_players').select('user_id, amount_paid, payment_method').eq('game_id', gameId);
+    .from('game_players').select('user_id, amount_paid, payment_method, payment_status').eq('game_id', gameId);
 
-  await Promise.all((gamePlayers || []).map(async ({ user_id: uid, amount_paid, payment_method }) => {
-    const refundAmount = amount_paid ?? gamePrice;
+  await Promise.all((gamePlayers || []).map(async ({ user_id: uid, amount_paid, payment_method, payment_status }) => {
+    // A 'pending' row (cash-at-court, or a direct-pay ToyyibPay bill never completed)
+    // never actually collected money — nothing to refund.
+    const refundAmount = payment_status === 'pending' ? 0 : (amount_paid ?? gamePrice);
     const { data: freshProfile } = await supabase
       .from('profiles').select('wallet_balance').eq('id', uid).single();
     const freshBalance = freshProfile?.wallet_balance || 0;
