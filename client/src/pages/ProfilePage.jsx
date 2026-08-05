@@ -486,6 +486,13 @@ export default function ProfilePage() {
           }}>
             {t('profile.tapToShare')}
           </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate('/guide#ranks'); }}
+            style={{
+              marginTop: 10, background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'var(--accent)', fontSize: 12, fontWeight: 600, textDecoration: 'underline',
+            }}
+          >How does the rank system work?</button>
         </div>
 
         {/* Action row */}

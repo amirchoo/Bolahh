@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { amount, userId, userEmail, userName, returnUrl } = await req.json();
+    const { amount, userId, userEmail, userName, returnUrl, paymentMethod } = await req.json();
     if (!amount || !userId) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -20,6 +20,10 @@ serve(async (req) => {
     const supabaseUrl  = Deno.env.get('SUPABASE_URL')!;
     const toyyibBase   = Deno.env.get('TOYYIBPAY_BASE_URL') ?? 'https://toyyibpay.com';
     const referenceNo  = `bolahh_${userId}_${amount}_${Date.now()}`;
+
+    // User picks the method on our own topup page — pass it straight through so
+    // ToyyibPay's page opens directly on that method instead of asking again.
+    const isQR = paymentMethod === 'qr';
 
     const formData = new URLSearchParams({
       userSecretKey:           Deno.env.get('TOYYIBPAY_SECRET_KEY')!,
@@ -37,9 +41,11 @@ serve(async (req) => {
       billPhone:               '0000000000',
       billSplitPayment:        '0',
       billSplitPaymentArgs:    '',
-      billPaymentChannel:      '0',
+      billPaymentChannel:      '0', // FPX only — ToyyibPay has no "card" option in our flow
       billContentEmail:        `Your Bolahh wallet has been topped up with RM${amount}.`,
       billChargeToCustomer:    '1',
+      enableDuitNowQR:         isQR ? '1' : '0',
+      ...(isQR ? { chargeDuitNowQR: '0' } : {}), // '0' = bill owner (Bolahh) absorbs the QR fee, not the customer
     });
 
     const res     = await fetch(`${toyyibBase}/index.php/api/createBill`, { method: 'POST', body: formData });

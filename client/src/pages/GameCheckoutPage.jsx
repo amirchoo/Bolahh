@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
@@ -7,7 +7,7 @@ import { IconLoading } from '../components/Icons';
 import { clearCached } from '../lib/dataCache';
 import { LuRecycle, LuTag } from "react-icons/lu";
 import { MdOutlineCancel, MdOutlineStadium } from "react-icons/md";
-import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark, IoShieldCheckmark, IoPeople, IoHeart, IoAlertCircle, IoClose, IoWallet } from "react-icons/io5";
+import { IoWarningOutline, IoCalendar, IoTime, IoDocumentText, IoCheckmark, IoShieldCheckmark, IoPeople, IoHeart, IoAlertCircle, IoClose, IoWallet, IoQrCode, IoCard } from "react-icons/io5";
 import { RiRefund2Line } from "react-icons/ri";
 import { LuPartyPopper } from 'react-icons/lu';
 import { GiSoccerBall } from 'react-icons/gi';
@@ -18,6 +18,7 @@ export default function GameCheckoutPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [game, setGame] = useState(null);
   const [field, setField] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -33,32 +34,91 @@ export default function GameCheckoutPage() {
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [insufficientShortfall, setInsufficientShortfall] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const [directSubMethod, setDirectSubMethod] = useState('fpx'); // 'fpx' | 'qr'
+  const [pendingDirect, setPendingDirect] = useState(null); // { id, payment_ref } — reserved slot awaiting ToyyibPay confirmation
+  const [verifyingDirect, setVerifyingDirect] = useState(false);
+  const [profileName, setProfileName] = useState('');
+
+  const returnStatus = searchParams.get('status_id'); // ToyyibPay redirects with status_id
 
   useEffect(() => { fetchData(); }, [id]);
+
+  useEffect(() => {
+    if (pendingDirect && returnStatus === '1') completeDirectPay(pendingDirect);
+  }, [pendingDirect, returnStatus]);
 
   const fetchData = async () => {
     setLoading(true);
     const [gameRes, profileRes, joinedRes] = await Promise.all([
       supabase.from('games').select('*, fields(*)').eq('id', id).single(),
-      supabase.from('profiles').select('wallet_balance').eq('id', user.id).single(),
-      supabase.from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle(),
+      supabase.from('profiles').select('wallet_balance, name').eq('id', user.id).single(),
+      supabase.from('game_players').select('id, payment_method, payment_status, payment_ref').eq('game_id', id).eq('user_id', user.id).maybeSingle(),
     ]);
     if (gameRes.error || !gameRes.data) { navigate('/home'); return; }
-    // If already joined, redirect back
-    if (joinedRes.data) { navigate(`/game/${id}`); return; }
+    if (joinedRes.data) {
+      if (joinedRes.data.payment_method === 'direct' && joinedRes.data.payment_status === 'pending') {
+        // Slot already reserved, awaiting ToyyibPay confirmation — stay on this page to verify.
+        setPendingDirect(joinedRes.data);
+      } else {
+        // Already joined some other way — nothing left to do here.
+        navigate(`/game/${id}`);
+        return;
+      }
+    }
     // Block checkout if within 10 minutes of game start
     const g = gameRes.data;
     const [gy, gm, gd] = g.date.split('-').map(Number);
     const [gh, gmin] = (g.time || '00:00').split(':').map(Number);
     const gameStart = new Date(Date.UTC(gy, gm - 1, gd, gh - 8, gmin));
-    if (new Date() >= new Date(gameStart.getTime() - 10 * 60 * 1000)) {
+    if (new Date() >= new Date(gameStart.getTime() - 10 * 60 * 1000) && !joinedRes.data) {
       navigate(`/game/${id}`);
       return;
     }
     setGame(gameRes.data);
     setField(gameRes.data.fields);
     setWalletBalance(profileRes.data?.wallet_balance || 0);
+    setProfileName(profileRes.data?.name || '');
     setLoading(false);
+  };
+
+  const completeDirectPay = async (row) => {
+    setVerifyingDirect(true);
+    setError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-toyyibpay-game-payment`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ billCode: row.payment_ref, gameId: id, userId: user.id }),
+        }
+      );
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        setError(errBody.error || `Verification failed (${res.status}). Please try again.`);
+        return;
+      }
+      clearCached(`game_${id}`);
+      setPaymentMethod('direct');
+      setSuccess(true);
+      setPendingDirect(null);
+    } catch (err) {
+      setError('Unexpected error: ' + String(err));
+    } finally {
+      setVerifyingDirect(false);
+    }
+  };
+
+  const cancelPendingDirect = async () => {
+    if (!pendingDirect) return;
+    setVerifyingDirect(true);
+    await supabase.from('game_players').delete().eq('id', pendingDirect.id).eq('payment_status', 'pending');
+    setPendingDirect(null);
+    setVerifyingDirect(false);
   };
 
   const applyCoupon = async () => {
@@ -155,6 +215,44 @@ export default function GameCheckoutPage() {
       ? parseFloat((game.price * validatedCoupon.discount_percentage / 100).toFixed(2))
       : 0;
     const chargeAmount = parseFloat((game.price - discountAmount).toFixed(2));
+
+    // Online Pay: create a ToyyibPay bill scoped to this game, reserve the slot as
+    // pending, then redirect. Confirmed via callback or the verify step on return.
+    // Price and coupon are re-validated server-side in create-toyyibpay-game-bill —
+    // chargeAmount here is only used for the on-screen summary, not sent as the price.
+    if (paymentMethod === 'direct') {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-toyyibpay-game-bill`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({
+              gameId:        id,
+              userId:        user.id,
+              userEmail:     user.email,
+              userName:      profileName || user.email,
+              couponCode:    validatedCoupon?.code || null,
+              paymentMethod: directSubMethod,
+              returnUrl:     window.location.origin + `/game/${id}/checkout`,
+            }),
+          }
+        );
+        const { billCode, error: fnError } = await res.json();
+        if (fnError || !billCode) throw new Error(fnError || 'Could not create payment bill.');
+
+        const toyyibBase = import.meta.env.VITE_TOYYIBPAY_BASE_URL ?? 'https://toyyibpay.com';
+        window.location.href = `${toyyibBase}/${billCode}`;
+      } catch (err) {
+        setError(err.message || 'Something went wrong. Please try again.');
+        setConfirming(false);
+      }
+      return;
+    }
 
     // Re-fetch balance live to prevent race condition
     const { data: freshProfile } = await supabase
@@ -272,6 +370,8 @@ export default function GameCheckoutPage() {
             Successfully joined <strong style={{ color: 'var(--text)' }}>{game.title}</strong>.<br />
             {paymentMethod === 'cash'
               ? <>Pay <strong style={{ color: 'var(--text)' }}>RM {Number(game.price).toFixed(2)}</strong> by cash or QR at the court before kickoff.</>
+              : paymentMethod === 'direct'
+              ? <>RM {finalPrice.toFixed(2)} has been paid via ToyyibPay.</>
               : <>RM {finalPrice.toFixed(2)} has been deducted from your wallet.</>}
           </p>
           {paymentMethod === 'cash' ? (
@@ -301,14 +401,16 @@ export default function GameCheckoutPage() {
                 </div>
               </>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: paymentMethod === 'direct' ? 0 : 8 }}>
               <span style={{ color: 'var(--muted)' }}>Amount paid</span>
               <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--tomato)' }}>− RM {finalPrice.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-              <span style={{ color: 'var(--muted)' }}>Remaining balance</span>
-              <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {walletBalance.toFixed(2)}</span>
-            </div>
+            {paymentMethod !== 'direct' && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'var(--muted)' }}>Remaining balance</span>
+                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {walletBalance.toFixed(2)}</span>
+              </div>
+            )}
           </div>
           )}
           {/* Game Rules */}
@@ -407,6 +509,60 @@ export default function GameCheckoutPage() {
             width: '100%', padding: '12px', background: 'transparent', color: 'var(--muted)',
             border: '1px solid var(--border)', borderRadius: 12, fontSize: 14, cursor: 'pointer'
           }}>Back to Home</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Pending direct-pay screen — slot is reserved, waiting on ToyyibPay confirmation ──
+  if (pendingDirect) {
+    return (
+      <div style={{ minHeight: '100vh' }}>
+        <Navbar />
+        <div className="page-wrap" style={{ maxWidth: 480, margin: '0 auto', padding: '60px 24px', textAlign: 'center' }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            background: 'rgba(240,157,81,0.12)', border: '1.5px solid rgba(240,157,81,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
+          }}>
+            <IoCard size={34} color="var(--accent)" />
+          </div>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, letterSpacing: 3, color: 'var(--text)', marginBottom: 8 }}>
+            {verifyingDirect ? 'CONFIRMING PAYMENT…' : 'PAYMENT PENDING'}
+          </div>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28, lineHeight: 1.7 }}>
+            Your slot for <strong style={{ color: 'var(--text)' }}>{game.title}</strong> is reserved while we confirm your ToyyibPay payment.
+          </p>
+
+          {error && (
+            <div style={{
+              background: 'rgba(224,62,26,0.1)', border: '1px solid rgba(224,62,26,0.25)',
+              borderRadius: 10, padding: '10px 14px', marginBottom: 20,
+              color: 'var(--red)', fontSize: 13, fontWeight: 600, textAlign: 'left'
+            }}>{error}</div>
+          )}
+
+          <button
+            onClick={() => completeDirectPay(pendingDirect)}
+            disabled={verifyingDirect}
+            style={{
+              width: '100%', padding: '15px', background: 'var(--accent)', color: '#fff',
+              border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 16, letterSpacing: 2,
+              cursor: verifyingDirect ? 'not-allowed' : 'pointer', opacity: verifyingDirect ? 0.6 : 1,
+              fontFamily: "'Bebas Neue'", marginBottom: 10
+            }}
+          >{verifyingDirect ? 'CHECKING…' : "I'VE PAID — VERIFY NOW"}</button>
+
+          <button
+            onClick={cancelPendingDirect}
+            disabled={verifyingDirect}
+            style={{
+              width: '100%', padding: '12px', background: 'transparent', color: 'var(--muted)',
+              border: '1px solid var(--border)', borderRadius: 12, fontSize: 14,
+              cursor: verifyingDirect ? 'not-allowed' : 'pointer'
+            }}
+          >Cancel & choose another payment method</button>
         </div>
       </div>
     );
@@ -529,32 +685,50 @@ export default function GameCheckoutPage() {
         </div>
 
         {/* Payment method selector */}
-        {game.allow_pay_at_court && (
-          <div style={{
-            background: 'var(--card)', border: '1px solid var(--border)',
-            borderRadius: 16, padding: '20px', marginBottom: 16
-          }}>
-            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>PAYMENT METHOD</div>
-            <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 16, padding: '20px', marginBottom: 16
+        }}>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>PAYMENT METHOD</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[
+              { key: 'wallet', label: 'Bolahh Wallet', icon: <IoWallet size={15} />, desc: 'Charged now' },
+              { key: 'direct', label: 'Online Pay', icon: <IoQrCode size={15} />, desc: 'FPX / DuitNow QR' },
+              ...(game.allow_pay_at_court ? [{ key: 'cash', label: 'Pay at Court', icon: <MdOutlineStadium size={15} />, desc: 'Book now, pay later' }] : []),
+            ].map(opt => (
+              <button key={opt.key} onClick={() => setPaymentMethod(opt.key)} style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                background: paymentMethod === opt.key ? 'rgba(240,157,81,0.1)' : 'var(--card2)',
+                color: paymentMethod === opt.key ? 'var(--accent)' : 'var(--muted)',
+                border: `1.5px solid ${paymentMethod === opt.key ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 10, padding: '12px 8px', cursor: 'pointer'
+              }}>
+                {opt.icon}
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{opt.label}</span>
+                <span style={{ fontSize: 11, opacity: 0.75 }}>{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+
+          {paymentMethod === 'direct' && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               {[
-                { key: 'wallet', label: 'Bolahh Wallet', icon: <IoWallet size={15} />, desc: 'Charged now' },
-                { key: 'cash', label: 'Pay at Court', icon: <MdOutlineStadium size={15} />, desc: 'Book now, pay later' },
+                { key: 'fpx', label: 'Online Banking', icon: <IoCard size={14} /> },
+                { key: 'qr', label: 'DuitNow QR', icon: <IoQrCode size={14} /> },
               ].map(opt => (
-                <button key={opt.key} onClick={() => setPaymentMethod(opt.key)} style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                  background: paymentMethod === opt.key ? 'rgba(240,157,81,0.1)' : 'var(--card2)',
-                  color: paymentMethod === opt.key ? 'var(--accent)' : 'var(--muted)',
-                  border: `1.5px solid ${paymentMethod === opt.key ? 'var(--accent)' : 'var(--border)'}`,
-                  borderRadius: 10, padding: '12px 8px', cursor: 'pointer'
+                <button key={opt.key} onClick={() => setDirectSubMethod(opt.key)} style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  background: directSubMethod === opt.key ? 'rgba(240,157,81,0.1)' : 'var(--card2)',
+                  color: directSubMethod === opt.key ? 'var(--accent)' : 'var(--muted)',
+                  border: `1.5px solid ${directSubMethod === opt.key ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 10, padding: '10px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 700
                 }}>
-                  {opt.icon}
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>{opt.label}</span>
-                  <span style={{ fontSize: 11, opacity: 0.75 }}>{opt.desc}</span>
+                  {opt.icon}{opt.label}
                 </button>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Payment breakdown */}
         {paymentMethod === 'cash' ? (
@@ -636,20 +810,35 @@ export default function GameCheckoutPage() {
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
-            <span style={{ color: 'var(--text)' }}>Current wallet balance</span>
-            <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {walletBalance.toFixed(2)}</span>
-          </div>
-          <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
-            <span style={{ fontWeight: 700, color: 'var(--text)' }}>Balance after payment</span>
-            <span style={{
-              fontFamily: "'Space Mono'", fontWeight: 700,
-              color: balanceAfter >= 0 ? '#4ade80' : 'var(--red)'
-            }}>
-              RM {balanceAfter.toFixed(2)}
-            </span>
-          </div>
+          {paymentMethod === 'direct' ? (
+            <>
+              <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
+                <span style={{ fontWeight: 700, color: 'var(--text)' }}>Total to pay</span>
+                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--accent)' }}>RM {finalPrice.toFixed(2)}</span>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
+                You'll be redirected to ToyyibPay to pay via {directSubMethod === 'qr' ? 'DuitNow QR' : 'Online Banking (FPX)'}. Your wallet is not charged.
+              </p>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
+                <span style={{ color: 'var(--text)' }}>Current wallet balance</span>
+                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>RM {walletBalance.toFixed(2)}</span>
+              </div>
+              <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
+                <span style={{ fontWeight: 700, color: 'var(--text)' }}>Balance after payment</span>
+                <span style={{
+                  fontFamily: "'Space Mono'", fontWeight: 700,
+                  color: balanceAfter >= 0 ? '#4ade80' : 'var(--red)'
+                }}>
+                  RM {balanceAfter.toFixed(2)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
         )}
 
@@ -740,6 +929,19 @@ export default function GameCheckoutPage() {
           <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
             {paymentMethod === 'cash' ? (
               <>I have read and agree to the cancellation policy. I understand I must pay <strong>RM {Number(game.price).toFixed(2)}</strong> by cash or QR at the court before playing.</>
+            ) : paymentMethod === 'direct' ? (
+              <>
+                I have read and agree to the refund & cancellation policy. I understand I will be redirected to ToyyibPay to pay{' '}
+                {couponData ? (
+                  <>
+                    <strong style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>RM {Number(game.price).toFixed(2)}</strong>{' '}
+                    <strong style={{ color: '#4ade80' }}>RM {finalPrice.toFixed(2)}</strong>
+                  </>
+                ) : (
+                  <strong>RM {finalPrice.toFixed(2)}</strong>
+                )}{' '}
+                , and any refund will be credited to my Bolahh wallet.
+              </>
             ) : (
               <>
                 I have read and agree to the refund & cancellation policy. I understand that my wallet will be charged{' '}
@@ -787,6 +989,8 @@ export default function GameCheckoutPage() {
         <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginTop: 14 }}>
           {paymentMethod === 'cash'
             ? 'No wallet charge. Pay by cash or QR at the court before kickoff.'
+            : paymentMethod === 'direct'
+            ? "You'll be redirected to ToyyibPay to complete payment."
             : 'Payment is deducted instantly from your Bolahh wallet.'}
         </p>
 
