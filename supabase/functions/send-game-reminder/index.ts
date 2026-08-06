@@ -142,6 +142,21 @@ serve(async (req) => {
       const userIds = (gamePlayers || []).map(p => p.user_id);
 
       if (userIds.length > 0) {
+        // In-app notification — independent of whether the player has an email on
+        // file, unlike the Resend batch below.
+        const timeStrShort = formatTime12h(game.time);
+        await supabase.from('notifications').insert(
+          userIds.map(uid => ({
+            user_id: uid,
+            type: 'game_reminder',
+            title: 'Game starting soon',
+            body: `${game.title} kicks off soon, at ${timeStrShort}.`,
+            link: `/game/${game.id}`,
+          }))
+        );
+      }
+
+      if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles').select('id, name, email').in('id', userIds);
         const recipients = (profiles || []).filter(p => !!p.email);

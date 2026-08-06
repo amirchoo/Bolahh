@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { LogOut as IconLogout, ClipboardList as IconManager, ShieldCheck as IconAdmin, Globe as IconGlobe } from 'lucide-react';
-import { IoFootballOutline as IconBall, IoTrophyOutline as IconLeaderboard, IoPeopleOutline as IconFriends } from 'react-icons/io5';
+import { IoFootballOutline as IconBall, IoTrophyOutline as IconLeaderboard, IoPeopleOutline as IconFriends, IoNotificationsOutline as IconBell } from 'react-icons/io5';
 import { AiOutlineUser as IconProfile } from 'react-icons/ai';
 import { GiSoccerKick as IconGames } from "react-icons/gi";
 import { useTranslation } from 'react-i18next';
@@ -35,6 +35,73 @@ export default function Navbar() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+    const { count } = await supabase
+      .from('notifications').select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('read', false);
+    setUnreadCount(count || 0);
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const openNotifications = async () => {
+    const willOpen = !notifOpen;
+    setNotifOpen(willOpen);
+    if (willOpen && user) {
+      const { data } = await supabase
+        .from('notifications').select('*')
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(20);
+      setNotifications(data || []);
+    }
+  };
+
+  const handleNotificationClick = async (n) => {
+    setNotifOpen(false);
+    if (!n.read) {
+      await supabase.from('notifications').update({ read: true }).eq('id', n.id);
+      setUnreadCount(c => Math.max(0, c - 1));
+    }
+    if (n.link) navigate(n.link);
+  };
+
+  const markAllRead = async () => {
+    if (!user) return;
+    await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
+
+  const timeAgo = (iso) => {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
 
   const languages = [
     { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -113,6 +180,83 @@ export default function Navbar() {
               <span className="nav-label">{label}</span>
             </button>
           ))}
+
+          {/* Notifications */}
+          {user && (
+            <div ref={notifRef} style={{ position: 'relative' }}>
+              <button
+                onClick={openNotifications}
+                style={{
+                  background: notifOpen ? 'rgba(240,157,81,0.1)' : 'transparent',
+                  color: 'var(--muted)',
+                  border: '1px solid transparent',
+                  borderRadius: 8, padding: '6px 8px',
+                  display: 'flex', alignItems: 'center', position: 'relative',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                title="Notifications"
+              >
+                <IconBell size={19} />
+                {unreadCount > 0 && (
+                  <span style={{
+                    position: 'absolute', top: 2, right: 2,
+                    background: 'var(--red)', color: '#fff',
+                    borderRadius: 999, minWidth: 15, height: 15, padding: '0 3px',
+                    fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono'",
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    lineHeight: 1, border: '1.5px solid var(--bg)',
+                  }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 10, overflow: 'hidden',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                  width: 320, maxWidth: '90vw', maxHeight: 420, zIndex: 200,
+                  display: 'flex', flexDirection: 'column',
+                }}>
+                  <div style={{
+                    padding: '10px 14px', borderBottom: '1px solid var(--border)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0,
+                  }}>
+                    <span style={{ fontFamily: "'Bebas Neue'", fontSize: 15, letterSpacing: 1, color: 'var(--text)' }}>NOTIFICATIONS</span>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllRead} style={{
+                        background: 'transparent', border: 'none', color: 'var(--accent)',
+                        fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0,
+                      }}>Mark all read</button>
+                    )}
+                  </div>
+                  <div style={{ overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: '24px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+                        No notifications yet.
+                      </div>
+                    ) : notifications.map((n, idx) => (
+                      <button
+                        key={n.id}
+                        onClick={() => handleNotificationClick(n)}
+                        style={{
+                          width: '100%', textAlign: 'left', display: 'block',
+                          background: n.read ? 'transparent' : 'rgba(240,157,81,0.06)',
+                          border: 'none', cursor: 'pointer',
+                          padding: '10px 14px',
+                          borderBottom: idx < notifications.length - 1 ? '1px solid var(--border)' : 'none',
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: 'var(--text)', marginBottom: 2 }}>{n.title}</div>
+                        {n.body && <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 4 }}>{n.body}</div>}
+                        <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: "'Space Mono'" }}>{timeAgo(n.created_at)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Language dropdown — always visible */}
           <div ref={langRef} style={{ position: 'relative' }}>
