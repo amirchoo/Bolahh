@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
+import { getRank } from '../lib/rankUtils';
 import Navbar from '../components/Navbar';
 import { IoWallet, IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaRankingStar, FaLocationDot, FaArrowTrendUp } from 'react-icons/fa6';
@@ -66,116 +69,121 @@ const RANK_GROUPS = [
     levels: [
       {
         name: 'Novis', badge: '–', ovr: '0–30',
-        headline: 'Level not yet revealed.',
+        headline: 'Level not yet revealed. Nobody, not even you, knows what your stats look like yet.',
         rows: [],
-        footnote: 'Every Baller starts at a flat 30 across all 6 stats. Get rated in your first game to unlock your Bolahh Card.',
+        footnote: 'Every Baller starts at a flat 30 across all 6 stats (PAC, SHO, PAS, DRI, DEF, PHY). Play and get rated in at least one game to unlock your real Bolahh Card and see where you actually stand.',
       },
     ],
   },
   {
     tier: 'Gangsa', color: '#cd7f32',
-    intro: "You've started playing and picking up the fundamentals: first touches, first tackles, first real reps.",
+    intro: "You've started playing and picking up the fundamentals: first touches, first tackles, first real reps. Every match from here is a chance to sand off the rough edges.",
     levels: [
       {
         name: 'Gangsa III', badge: 'III', ovr: '31–39',
-        headline: 'Just getting comfortable with the ball.',
+        headline: 'Just getting comfortable with the ball. Matches are still mostly about survival, not control.',
         rows: [
-          { label: 'Passing', desc: 'Gets the ball to a teammate, though not always cleanly.' },
-          { label: 'Defending', desc: 'Chases the play but positioning is still a work in progress.' },
+          { label: 'Passing', desc: 'Can get the ball to a teammate over a short distance, though the touch is often heavy and the timing can be off.' },
+          { label: 'Defending', desc: 'Chases the ball and closes down attackers, but positioning is still a work in progress and gaps open up easily.' },
         ],
       },
       {
         name: 'Gangsa II', badge: 'II', ovr: '40–49',
-        headline: 'Starting to link up play with the team.',
+        headline: 'Starting to link up play with the team. The panic of the first few games is starting to fade.',
         rows: [
-          { label: 'Passing', desc: 'More consistent short passes and first touches.' },
-          { label: 'Dribbling', desc: 'Can beat a player one-on-one in space.' },
-          { label: 'Defending', desc: 'Better at tracking runs, still learning to hold shape.' },
+          { label: 'Passing', desc: 'More consistent short passes and first touches, and starting to look up before playing the ball.' },
+          { label: 'Dribbling', desc: 'Can beat a player one-on-one in open space, though tight areas still cause trouble.' },
+          { label: 'Defending', desc: 'Better at tracking runs and staying goal-side, but still learning to hold shape as a unit.' },
         ],
       },
       {
         name: 'Gangsa I', badge: 'I', ovr: '50–60',
-        headline: 'A dependable bronze-tier Baller.',
+        headline: 'A dependable bronze-tier Baller. Teammates know roughly what they\'ll get from you every game.',
         rows: [
-          { label: 'Passing', desc: 'Reliable under light pressure, starting to pick out runs.' },
-          { label: 'Dribbling', desc: 'Comfortable carrying the ball forward.' },
-          { label: 'Defending', desc: 'Positions well and wins the ball back regularly.' },
-          { label: 'Finishing', desc: 'Converts clear chances with growing confidence.' },
+          { label: 'Passing', desc: 'Reliable under light pressure and starting to pick out runs rather than just the nearest teammate.' },
+          { label: 'Dribbling', desc: 'Comfortable carrying the ball forward and can change direction to escape a light challenge.' },
+          { label: 'Defending', desc: 'Positions well and wins the ball back regularly, cutting off the easy option.' },
+          { label: 'Finishing', desc: "Converts clear chances with growing confidence, even if the finish isn't always clean." },
         ],
       },
     ],
   },
   {
     tier: 'Perak', color: '#6ec8e8',
-    intro: 'Consistent, composed, and starting to shape games. Perak players are trusted picks in any lineup.',
+    intro: 'Consistent, composed, and starting to shape games. Perak players are trusted picks in any lineup, the ones a captain builds a team around.',
     levels: [
       {
         name: 'Perak III', badge: 'III', ovr: '61–69',
-        headline: 'Composed on the ball, a level above Gangsa.',
+        headline: "Composed on the ball, a clear level above Gangsa. Pressure doesn't rush your decisions the way it used to.",
         rows: [
-          { label: 'Passing', desc: 'Picks the right pass more often than not, even under pressure.' },
-          { label: 'Dribbling', desc: 'Beats defenders with purpose, not just pace.' },
-          { label: 'Defending', desc: 'Reads passing lanes and cuts them off.' },
-          { label: 'Finishing', desc: 'Clinical in one-on-ones with the keeper.' },
+          { label: 'Passing', desc: 'Picks the right pass more often than not, even under pressure, and can switch play to the far side.' },
+          { label: 'Dribbling', desc: 'Beats defenders with purpose, not just raw pace, using body feints and a change of tempo.' },
+          { label: 'Defending', desc: 'Reads passing lanes and cuts them off before the ball arrives, rather than reacting after.' },
+          { label: 'Finishing', desc: 'Clinical in one-on-ones with the keeper, picking a corner instead of blasting at the body.' },
         ],
       },
       {
         name: 'Perak II', badge: 'II', ovr: '70–74',
-        headline: 'Sharper decisions, bigger impact on the game.',
+        headline: "Sharper decisions, bigger impact on the game. You're starting to dictate how a match flows, not just react to it.",
         rows: [
-          { label: 'Passing', desc: 'Vision to spot the killer pass before it opens up.' },
-          { label: 'Attacking Instinct', desc: 'Regularly in the right place to create or finish a chance.' },
-          { label: 'Defending', desc: "Anticipates the opponent's next move." },
-          { label: 'Finishing', desc: "Efficient, doesn't need many chances to score." },
+          { label: 'Passing', desc: 'Vision to spot the killer pass before the gap fully opens, threading it through tight defences.' },
+          { label: 'Attacking Instinct', desc: 'Regularly in the right place to create or finish a chance, arriving a half-step ahead of the defender.' },
+          { label: 'Defending', desc: "Anticipates the opponent's next move and steps in early to break up the attack." },
+          { label: 'Finishing', desc: "Efficient in front of goal, doesn't need many chances to score." },
+          { label: 'Work Rate', desc: 'Covers ground consistently across both boxes without needing a breather.' },
         ],
       },
       {
         name: 'Perak I', badge: 'I', ovr: '75–79',
-        headline: 'One of the most complete players on the pitch.',
+        headline: "One of the most complete players on the pitch. There's very little left in your game to fix.",
         rows: [
-          { label: 'Passing', desc: 'Dictates tempo and controls possession.' },
-          { label: 'Dribbling', desc: 'Breaks lines under pressure, not just in space.' },
-          { label: 'Defending', desc: 'Wins duels and organises the players around them.' },
-          { label: 'Attacking Instinct', desc: "A constant threat, knocking on Emas's door." },
+          { label: 'Passing', desc: 'Dictates tempo and controls possession, slowing the game down or speeding it up on command.' },
+          { label: 'Dribbling', desc: "Breaks defensive lines under real pressure, not just when there's space to work with." },
+          { label: 'Defending', desc: 'Wins individual duels and organises the players around them, marshalling the defensive shape.' },
+          { label: 'Attacking Instinct', desc: "A constant threat, knocking on Emas's door with every performance." },
+          { label: 'Work Rate', desc: 'Sustains a high tempo for the full match, still sharp in the closing minutes.' },
         ],
       },
     ],
   },
   {
     tier: 'Emas', color: '#FFD700',
-    intro: 'The top of the ladder. Emas players carry games and set the standard everyone else chases.',
+    intro: 'The top of the ladder. Emas players carry games and set the standard everyone else in the community chases.',
     levels: [
       {
         name: 'Emas III', badge: 'III', ovr: '80–85',
-        headline: 'Elite floor, every stat is a genuine strength.',
+        headline: "Elite floor, every stat here is a genuine strength. Even your worst game still looks better than most players' best.",
         rows: [
-          { label: 'Passing', desc: 'Elite range and accuracy, sets the tempo of the match.' },
-          { label: 'Dribbling', desc: 'Unpredictable and hard to dispossess.' },
-          { label: 'Defending', desc: "Shuts down the opponent's best player." },
-          { label: 'Finishing', desc: 'Ruthless in front of goal.' },
-          { label: 'Attacking Instinct', desc: 'Creates danger every time they touch the ball.' },
+          { label: 'Passing', desc: 'Elite range and accuracy, setting the tempo of the match from the first minute.' },
+          { label: 'Dribbling', desc: 'Unpredictable and hard to dispossess, even when surrounded by multiple defenders.' },
+          { label: 'Defending', desc: "Shuts down the opponent's best player, taking away their preferred foot and space." },
+          { label: 'Finishing', desc: 'Ruthless in front of goal, punishing even half a yard of space.' },
+          { label: 'Attacking Instinct', desc: "Creates danger every time the ball touches their foot, forcing defences to shift shape." },
+          { label: 'Work Rate', desc: 'Leads by example physically, first to press and last to stop running.' },
         ],
       },
       {
         name: 'Emas II', badge: 'II', ovr: '86–94',
-        headline: 'Among the best in the Bolahh community.',
+        headline: 'Among the best in the Bolahh community. Opposing teams build their game plan specifically around stopping you.',
         rows: [
-          { label: 'Passing', desc: "Vision that unlocks defences most players can't see." },
-          { label: 'Dribbling', desc: 'Turns 1v1s into highlight reels.' },
-          { label: 'Defending', desc: 'A wall, near-impossible to beat in a duel.' },
-          { label: 'Finishing', desc: 'Converts half-chances into goals.' },
-          { label: 'Attacking Instinct', desc: 'The player every team wants on their side.' },
+          { label: 'Passing', desc: "Vision that unlocks defences most players can't even see, let alone play through." },
+          { label: 'Dribbling', desc: 'Turns 1v1 duels into highlight reels, beating players with ease in tight spaces.' },
+          { label: 'Defending', desc: 'A wall at the back, near-impossible to beat in a straight duel or in the air.' },
+          { label: 'Finishing', desc: "Converts half-chances into goals that other players wouldn't even attempt." },
+          { label: 'Attacking Instinct', desc: 'The player every team wants on their side, warping the game around their movement.' },
+          { label: 'Work Rate', desc: 'Dominant for the full match, with no visible drop-off late on.' },
         ],
       },
       {
         name: 'Emas I', badge: 'I', ovr: '95–99',
-        headline: 'Max tier. The very best of Bolahh.',
+        headline: 'Max tier. The very best of Bolahh, full stop.',
         rows: [
-          { label: 'Passing', desc: 'Every pass has purpose and precision.' },
-          { label: 'Dribbling', desc: 'Beats players at will, in any situation.' },
-          { label: 'Defending', desc: 'Dominant physically and positionally.' },
-          { label: 'Finishing', desc: 'Clinical from anywhere in the box.' },
-          { label: 'Attacking Instinct', desc: 'Game-defining, the standard everyone else chases.' },
+          { label: 'Passing', desc: 'Every pass has purpose and precision, rarely wasting a single touch of possession.' },
+          { label: 'Dribbling', desc: 'Beats players at will in any situation, one-on-one or in a crowd.' },
+          { label: 'Defending', desc: 'Dominant physically and positionally, an outlet defenders actively try to avoid.' },
+          { label: 'Finishing', desc: 'Clinical from anywhere in the box, and occasionally outside it.' },
+          { label: 'Attacking Instinct', desc: 'Game-defining, the standard every other Baller in the community measures themselves against.' },
+          { label: 'Work Rate', desc: 'Sets the physical benchmark for the whole match, from first whistle to last.' },
         ],
       },
     ],
@@ -194,8 +202,10 @@ function SectionHead({ id, sup, title }) {
 export default function GuidePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [activeSection, setActiveSection] = useState('flow');
   const [activeRankTab, setActiveRankTab] = useState('Novis');
+  const [myRank, setMyRank] = useState(null);
 
   const scrollTo = (id) => {
     setActiveSection(id);
@@ -208,6 +218,19 @@ export default function GuidePage() {
     const id = location.hash?.slice(1);
     if (id) scrollTo(id);
   }, [location.hash]);
+
+  // Jumps the rank tab to the player's own tier on load (defaulting to Novis
+  // otherwise), and lets the level cards below show a CURRENT badge.
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('profiles').select('total_points').eq('id', user.id).single()
+      .then(({ data }) => {
+        if (!data) return;
+        const rank = getRank(data.total_points || 0);
+        setMyRank(rank);
+        if (!location.hash) setActiveRankTab(rank.split(' ')[0]);
+      });
+  }, [user]);
 
   const divider = <div style={{ height: 1, background: 'var(--border)', margin: '48px 0' }} />;
 
@@ -338,12 +361,13 @@ export default function GuidePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {group.levels.map(level => {
                   const ts = getTierStyle(level.name);
+                  const isMine = level.name === myRank;
                   return (
                     <div key={level.name} style={{
-                      background: 'var(--card)', border: '1px solid var(--border)',
+                      background: 'var(--card)', border: `1px solid ${isMine ? 'var(--accent)' : 'var(--border)'}`,
                       borderRadius: 14, padding: '18px 20px',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
                         <span style={{
                           flexShrink: 0, width: 30, height: 30, borderRadius: 8,
                           background: ts.bg, border: `1.5px solid ${ts.border}`,
@@ -351,6 +375,13 @@ export default function GuidePage() {
                           fontFamily: "'Bebas Neue'", fontSize: 13, color: ts.tc,
                         }}>{level.badge}</span>
                         <span style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)' }}>{level.name}</span>
+                        {isMine && (
+                          <span style={{
+                            fontFamily: "'Bebas Neue'", fontSize: 11, letterSpacing: 1.5,
+                            color: 'var(--accent)', background: 'rgba(240,157,81,0.12)',
+                            border: '1px solid var(--accent)', borderRadius: 5, padding: '2px 8px',
+                          }}>CURRENT</span>
+                        )}
                         <span style={{
                           marginLeft: 'auto', fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700,
                           color: group.color, background: `${group.color}18`, border: `1px solid ${group.color}40`,

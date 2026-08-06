@@ -114,7 +114,8 @@ export default function AdminPage() {
   // ── Field form state ──────────────────────────────────
   const [fieldForm, setFieldForm] = useState({
     name: '', area: '', address: '', field_rules: '', images: [],
-    has_toilet: false, has_parking: false, has_shop: false, has_shoe_rent: false
+    has_toilet: false, has_parking: false, has_shop: false, has_shoe_rent: false,
+    default_slots: 15, default_price: 15
   });
 
   useEffect(() => { fetchAll(); }, []);
@@ -242,7 +243,8 @@ export default function AdminPage() {
   // ── Field handlers ────────────────────────────────────
   const resetFieldForm = () => setFieldForm({
     name: '', area: '', address: '', field_rules: '', images: [],
-    has_toilet: false, has_parking: false, has_shop: false, has_shoe_rent: false
+    has_toilet: false, has_parking: false, has_shop: false, has_shoe_rent: false,
+    default_slots: 15, default_price: 15
   });
 
   const handleImageUpload = async (e) => {
@@ -270,6 +272,8 @@ export default function AdminPage() {
       field_rules: fieldForm.field_rules, images: fieldForm.images,
       has_toilet: fieldForm.has_toilet, has_parking: fieldForm.has_parking,
       has_shop: fieldForm.has_shop, has_shoe_rent: fieldForm.has_shoe_rent,
+      default_slots: parseInt(fieldForm.default_slots) || 15,
+      default_price: parseInt(fieldForm.default_price) || 15,
     });
     if (error) { showError(error.message); return; }
     showSuccess('Field added!'); resetFieldForm(); fetchFields();
@@ -282,6 +286,7 @@ export default function AdminPage() {
       field_rules: field.field_rules || '', images: field.images || [],
       has_toilet: field.has_toilet, has_parking: field.has_parking,
       has_shop: field.has_shop, has_shoe_rent: field.has_shoe_rent,
+      default_slots: field.default_slots ?? 15, default_price: field.default_price ?? 15,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -293,6 +298,8 @@ export default function AdminPage() {
       field_rules: fieldForm.field_rules, images: fieldForm.images,
       has_toilet: fieldForm.has_toilet, has_parking: fieldForm.has_parking,
       has_shop: fieldForm.has_shop, has_shoe_rent: fieldForm.has_shoe_rent,
+      default_slots: parseInt(fieldForm.default_slots) || 15,
+      default_price: parseInt(fieldForm.default_price) || 15,
     }, { count: 'exact' }).eq('id', editingField);
     if (error) { showError(error.message); return; }
     if (count === 0) {
@@ -754,6 +761,21 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                   <input placeholder="e.g. Jalan SS15, Subang Jaya" value={fieldForm.address}
                     onChange={e => setFieldForm({ ...fieldForm, address: e.target.value })} />
                 </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>DEFAULT SLOTS *</label>
+                    <input type="number" value={fieldForm.default_slots}
+                      onChange={e => setFieldForm({ ...fieldForm, default_slots: e.target.value })} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>DEFAULT PRICE (RM) *</label>
+                    <input type="number" value={fieldForm.default_price}
+                      onChange={e => setFieldForm({ ...fieldForm, default_price: e.target.value })} />
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: -8 }}>
+                  New games at this field default to these slots/price. Managers can't override them.
+                </div>
                 <div>
                   <label style={labelStyle}>FIELD IMAGES</label>
                   <div onClick={() => document.getElementById('admin-field-img-input').click()} style={{
@@ -830,6 +852,9 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{field.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{field.area} · {field.address}</div>
+                    <div style={{ fontSize: 12, color: 'var(--accent)', fontFamily: "'Space Mono'", marginTop: 2 }}>
+                      {field.default_slots ?? 15} slots · RM{field.default_price ?? 15}
+                    </div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
                       {field.has_toilet && <LuToilet />}{field.has_parking && <FaSquareParking />}{field.has_shop && <CiShop />}{field.has_shoe_rent && <GiRunningShoe />}
                     </div>

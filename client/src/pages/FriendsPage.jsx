@@ -79,22 +79,55 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = usePersistedState('friends_tab', 'friends');
   const [viewingPlayer, setViewingPlayer] = useState(null); // { profile, cardStats }
+  const [playedWith, setPlayedWith] = useState([]);
+  const [loadingPlayedWith, setLoadingPlayedWith] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     const cached = getCached(`friends_${user.id}`);
     if (cached) {
       setFriends(cached.friends); setPending(cached.pending); setSent(cached.sent);
+      setPlayedWith(cached.playedWith || []);
       setLoading(false);
+      setLoadingPlayedWith(false);
     }
     fetchAll(!!cached);
   }, [user]);
 
   const fetchAll = async (silent = false) => {
     if (!silent) setLoading(true);
-    const [friendsData, pendingData, sentData] = await Promise.all([fetchFriends(), fetchPending(), fetchSent()]);
-    setCached(`friends_${user.id}`, { friends: friendsData ?? [], pending: pendingData ?? [], sent: sentData ?? [] });
+    const [friendsData, pendingData, sentData, playedWithData] = await Promise.all([fetchFriends(), fetchPending(), fetchSent(), fetchPlayedWith()]);
+    setCached(`friends_${user.id}`, { friends: friendsData ?? [], pending: pendingData ?? [], sent: sentData ?? [], playedWith: playedWithData ?? [] });
     setLoading(false);
+  };
+
+  const fetchPlayedWith = async () => {
+    setLoadingPlayedWith(true);
+    const { data: myGames } = await supabase
+      .from('game_players').select('game_id').eq('user_id', user.id);
+    const gameIds = [...new Set((myGames || []).map(g => g.game_id))];
+    if (gameIds.length === 0) { setPlayedWith([]); setLoadingPlayedWith(false); return []; }
+
+    const { data: teammates } = await supabase
+      .from('game_players').select('user_id').in('game_id', gameIds).neq('user_id', user.id);
+
+    const counts = {};
+    (teammates || []).forEach(t => { counts[t.user_id] = (counts[t.user_id] || 0) + 1; });
+    const ids = Object.keys(counts);
+    if (ids.length === 0) { setPlayedWith([]); setLoadingPlayedWith(false); return []; }
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats')
+      .in('id', ids);
+
+    const withCounts = (profiles || [])
+      .map(p => ({ ...p, playedTogether: counts[p.id] }))
+      .sort((a, b) => b.playedTogether - a.playedTogether);
+
+    setPlayedWith(withCounts);
+    setLoadingPlayedWith(false);
+    return withCounts;
   };
 
   const fetchFriends = async () => {
@@ -228,7 +261,7 @@ export default function FriendsPage() {
     { key: 'search', label: <><IoSearch size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />Find Players</> },
   ];
 
-  const PlayerCard = ({ profile, actions }) => {
+  const PlayerCard = ({ profile, actions, playedTogether }) => {
     const rank = getRank(profile.total_points || 0);
     const color = getRankColor(rank);
     return (
@@ -261,7 +294,9 @@ export default function FriendsPage() {
           <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>{profile.name}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 1, color }}>{rank}</span>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>· {profile.games_played || 0} games</span>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+              · {playedTogether ? `Played ${playedTogether}x together` : `${profile.games_played || 0} games`}
+            </span>
           </div>
         </div>
 
@@ -384,10 +419,34 @@ export default function FriendsPage() {
             )}
 
             {!searching && !searchQuery && (
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><IoSearch size={36} color="var(--muted)" /></div>
-                <p style={{ color: 'var(--muted)', fontSize: 14 }}>Type a username to search for players</p>
-              </div>
+              loadingPlayedWith ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)' }}><IconLoading size={16} />Loading...</div>
+              ) : (() => {
+                const suggestions = playedWith.filter(p => getFriendshipStatus(p.id) === 'none').slice(0, 8);
+                if (suggestions.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><IoSearch size={36} color="var(--muted)" /></div>
+                      <p style={{ color: 'var(--muted)', fontSize: 14 }}>Type a username to search for players</p>
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 12, fontWeight: 600 }}>
+                      PLAYED WITH BEFORE
+                    </div>
+                    {suggestions.map(profile => (
+                      <PlayerCard key={profile.id} profile={profile} playedTogether={profile.playedTogether} actions={
+                        <button type="button" onClick={e => { e.stopPropagation(); sendRequest(profile.id); }} style={{
+                          ...btnBase, background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                          border: '1px solid rgba(240,157,81,0.3)'
+                        }}>+ Add</button>
+                      } />
+                    ))}
+                  </>
+                );
+              })()
             )}
 
             {searchResults.map(profile => {

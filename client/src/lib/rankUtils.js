@@ -39,3 +39,8 @@ export function getRankTier(rank) {
   if (rank.startsWith('Emas'))   return 'emas';
   return 'novis';
 }
+
+// RANKS is ordered lowest-to-highest, so index comparison tells you promotion vs demotion.
+export function getRankIndex(rank) {
+  return RANKS.findIndex(r => r.name === rank);
+}

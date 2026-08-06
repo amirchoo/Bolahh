@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
+import ProgressionPage from './pages/ProgressionPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import GameDetailPage from './pages/GameDetailPage';
 import GameRatingPage from './pages/GameRatingPage';
@@ -65,6 +66,7 @@ function AnimatedRoutes() {
         <Route path="/game/:id" element={<GameDetailPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+        <Route path="/progression" element={<PrivateRoute><ProgressionPage /></PrivateRoute>} />
         <Route path="/game/:id/rate" element={<AdminRoute><GameRatingPage /></AdminRoute>} />
         <Route path="/manager" element={<AdminRoute><ManagerPage /></AdminRoute>} />
         <Route path="/manager/game/:id/players" element={<AdminRoute><GameManagerPlayersPage /></AdminRoute>} />

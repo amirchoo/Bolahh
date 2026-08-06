@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached, clearCached } from '../lib/dataCache';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { getRank } from '../lib/rankUtils';
+import { getRank, getRankColor } from '../lib/rankUtils';
 import { getCardTheme, calcOverall } from '../components/FifaCard';
 import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline, IoChevronDown } from 'react-icons/io5';
 import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
@@ -416,6 +416,7 @@ export default function GameRatingPage() {
       // Fire-and-forget — a failed email send shouldn't block/undo the ratings submission.
       supabase.functions.invoke('send-game-summary', { body: { game_id: id } }).catch(() => {});
       supabase.functions.invoke('send-award-email', { body: { game_id: id } }).catch(() => {});
+      supabase.functions.invoke('send-rank-promotion-email', { body: { game_id: id } }).catch(() => {});
 
       setSuccess('Ratings submitted!');
       setAlreadyRated(true);
@@ -616,6 +617,11 @@ export default function GameRatingPage() {
         {/* ── STEP 1: TEAM SETUP ── */}
         {step === 'setup' && (
           <div>
+            <style>{`
+              @media (max-width: 640px) {
+                .team-assign-grid { grid-template-columns: 1fr !important; }
+              }
+            `}</style>
             <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20 }}>
               Click a player to assign them to a team. Click their team badge to unassign.
             </p>
@@ -626,6 +632,7 @@ export default function GameRatingPage() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {players.filter(uid => !teamAssign[uid]).map(uid => {
                     const p = profiles[uid];
+                    const rank = getRank(p?.total_points || 0);
                     return (
                       <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{
@@ -636,6 +643,11 @@ export default function GameRatingPage() {
                           {p?.avatar_url ? <img src={p.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p?.name?.[0] || '?').toUpperCase()}
                         </div>
                         <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{p?.name}</span>
+                        <span style={{
+                          fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                          color: getRankColor(rank), background: `${getRankColor(rank)}18`,
+                          border: `1px solid ${getRankColor(rank)}40`, borderRadius: 5, padding: '2px 6px',
+                        }}>{rank} · {p?.total_points || 30}</span>
                         <div style={{ display: 'flex', gap: 4 }}>
                           {activeTeams.map(team => (
                             <button key={team} type="button" onClick={() => assignPlayer(uid, team)} style={{
@@ -652,24 +664,35 @@ export default function GameRatingPage() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${activeTeams.length}, 1fr)`, gap: 12, marginBottom: 24 }}>
+            <div className="team-assign-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(${activeTeams.length}, 1fr)`, gap: 12, marginBottom: 24 }}>
               {activeTeams.map(team => {
                 const tc = TEAM_COLORS[team];
                 const members = teamPlayers(team);
+                const avgOvr = members.length > 0
+                  ? Math.round(members.reduce((sum, uid) => sum + (profiles[uid]?.total_points || 30), 0) / members.length)
+                  : null;
+                const avgRank = avgOvr !== null ? getRank(avgOvr) : null;
                 return (
                   <div key={team} style={{
                     background: tc.bg, border: `1px solid ${tc.border}`,
-                    borderRadius: 14, padding: 14, minHeight: 160
+                    borderRadius: 14, padding: 14, minHeight: 160, minWidth: 0,
                   }}>
-                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: tc.text, marginBottom: 12 }}>
+                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: tc.text, marginBottom: 4 }}>
                       TEAM {team}
                       <span style={{ fontSize: 12, fontFamily: 'DM Sans', marginLeft: 8, opacity: 0.7 }}>{members.length} players</span>
                     </div>
+                    {avgRank && (
+                      <div style={{
+                        fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: tc.text,
+                        opacity: 0.85, marginBottom: 12,
+                      }}>Avg: {avgRank} · {avgOvr} OVR</div>
+                    )}
                     {members.length === 0 && (
                       <div style={{ color: tc.text, opacity: 0.4, fontSize: 12, textAlign: 'center', paddingTop: 20 }}>Drop players here</div>
                     )}
                     {members.map((uid, idx) => {
                       const p = profiles[uid];
+                      const rank = getRank(p?.total_points || 0);
                       return (
                         <div key={uid} style={{
                           display: 'flex', alignItems: 'center', gap: 8,
@@ -682,10 +705,15 @@ export default function GameRatingPage() {
                             fontSize: 11, fontWeight: 700, color: '#1e2123', flexShrink: 0
                           }}>{idx + 1}</div>
                           <div style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
+                          <span title={rank} style={{
+                            fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                            color: getRankColor(rank), background: `${getRankColor(rank)}18`,
+                            border: `1px solid ${getRankColor(rank)}40`, borderRadius: 5, padding: '1px 5px', flexShrink: 0,
+                          }}>{p?.total_points || 30}</span>
                           <button type="button" onClick={() => assignPlayer(uid, team)} style={{
                             background: 'rgba(240,101,67,0.2)', color: 'var(--red)',
                             border: 'none', borderRadius: 4, fontSize: 10, padding: '2px 6px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                           }}><IoClose size={10} /></button>
                         </div>
                       );

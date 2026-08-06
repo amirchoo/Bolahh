@@ -7,7 +7,7 @@ import { IconLoading } from '../components/Icons';
 import { clearCached } from '../lib/dataCache';
 import { MdDateRange, MdAccessTime } from 'react-icons/md';
 import { FaLocationDot } from 'react-icons/fa6';
-import { IoWalletOutline, IoQrCodeOutline, IoCallOutline, IoCloseCircleOutline } from 'react-icons/io5';
+import { IoWalletOutline, IoQrCodeOutline, IoCardOutline, IoCallOutline, IoCloseCircleOutline } from 'react-icons/io5';
 
 const formatDate = (dateStr) => {
   const date = new Date(dateStr);
@@ -191,6 +191,7 @@ export default function GameManagerPlayersPage() {
             <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No players have booked yet.</div>
           ) : rows.map((row, i) => {
             const isCash = row.payment_method === 'cash';
+            const isDirect = row.payment_method === 'direct';
             const isPending = row.payment_status === 'pending';
             return (
               <div key={row.id} style={{
@@ -213,8 +214,8 @@ export default function GameManagerPlayersPage() {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.profile?.name || 'Player'}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
-                        {isCash ? <IoQrCodeOutline size={12} /> : <IoWalletOutline size={12} />}
-                        {isCash ? 'Cash / QR at court' : 'Wallet'}
+                        {isCash ? <IoQrCodeOutline size={12} /> : isDirect ? <IoCardOutline size={12} /> : <IoWalletOutline size={12} />}
+                        {isCash ? 'Cash / QR at court' : isDirect ? (isPending ? 'Online Pay (awaiting payment)' : 'Online Pay') : 'Wallet'}
                       </div>
                     </div>
                   </div>
@@ -249,7 +250,7 @@ export default function GameManagerPlayersPage() {
                       }}><IoCallOutline size={14} /></a>
                     </>
                   )}
-                  {isCash && isPending && (
+                  {(isCash || isDirect) && isPending && (
                     <button
                       onClick={() => handleMarkPaid(row)}
                       disabled={markingPaidId === row.id}
@@ -273,6 +274,7 @@ export default function GameManagerPlayersPage() {
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
               {cancellations.map((c, i) => {
                 const isCash = c.payment_method === 'cash';
+                const isDirect = c.payment_method === 'direct';
                 return (
                   <div key={c.id} style={{
                     padding: '14px 20px',
@@ -294,7 +296,7 @@ export default function GameManagerPlayersPage() {
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.profile?.name || 'Player'}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
-                          {isCash ? <IoQrCodeOutline size={12} /> : <IoWalletOutline size={12} />}
+                          {isCash ? <IoQrCodeOutline size={12} /> : isDirect ? <IoCardOutline size={12} /> : <IoWalletOutline size={12} />}
                           {formatDateTime(c.cancelled_at)}
                         </div>
                       </div>

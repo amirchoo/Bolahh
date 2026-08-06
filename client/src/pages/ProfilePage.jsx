@@ -8,7 +8,7 @@ import { getRank, getRankColor } from '../lib/rankUtils';
 import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { RiTeamLine } from 'react-icons/ri';
-import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload } from 'react-icons/io5';
+import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
 import FifaCard, { calcOverall } from '../components/FifaCard';
 import AvatarPicker from '../components/AvatarPicker';
@@ -494,6 +494,26 @@ export default function ProfilePage() {
             }}
           >How does the rank system work?</button>
         </div>
+
+        <button
+          onClick={() => navigate('/progression')}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 14, padding: '14px 18px', marginBottom: 16, cursor: 'pointer',
+          }}
+        >
+          <span style={{
+            flexShrink: 0, width: 36, height: 36, borderRadius: 10,
+            background: 'rgba(240,157,81,0.12)', color: 'var(--accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}><IoTrendingUpOutline size={18} /></span>
+          <span style={{ flex: 1, textAlign: 'left' }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 15, letterSpacing: 1, color: 'var(--text)' }}>MY PROGRESSION</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>See your level climb over time</div>
+          </span>
+          <IoChevronForward size={16} color="var(--muted)" />
+        </button>
 
         {/* Action row */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, justifyContent: 'center' }}>
