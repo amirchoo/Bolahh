@@ -7,25 +7,13 @@ import { getCached, setCached, clearCached } from '../lib/dataCache';
 import { usePersistedState } from '../lib/usePersistedState';
 import { refundGamePlayers } from '../lib/refundGamePlayers';
 import { GiSoccerBall } from 'react-icons/gi';
-import { MdOutlineCalendarMonth, MdOutlineStadium, MdSave, MdOutlineCancel } from 'react-icons/md';
+import { MdOutlineCalendarMonth, MdOutlineStadium, MdOutlineCancel } from 'react-icons/md';
 import { FaPeopleGroup, FaLocationDot } from 'react-icons/fa6';
 import { IoStar, IoStarOutline, IoChevronDown } from 'react-icons/io5';
 import { isNegativePlayerTag } from '../lib/feedbackTags';
 import { LuMedal } from 'react-icons/lu';
 import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
-import GameRulesEditor from '../components/GameRulesEditor';
-
-
-
-const SHOES = ['IN (Indoor Futsal Boots)', 'TF (Turf Boots)', 'Sport Shoes', 'AG (Artificial Ground Boots)'];
-// All manager-created games are 5v5 "Social Game" sessions for now — title, format
-// and pay-at-court are fixed rather than exposed as choices in the form.
-const DEFAULT_GAME_TITLE = 'Social Game';
-const DEFAULT_GAME_FORMAT = '5v5';
-const DEFAULT_GAME_SLOTS = 15;
-const DEFAULT_GAME_PRICE = 15;
-const DEFAULT_GAME_DESCRIPTION = 'A casual social futsal game. All skill levels welcome, come have fun and make new friends on the court!';
 
 // Every game now shares the same title, so the feedback tab identifies games by
 // when they were played instead.
@@ -65,7 +53,7 @@ const MOCK_SPORTSMANSHIP = {
 
 export default function ManagerPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get('preview') === '1';
   const [persistedTab, setPersistedTab] = usePersistedState('manager_tab', 'overview');
@@ -82,24 +70,10 @@ export default function ManagerPage() {
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const [editingGame, setEditingGame] = useState(null);
-  const [showEditGameModal, setShowEditGameModal] = useState(false);
   const [cancelingGame, setCancelingGame] = useState(null);
   const [cancelReason, setCancelReason] = useState('Rain');
   const [cancelling, setCancelling] = useState(false);
   const [expandedFeedbackGame, setExpandedFeedbackGame] = useState(null);
-
-  const [gameForm, setGameForm] = useState({
-    title: DEFAULT_GAME_TITLE, field_id: '', area: '', format: DEFAULT_GAME_FORMAT,
-    date: '', time: '', slots: DEFAULT_GAME_SLOTS, price: DEFAULT_GAME_PRICE, court: '',
-    description: DEFAULT_GAME_DESCRIPTION, game_rules: '', shoes_type: [], allow_pay_at_court: false
-  });
-
-  const [editGameForm, setEditGameForm] = useState({
-    title: DEFAULT_GAME_TITLE, field_id: '', area: '', format: DEFAULT_GAME_FORMAT,
-    date: '', time: '', slots: DEFAULT_GAME_SLOTS, price: DEFAULT_GAME_PRICE, court: '',
-    description: DEFAULT_GAME_DESCRIPTION, game_rules: '', shoes_type: [], allow_pay_at_court: false
-  });
 
   useEffect(() => {
     if (isPreview) {
@@ -136,11 +110,11 @@ export default function ManagerPage() {
 
   const fetchGames = async () => {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
-    const { data } = await supabase
-      .from('games')
-      .select('*, fields(name)')
-      .eq('created_by', currentUser?.id)
-      .order('date', { ascending: true });
+    // Bolahh Admin (super-admin) sees every manager's games; regular managers
+    // only ever see games assigned to them.
+    let query = supabase.from('games').select('*, fields(name)').order('date', { ascending: true });
+    if (!isSuperAdmin) query = query.eq('assigned_manager_id', currentUser?.id);
+    const { data } = await query;
     if (data) setGames(data);
     return data ?? [];
   };
@@ -153,14 +127,16 @@ export default function ManagerPage() {
 
   const fetchFeedback = async () => {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
-    const { data: ownGames } = await supabase
-      .from('games').select('id, date, time').eq('created_by', currentUser?.id)
-      .order('date', { ascending: false });
-    const gameIds = (ownGames || []).map(g => g.id);
+    // Same super-admin carve-out as fetchGames: Bolahh Admin sees feedback for
+    // every manager's games, not just their own.
+    let gamesQuery = supabase.from('games').select('id, date, time').order('date', { ascending: false });
+    if (!isSuperAdmin) gamesQuery = gamesQuery.eq('assigned_manager_id', currentUser?.id);
+    const { data: visibleGames } = await gamesQuery;
+    const gameIds = (visibleGames || []).map(g => g.id);
     // Every game shares the same title ("Social Game"), so identify games by
     // when they were played instead.
     const gameLabelMap = {};
-    (ownGames || []).forEach(g => { gameLabelMap[g.id] = formatGameLabel(g.date, g.time); });
+    (visibleGames || []).forEach(g => { gameLabelMap[g.id] = formatGameLabel(g.date, g.time); });
 
     if (gameIds.length === 0) {
       setFeedback([]); setSportsmanship({});
@@ -220,79 +196,6 @@ export default function ManagerPage() {
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
   const showError = (msg) => { setError(msg); setSuccess(''); };
 
-  const resetGameForm = () => setGameForm({
-    title: DEFAULT_GAME_TITLE, field_id: '', area: '', format: DEFAULT_GAME_FORMAT,
-    date: '', time: '', slots: DEFAULT_GAME_SLOTS, price: DEFAULT_GAME_PRICE, court: '',
-    description: DEFAULT_GAME_DESCRIPTION, game_rules: '', shoes_type: [], allow_pay_at_court: false
-  });
-
-  const resetEditGameForm = () => setEditGameForm({
-    title: DEFAULT_GAME_TITLE, field_id: '', area: '', format: DEFAULT_GAME_FORMAT,
-    date: '', time: '', slots: DEFAULT_GAME_SLOTS, price: DEFAULT_GAME_PRICE, court: '',
-    description: DEFAULT_GAME_DESCRIPTION, game_rules: '', shoes_type: [], allow_pay_at_court: false
-  });
-
-  // ── GAME HANDLERS ──
-  const handleAddGame = async () => {
-    if (!gameForm.field_id || !gameForm.date || !gameForm.time || !gameForm.price) {
-      showError('Fill in all required game details.'); return;
-    }
-    const { error } = await supabase.from('games').insert({
-      title: DEFAULT_GAME_TITLE, field_id: gameForm.field_id, area: gameForm.area,
-      format: DEFAULT_GAME_FORMAT, date: gameForm.date, time: gameForm.time,
-      slots: parseInt(gameForm.slots) || DEFAULT_GAME_SLOTS,
-      price: parseInt(gameForm.price) || DEFAULT_GAME_PRICE,
-      court: gameForm.court || null,
-      description: gameForm.description, game_rules: gameForm.game_rules,
-      shoes_type: gameForm.shoes_type.join(', '),
-      allow_pay_at_court: gameForm.allow_pay_at_court,
-      created_by: (await supabase.auth.getUser()).data.user?.id,
-    });
-    if (error) { showError(error.message); return; }
-    showSuccess('Game added!'); resetGameForm(); clearCached('manager_data'); fetchGames();
-  };
-
-  const handleEditGame = (game) => {
-    setEditingGame(game.id);
-    setEditGameForm({
-      title: DEFAULT_GAME_TITLE, field_id: game.field_id, area: game.area,
-      format: DEFAULT_GAME_FORMAT, date: game.date, time: game.time,
-      slots: game.slots, price: game.price, court: game.court || '',
-      description: game.description || DEFAULT_GAME_DESCRIPTION, game_rules: game.game_rules || '',
-      shoes_type: game.shoes_type ? game.shoes_type.split(', ') : [],
-      allow_pay_at_court: game.allow_pay_at_court || false,
-    });
-    setShowEditGameModal(true);
-  };
-
-  const handleUpdateGame = async () => {
-    const f = editGameForm;
-    if (!f.field_id || !f.date || !f.time || (f.price === '' || f.price == null)) {
-      showError('Fill in all required game details.'); return;
-    }
-    const { data: updated, error } = await supabase.from('games').update({
-      title: DEFAULT_GAME_TITLE, field_id: f.field_id, area: f.area,
-      format: DEFAULT_GAME_FORMAT, date: f.date, time: f.time,
-      slots: parseInt(f.slots), price: parseInt(f.price),
-      court: f.court || null,
-      description: f.description, game_rules: f.game_rules,
-      shoes_type: f.shoes_type.join(', '),
-      allow_pay_at_court: f.allow_pay_at_court,
-    }).eq('id', editingGame).select('*, fields(name)');
-    if (error) { showError(error.message); return; }
-    if (!updated || updated.length === 0) { showError('Update failed. No rows matched. Check Supabase RLS policies.'); return; }
-    setGames(prev => prev.map(g => g.id === editingGame ? updated[0] : g));
-    clearCached('manager_data');
-    showSuccess('Game updated!'); setEditingGame(null); setShowEditGameModal(false); resetEditGameForm();
-  };
-
-  const handleDeleteGame = async (id) => {
-    if (!confirm('Delete this game?')) return;
-    const { error } = await supabase.from('games').delete().eq('id', id);
-    if (error) { showError(error.message); return; }
-    showSuccess('Game deleted.'); clearCached('manager_data'); fetchGames();
-  };
-
   const CANCEL_REASONS = ['Rain', 'Insufficient Players', 'Other'];
 
   const handleOpenCancelModal = async (game) => {
@@ -324,125 +227,8 @@ export default function ManagerPage() {
   const upcomingGames = games.filter(g => isUpcoming(g));
   const pastGames = games.filter(g => !isUpcoming(g)).sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
 
-  const todayMYT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
   const labelStyle = { fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' };
   const sectionCard = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 20 };
-
-  const renderGameForm = (isEdit, form, setForm) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <label style={labelStyle}>FIELD *</label>
-        <select value={form.field_id} onChange={e => {
-          const selected = fields.find(f => f.id === e.target.value);
-          setForm({
-            ...form, field_id: e.target.value, area: selected?.area || '',
-            slots: selected?.default_slots ?? form.slots,
-            price: selected?.default_price ?? form.price,
-          });
-        }}>
-          <option value="">Select a field...</option>
-          {fields.map(f => <option key={f.id} value={f.id}>{f.name} ({f.area})</option>)}
-        </select>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>All games are {DEFAULT_GAME_FORMAT} for now.</div>
-      </div>
-      <div style={{ display: 'flex', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>DATE *</label>
-          <input type="date" value={form.date} min={todayMYT} onChange={e => setForm({ ...form, date: e.target.value })} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>TIME *</label>
-          <input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} />
-        </div>
-      </div>
-      {form.field_id ? (
-        <>
-          <div>
-            <label style={labelStyle}>SLOTS *</label>
-            <input type="number" min="1" value={form.slots}
-              onChange={e => setForm({ ...form, slots: e.target.value })} />
-          </div>
-          <div style={{
-            background: 'var(--card2)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: '10px 14px', fontSize: 12, color: 'var(--muted)'
-          }}>
-            <strong style={{ color: 'var(--text)' }}>Price: RM{form.price}</strong> (set by this field's default). Only Bolahh Admin can change the price.
-          </div>
-        </>
-      ) : (
-        <div style={{
-          background: 'var(--card2)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: '10px 14px', fontSize: 12, color: 'var(--muted)'
-        }}>
-          Select a field to see its default slots &amp; price.
-        </div>
-      )}
-      <div
-        onClick={() => setForm({ ...form, allow_pay_at_court: !form.allow_pay_at_court })}
-        style={{
-          display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
-          background: form.allow_pay_at_court ? 'rgba(240,157,81,0.06)' : 'var(--card2)',
-          border: `1px solid ${form.allow_pay_at_court ? 'var(--accent)' : 'var(--border)'}`,
-          borderRadius: 10, padding: '10px 14px',
-        }}
-      >
-        <div style={{
-          width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 1,
-          background: form.allow_pay_at_court ? 'var(--accent)' : 'transparent',
-          border: `2px solid ${form.allow_pay_at_court ? 'var(--accent)' : 'var(--border)'}`,
-        }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Allow Pay at Court</div>
-          <div style={{ fontSize: 11, color: 'var(--muted)' }}>Players can book now and pay by cash or QR at the venue before kickoff, instead of paying online.</div>
-        </div>
-      </div>
-      <div>
-        <label style={labelStyle}>COURT / PITCH (only if venue has more than one)</label>
-        <input placeholder="e.g. Court 2 (leave blank if there's only one court)" value={form.court}
-          onChange={e => setForm({ ...form, court: e.target.value })} />
-      </div>
-      <div>
-        <label style={labelStyle}>MATCH DESCRIPTION</label>
-        <textarea placeholder="Tell players what to expect..." value={form.description}
-          onChange={e => setForm({ ...form, description: e.target.value })} rows={3} style={{ resize: 'vertical' }} />
-      </div>
-      <GameRulesEditor
-        value={form.game_rules}
-        format={form.format}
-        onChange={val => setForm({ ...form, game_rules: val })}
-      />
-      <div>
-        <label style={labelStyle}>SHOES TYPE</label>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {SHOES.map(s => (
-            <button key={s} onClick={() => {
-              const current = form.shoes_type;
-              setForm({ ...form, shoes_type: current.includes(s) ? current.filter(x => x !== s) : [...current, s] });
-            }} style={{
-              background: form.shoes_type.includes(s) ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-              color: form.shoes_type.includes(s) ? 'var(--accent)' : 'var(--muted)',
-              border: `1px solid ${form.shoes_type.includes(s) ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 500
-            }}>{s}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={isEdit ? handleUpdateGame : handleAddGame} style={{
-          flex: 1, padding: '12px', background: 'var(--accent)', color: '#fff',
-          border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-        }}>{isEdit ? <><MdSave size={15} />Save Changes</> : '+ Add Game'}</button>
-        {isEdit && (
-          <button onClick={() => { setEditingGame(null); setShowEditGameModal(false); resetEditGameForm(); }} style={{
-            flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
-            border: '1px solid var(--border)', borderRadius: 10, fontSize: 14
-          }}>Cancel</button>
-        )}
-      </div>
-    </div>
-  );
 
   const TABS = [
     { key: 'overview', label: 'Overview' },
@@ -461,7 +247,7 @@ export default function ManagerPage() {
             <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 40, letterSpacing: 3, color: 'var(--text)', marginBottom: 4 }}>
               MANAGER DASHBOARD
             </h1>
-            <p style={{ color: 'var(--muted)', fontSize: 14 }}>Create games and rate players</p>
+            <p style={{ color: 'var(--muted)', fontSize: 14 }}>Manage your assigned games and rate players</p>
           </div>
           <button onClick={() => navigate('/home')} style={{
             background: 'transparent', color: 'var(--text)',
@@ -539,11 +325,6 @@ export default function ManagerPage() {
                       border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
                       padding: '5px 12px', fontSize: 12, fontWeight: 600
                     }}><LuMedal /> Rate</button>
-                    <button onClick={() => handleEditGame(game)} style={{
-                      background: 'var(--card2)', color: 'var(--text)',
-                      border: '1px solid var(--border)', borderRadius: 8,
-                      padding: '5px 12px', fontSize: 12
-                    }}>Edit</button>
                     <button onClick={() => navigate(`/game/${game.id}`)} style={{
                       background: 'var(--card2)', color: 'var(--muted)',
                       border: '1px solid var(--border)', borderRadius: 8,
@@ -607,17 +388,10 @@ export default function ManagerPage() {
         {/* ── GAMES TAB ── */}
         {activeTab === 'games' && (
           <div>
-            <div style={sectionCard}>
-              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 20 }}>
-                ADD NEW GAME
-              </h3>
-              {renderGameForm(false, gameForm, setGameForm)}
-            </div>
-
             {/* Games list */}
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
-                All Games ({games.length})
+                My Assigned Games ({games.length})
               </div>
               {games.length === 0 ? (
                 <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No games yet.</div>
@@ -650,22 +424,12 @@ export default function ManagerPage() {
                       padding: '5px 10px', fontSize: 12, fontWeight: 600,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}><LuMedal size={14} /></button>
-                    <button onClick={() => handleEditGame(game)} style={{
-                      background: 'var(--card2)', color: 'var(--text)',
-                      border: '1px solid var(--border)', borderRadius: 8,
-                      padding: '5px 12px', fontSize: 12
-                    }}>Edit</button>
                     <button onClick={() => handleOpenCancelModal(game)} style={{
                       background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
                       border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
                       padding: '5px 10px', fontSize: 12, fontWeight: 600,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}><MdOutlineCancel size={14} /></button>
-                    <button onClick={() => handleDeleteGame(game.id)} style={{
-                      background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
-                      border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8,
-                      padding: '5px 12px', fontSize: 12, fontWeight: 600
-                    }}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -830,25 +594,6 @@ export default function ManagerPage() {
         </div>
 
       </div>
-
-      {/* ── EDIT GAME MODAL ── */}
-      {showEditGameModal && (
-        <div
-          onClick={(e) => { if (e.target === e.currentTarget) { setShowEditGameModal(false); setEditingGame(null); resetEditGameForm(); } }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-        >
-          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 2, color: 'var(--text)', margin: 0 }}>EDIT GAME</h3>
-              <button
-                onClick={() => { setShowEditGameModal(false); setEditingGame(null); resetEditGameForm(); }}
-                style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
-              ><IoClose size={18} /></button>
-            </div>
-            {renderGameForm(true, editGameForm, setEditGameForm)}
-          </div>
-        </div>
-      )}
 
       {/* ── CANCEL GAME MODAL ── */}
       {cancelingGame && (

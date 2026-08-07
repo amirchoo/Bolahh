@@ -69,7 +69,7 @@ const TEAM_COLORS = {
 // ── PREVIEW / DEV MODE ────────────────────────────────────────────────────────
 const MOCK_GAME = {
   id: 'preview', title: 'Preview Game', format: '5v5', time: '20:00',
-  fields: { name: 'Futsal Arena KL' }, created_by: 'preview-admin',
+  fields: { name: 'Futsal Arena KL' }, assigned_manager_id: 'preview-admin',
 };
 const MOCK_PLAYER_IDS = ['p1','p2','p3','p4','p5','p6','p7','p8','p9','p10'];
 const MOCK_PROFILES = {
@@ -101,7 +101,7 @@ const MOCK_BASE_TAPS = {
 export default function GameRatingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get('preview') === '1';
 
@@ -199,7 +199,7 @@ export default function GameRatingPage() {
     setGame(gameData);
 
     const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (gameData?.created_by && gameData.created_by !== currentUser?.id) {
+    if (gameData?.assigned_manager_id && gameData.assigned_manager_id !== currentUser?.id && !isSuperAdmin) {
       setNotOwner(true); setLoading(false); return;
     }
 
@@ -444,7 +444,7 @@ export default function GameRatingPage() {
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><IoRemoveCircle size={48} color="var(--red)" /></div>
           <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>ACCESS DENIED</h2>
-          <p style={{ color: 'var(--muted)', fontSize: 14 }}>You can only rate players for games you created.</p>
+          <p style={{ color: 'var(--muted)', fontSize: 14 }}>You can only rate players for games assigned to you.</p>
         </div>
       </div>
     </div>

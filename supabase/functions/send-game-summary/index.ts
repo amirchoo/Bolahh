@@ -95,7 +95,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-    // Only the admin who created the game (verified via their JWT) can trigger this.
+    // Only the manager assigned to the game (or the super-admin) can trigger this,
+    // verified via their JWT.
     const jwt = req.headers.get('Authorization')?.replace('Bearer ', '');
     const { data: { user } } = await supabase.auth.getUser(jwt);
     if (!user) {
@@ -112,10 +113,14 @@ serve(async (req) => {
         status: 404, headers: { ...CORS, 'Content-Type': 'application/json' },
       });
     }
-    if (game.created_by !== user.id) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403, headers: { ...CORS, 'Content-Type': 'application/json' },
-      });
+    if (game.assigned_manager_id !== user.id) {
+      const { data: actingProfile } = await supabase
+        .from('profiles').select('is_super_admin').eq('id', user.id).single();
+      if (!actingProfile?.is_super_admin) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...CORS, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const { data: gamePlayers } = await supabase
