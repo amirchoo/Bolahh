@@ -245,7 +245,7 @@ export default function ManagerPage() {
       court: gameForm.court || null,
       description: gameForm.description, game_rules: gameForm.game_rules,
       shoes_type: gameForm.shoes_type.join(', '),
-      allow_pay_at_court: false,
+      allow_pay_at_court: gameForm.allow_pay_at_court,
       created_by: (await supabase.auth.getUser()).data.user?.id,
     });
     if (error) { showError(error.message); return; }
@@ -260,7 +260,7 @@ export default function ManagerPage() {
       slots: game.slots, price: game.price, court: game.court || '',
       description: game.description || DEFAULT_GAME_DESCRIPTION, game_rules: game.game_rules || '',
       shoes_type: game.shoes_type ? game.shoes_type.split(', ') : [],
-      allow_pay_at_court: false,
+      allow_pay_at_court: game.allow_pay_at_court || false,
     });
     setShowEditGameModal(true);
   };
@@ -277,7 +277,7 @@ export default function ManagerPage() {
       court: f.court || null,
       description: f.description, game_rules: f.game_rules,
       shoes_type: f.shoes_type.join(', '),
-      allow_pay_at_court: false,
+      allow_pay_at_court: f.allow_pay_at_court,
     }).eq('id', editingGame).select('*, fields(name)');
     if (error) { showError(error.message); return; }
     if (!updated || updated.length === 0) { showError('Update failed. No rows matched. Check Supabase RLS policies.'); return; }
@@ -357,20 +357,46 @@ export default function ManagerPage() {
         </div>
       </div>
       {form.field_id ? (
-        <div style={{
-          background: 'var(--card2)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: '10px 14px', fontSize: 12, color: 'var(--muted)'
-        }}>
-          <strong style={{ color: 'var(--text)' }}>{form.slots} slots · RM{form.price}</strong> (set by this field). Only Bolahh Admin can change field defaults.
-        </div>
+        <>
+          <div>
+            <label style={labelStyle}>SLOTS *</label>
+            <input type="number" min="1" value={form.slots}
+              onChange={e => setForm({ ...form, slots: e.target.value })} />
+          </div>
+          <div style={{
+            background: 'var(--card2)', border: '1px solid var(--border)',
+            borderRadius: 10, padding: '10px 14px', fontSize: 12, color: 'var(--muted)'
+          }}>
+            <strong style={{ color: 'var(--text)' }}>Price: RM{form.price}</strong> (set by this field's default). Only Bolahh Admin can change the price.
+          </div>
+        </>
       ) : (
         <div style={{
           background: 'var(--card2)', border: '1px solid var(--border)',
           borderRadius: 10, padding: '10px 14px', fontSize: 12, color: 'var(--muted)'
         }}>
-          Select a field to see its slots &amp; price.
+          Select a field to see its default slots &amp; price.
         </div>
       )}
+      <div
+        onClick={() => setForm({ ...form, allow_pay_at_court: !form.allow_pay_at_court })}
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
+          background: form.allow_pay_at_court ? 'rgba(240,157,81,0.06)' : 'var(--card2)',
+          border: `1px solid ${form.allow_pay_at_court ? 'var(--accent)' : 'var(--border)'}`,
+          borderRadius: 10, padding: '10px 14px',
+        }}
+      >
+        <div style={{
+          width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 1,
+          background: form.allow_pay_at_court ? 'var(--accent)' : 'transparent',
+          border: `2px solid ${form.allow_pay_at_court ? 'var(--accent)' : 'var(--border)'}`,
+        }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Allow Pay at Court</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>Players can book now and pay by cash or QR at the venue before kickoff, instead of paying online.</div>
+        </div>
+      </div>
       <div>
         <label style={labelStyle}>COURT / PITCH (only if venue has more than one)</label>
         <input placeholder="e.g. Court 2 (leave blank if there's only one court)" value={form.court}
