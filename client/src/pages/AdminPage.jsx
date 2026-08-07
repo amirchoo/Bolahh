@@ -3,17 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { usePersistedState } from '../lib/usePersistedState';
 import Navbar from '../components/Navbar';
-import { GiRunningShoe } from 'react-icons/gi';
+import { GiRunningShoe, GiSoccerBall } from 'react-icons/gi';
 import { FaSquareParking, FaLocationDot } from 'react-icons/fa6';
-import { LuToilet, LuTag } from 'react-icons/lu';
+import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
-import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera } from 'react-icons/io5';
-import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer } from 'react-icons/md';
+import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch } from 'react-icons/io5';
+import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
 import FifaCard, { buildCustomTheme, getCardTheme, POSITION_ABBR, STATS, STICKER_ICONS } from '../components/FifaCard';
 import { drawCardImage } from '../lib/cardCanvas';
 import { RANKS, getRankColor } from '../lib/rankUtils';
 import { AREAS } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
+import { refundGamePlayers } from '../lib/refundGamePlayers';
+import GameRulesEditor from '../components/GameRulesEditor';
+
+const SHOES = ['IN (Indoor Futsal Boots)', 'TF (Turf Boots)', 'Sport Shoes', 'AG (Artificial Ground Boots)'];
+// All games are 5v5 "Social Game" sessions for now — title, format and
+// pay-at-court are fixed rather than exposed as choices in the form.
+const DEFAULT_GAME_TITLE = 'Social Game';
+const DEFAULT_GAME_FORMAT = '5v5';
+const DEFAULT_GAME_SLOTS = 15;
+const DEFAULT_GAME_PRICE = 15;
+const DEFAULT_GAME_DESCRIPTION = 'A casual social futsal game. All skill levels welcome, come have fun and make new friends on the court!';
+const CANCEL_REASONS = ['Rain', 'Insufficient Players', 'Other'];
+const EMPTY_GAME_FORM = {
+  assigned_manager_id: '', field_id: '', area: '', date: '', time: '',
+  slots: DEFAULT_GAME_SLOTS, price: DEFAULT_GAME_PRICE, court: '',
+  description: DEFAULT_GAME_DESCRIPTION, game_rules: '', shoes_type: [], allow_pay_at_court: false
+};
 
 const DEFAULT_DESIGN = {
   gradFrom: '#b8860b', gradMid: '#ffd700', gradTo: '#b8860b',
@@ -118,12 +135,170 @@ export default function AdminPage() {
     default_slots: 15, default_price: 15
   });
 
+  // ── Managers state ────────────────────────────────────
+  const [managers, setManagers] = useState([]);
+  const [promoteQuery, setPromoteQuery] = useState('');
+  const [promoteResults, setPromoteResults] = useState([]);
+  const [promoteSearching, setPromoteSearching] = useState(false);
+
+  // ── Games state ────────────────────────────────────────
+  const [games, setGames] = useState([]);
+  const [gameForm, setGameForm] = useState(EMPTY_GAME_FORM);
+  const [editingGame, setEditingGame] = useState(null);
+  const [editGameForm, setEditGameForm] = useState(EMPTY_GAME_FORM);
+  const [showEditGameModal, setShowEditGameModal] = useState(false);
+  const [cancelingGame, setCancelingGame] = useState(null);
+  const [cancelReason, setCancelReason] = useState('Rain');
+  const [cancelling, setCancelling] = useState(false);
+
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin()]);
+    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin(), fetchManagers(), fetchGames()]);
     setLoading(false);
+  };
+
+  // ── Managers ───────────────────────────────────────────
+  const fetchManagers = async () => {
+    const { data: mgrs } = await supabase.from('profiles').select('id, name, avatar_url').eq('is_admin', true).order('name');
+    if (!mgrs) { setManagers([]); return; }
+    const ids = mgrs.map(m => m.id);
+    const { data: gamesData } = ids.length
+      ? await supabase.from('games').select('id, title, area, date, time, format, assigned_manager_id, fields(name)').in('assigned_manager_id', ids)
+      : { data: [] };
+    setManagers(mgrs.map(m => ({ ...m, games: (gamesData || []).filter(g => g.assigned_manager_id === m.id) })));
+  };
+
+  // ── Games ──────────────────────────────────────────────
+  const fetchGames = async () => {
+    const { data } = await supabase.from('games').select('*, fields(name)').order('date', { ascending: true });
+    if (data) setGames(data);
+  };
+
+  const resetGameForm = () => setGameForm(EMPTY_GAME_FORM);
+  const resetEditGameForm = () => setEditGameForm(EMPTY_GAME_FORM);
+
+  const handleAddGame = async () => {
+    if (!gameForm.field_id || !gameForm.date || !gameForm.time || !gameForm.price) {
+      showError('Fill in all required game details.'); return;
+    }
+    const { error } = await supabase.from('games').insert({
+      title: DEFAULT_GAME_TITLE, field_id: gameForm.field_id, area: gameForm.area,
+      format: DEFAULT_GAME_FORMAT, date: gameForm.date, time: gameForm.time,
+      slots: parseInt(gameForm.slots) || DEFAULT_GAME_SLOTS,
+      price: parseInt(gameForm.price) || DEFAULT_GAME_PRICE,
+      court: gameForm.court || null,
+      description: gameForm.description, game_rules: gameForm.game_rules,
+      shoes_type: gameForm.shoes_type.join(', '),
+      allow_pay_at_court: gameForm.allow_pay_at_court,
+      assigned_manager_id: gameForm.assigned_manager_id || null,
+      created_by: (await supabase.auth.getUser()).data.user?.id,
+    });
+    if (error) { showError(error.message); return; }
+    showSuccess('Game added! Assign a manager any time from the games list.'); resetGameForm(); fetchGames(); fetchManagers();
+  };
+
+  // Inline reassignment from the games list — no need to open Edit or touch
+  // anything else about the game to change (or first set) who manages it.
+  const handleReassignManager = async (game, newManagerId) => {
+    const { error } = await supabase.from('games')
+      .update({ assigned_manager_id: newManagerId || null }).eq('id', game.id);
+    if (error) { showError(error.message); return; }
+    setGames(prev => prev.map(g => g.id === game.id ? { ...g, assigned_manager_id: newManagerId || null } : g));
+    fetchManagers();
+  };
+
+  const handleEditGame = (game) => {
+    setEditingGame(game.id);
+    setEditGameForm({
+      assigned_manager_id: game.assigned_manager_id || '', field_id: game.field_id, area: game.area,
+      date: game.date, time: game.time,
+      slots: game.slots, price: game.price, court: game.court || '',
+      description: game.description || DEFAULT_GAME_DESCRIPTION, game_rules: game.game_rules || '',
+      shoes_type: game.shoes_type ? game.shoes_type.split(', ') : [],
+      allow_pay_at_court: game.allow_pay_at_court || false,
+    });
+    setShowEditGameModal(true);
+  };
+
+  const handleUpdateGame = async () => {
+    const f = editGameForm;
+    if (!f.field_id || !f.date || !f.time || (f.price === '' || f.price == null)) {
+      showError('Fill in all required game details.'); return;
+    }
+    const { data: updated, error } = await supabase.from('games').update({
+      field_id: f.field_id, area: f.area, date: f.date, time: f.time,
+      slots: parseInt(f.slots), price: parseInt(f.price),
+      court: f.court || null,
+      description: f.description, game_rules: f.game_rules,
+      shoes_type: f.shoes_type.join(', '),
+      allow_pay_at_court: f.allow_pay_at_court,
+      assigned_manager_id: f.assigned_manager_id || null,
+    }).eq('id', editingGame).select('*, fields(name)');
+    if (error) { showError(error.message); return; }
+    if (!updated || updated.length === 0) { showError('Update failed. No rows matched.'); return; }
+    setGames(prev => prev.map(g => g.id === editingGame ? updated[0] : g));
+    showSuccess('Game updated!'); setEditingGame(null); setShowEditGameModal(false); resetEditGameForm();
+    fetchManagers();
+  };
+
+  const handleDeleteGame = async (id) => {
+    if (!confirm('Delete this game? Players will NOT be refunded — use Cancel instead if players have joined.')) return;
+    const { error } = await supabase.from('games').delete().eq('id', id);
+    if (error) { showError(error.message); return; }
+    showSuccess('Game deleted.'); fetchGames(); fetchManagers();
+  };
+
+  const handleOpenCancelModal = async (game) => {
+    const { count } = await supabase
+      .from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', game.id);
+    setCancelReason('Rain');
+    setCancelingGame({ ...game, _playerCount: count || 0 });
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelingGame) return;
+    setCancelling(true);
+    const refundedCount = await refundGamePlayers(cancelingGame.id, cancelingGame.title, cancelingGame.price, cancelReason);
+    const { error } = await supabase.from('games').delete().eq('id', cancelingGame.id);
+    setCancelling(false);
+    if (error) { showError(error.message); return; }
+    showSuccess(`Game cancelled. ${refundedCount} player${refundedCount !== 1 ? 's' : ''} refunded.`);
+    setCancelingGame(null);
+    fetchGames(); fetchManagers();
+  };
+
+  const handlePromoteSearch = async (q) => {
+    setPromoteQuery(q);
+    if (!q.trim()) { setPromoteResults([]); return; }
+    setPromoteSearching(true);
+    const { data } = await supabase
+      .from('profiles').select('id, name, avatar_url')
+      .ilike('name', `%${q}%`).eq('is_admin', false).limit(10);
+    setPromoteResults(data || []);
+    setPromoteSearching(false);
+  };
+
+  const handleGrantManager = async (uid) => {
+    const { error, count } = await supabase.from('profiles').update({ is_admin: true }, { count: 'exact' }).eq('id', uid);
+    if (error) { showError(error.message); return; }
+    if (count === 0) {
+      showError('Update blocked. Run the super-admin RLS migration (20260808000000_add_super_admin_manager_access.sql) in your Supabase project.');
+      return;
+    }
+    showSuccess('Manager access granted!');
+    setPromoteResults(prev => prev.filter(p => p.id !== uid));
+    setPromoteQuery('');
+    fetchManagers();
+  };
+
+  const handleRevokeManager = async (uid, name) => {
+    if (!confirm(`Remove manager access from ${name}? Games still assigned to them will stay assigned — reassign those from the Games tab if needed. They won't be able to manage players or rate anymore.`)) return;
+    const { error } = await supabase.from('profiles').update({ is_admin: false }).eq('id', uid);
+    if (error) { showError(error.message); return; }
+    showSuccess('Manager access removed.');
+    fetchManagers();
   };
 
   const fetchGameRequests = async () => {
@@ -520,6 +695,8 @@ export default function AdminPage() {
   );
 
   const TABS = [
+    { key: 'managers',    label: 'Managers'    },
+    { key: 'games',       label: 'Games'       },
     { key: 'banners',     label: 'Banners'     },
     { key: 'fields',      label: 'Fields'      },
     { key: 'backgrounds', label: 'Card BG'     },
@@ -528,6 +705,138 @@ export default function AdminPage() {
     { key: 'avatars',     label: 'Avatars'     },
     { key: 'requests',    label: 'Game Requests' },
   ];
+
+  // Same MYT-relative "is this game still upcoming" check ManagerPage uses.
+  const isUpcomingGame = (g) => {
+    const [year, month, day] = g.date.split('-').map(Number);
+    const [hour, minute] = (g.time || '00:00').split(':').map(Number);
+    const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+    return new Date() < gameStart;
+  };
+
+  const todayMYT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const renderGameForm = (isEdit, form, setForm) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div>
+        <label style={labelStyle}>ASSIGN TO MANAGER (optional)</label>
+        <select value={form.assigned_manager_id} onChange={e => setForm({ ...form, assigned_manager_id: e.target.value })}>
+          <option value="">Unassigned — assign later</option>
+          {managers.map(m => <option key={m.id} value={m.id}>{m.name || 'Unnamed'}</option>)}
+        </select>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>You can assign or change the manager any time from the games list below, no need to cancel the game.</div>
+      </div>
+      <div>
+        <label style={labelStyle}>FIELD *</label>
+        <select value={form.field_id} onChange={e => {
+          const selected = fields.find(f => f.id === e.target.value);
+          setForm({
+            ...form, field_id: e.target.value, area: selected?.area || '',
+            slots: selected?.default_slots ?? form.slots,
+            price: selected?.default_price ?? form.price,
+          });
+        }}>
+          <option value="">Select a field...</option>
+          {fields.map(f => <option key={f.id} value={f.id}>{f.name} ({f.area})</option>)}
+        </select>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>All games are {DEFAULT_GAME_FORMAT} for now.</div>
+      </div>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={labelStyle}>DATE *</label>
+          <input type="date" value={form.date} min={todayMYT} onChange={e => setForm({ ...form, date: e.target.value })} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={labelStyle}>TIME *</label>
+          <input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} />
+        </div>
+      </div>
+      {form.field_id ? (
+        <>
+          <div>
+            <label style={labelStyle}>SLOTS *</label>
+            <input type="number" min="1" value={form.slots}
+              onChange={e => setForm({ ...form, slots: e.target.value })} />
+          </div>
+          <div>
+            <label style={labelStyle}>PRICE (RM) *</label>
+            <input type="number" min="0" value={form.price}
+              onChange={e => setForm({ ...form, price: e.target.value })} />
+          </div>
+        </>
+      ) : (
+        <div style={{
+          background: 'var(--card2)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: '10px 14px', fontSize: 12, color: 'var(--muted)'
+        }}>
+          Select a field to prefill its default slots &amp; price.
+        </div>
+      )}
+      <div
+        onClick={() => setForm({ ...form, allow_pay_at_court: !form.allow_pay_at_court })}
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
+          background: form.allow_pay_at_court ? 'rgba(240,157,81,0.06)' : 'var(--card2)',
+          border: `1px solid ${form.allow_pay_at_court ? 'var(--accent)' : 'var(--border)'}`,
+          borderRadius: 10, padding: '10px 14px',
+        }}
+      >
+        <div style={{
+          width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 1,
+          background: form.allow_pay_at_court ? 'var(--accent)' : 'transparent',
+          border: `2px solid ${form.allow_pay_at_court ? 'var(--accent)' : 'var(--border)'}`,
+        }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Allow Pay at Court</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>Players can book now and pay by cash or QR at the venue before kickoff, instead of paying online.</div>
+        </div>
+      </div>
+      <div>
+        <label style={labelStyle}>COURT / PITCH (only if venue has more than one)</label>
+        <input placeholder="e.g. Court 2 (leave blank if there's only one court)" value={form.court}
+          onChange={e => setForm({ ...form, court: e.target.value })} />
+      </div>
+      <div>
+        <label style={labelStyle}>MATCH DESCRIPTION</label>
+        <textarea placeholder="Tell players what to expect..." value={form.description}
+          onChange={e => setForm({ ...form, description: e.target.value })} rows={3} style={{ resize: 'vertical' }} />
+      </div>
+      <GameRulesEditor
+        value={form.game_rules}
+        format={DEFAULT_GAME_FORMAT}
+        onChange={val => setForm({ ...form, game_rules: val })}
+      />
+      <div>
+        <label style={labelStyle}>SHOES TYPE</label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {SHOES.map(s => (
+            <button key={s} onClick={() => {
+              const current = form.shoes_type;
+              setForm({ ...form, shoes_type: current.includes(s) ? current.filter(x => x !== s) : [...current, s] });
+            }} style={{
+              background: form.shoes_type.includes(s) ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+              color: form.shoes_type.includes(s) ? 'var(--accent)' : 'var(--muted)',
+              border: `1px solid ${form.shoes_type.includes(s) ? 'var(--accent)' : 'var(--border)'}`,
+              borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 500
+            }}>{s}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={isEdit ? handleUpdateGame : handleAddGame} style={{
+          flex: 1, padding: '12px', background: 'var(--accent)', color: '#fff',
+          border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+        }}>{isEdit ? <><MdSave size={15} />Save Changes</> : '+ Add Game'}</button>
+        {isEdit && (
+          <button onClick={() => { setEditingGame(null); setShowEditGameModal(false); resetEditGameForm(); }} style={{
+            flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
+            border: '1px solid var(--border)', borderRadius: 10, fontSize: 14
+          }}>Cancel</button>
+        )}
+      </div>
+    </div>
+  );
 
   const requestsByArea = gameRequests.reduce((acc, r) => {
     const key = r.area || 'Unknown';
@@ -565,6 +874,8 @@ export default function AdminPage() {
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
+            { label: 'Managers',            val: managers.length,  icon: <IoPeople size={24} color="var(--accent)" /> },
+            { label: 'Total Games',         val: games.length,     icon: <GiSoccerBall size={24} color="var(--accent)" /> },
             { label: 'Active Banners',       val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
             { label: 'Total Fields',       val: fields.length,    icon: <MdOutlineStadium /> },
             { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
@@ -602,6 +913,181 @@ export default function AdminPage() {
             }}>{tab.label}</button>
           ))}
         </div>
+
+        {/* ── MANAGERS TAB ── */}
+        {activeTab === 'managers' && (
+          <div>
+            <div style={sectionCard}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
+                GRANT MANAGER ACCESS
+              </h3>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>
+                Search a player by name to give them manager access — you'll then be able to assign them games from the Games tab, and they'll be able to manage players and rate for games assigned to them.
+              </p>
+              <div style={{ position: 'relative', marginBottom: 12 }}>
+                <IoSearch size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+                <input
+                  placeholder="Search by name..." value={promoteQuery}
+                  onChange={e => handlePromoteSearch(e.target.value)}
+                  style={{ paddingLeft: 32 }}
+                />
+              </div>
+              {promoteSearching && <div style={{ color: 'var(--muted)', fontSize: 13 }}>Searching...</div>}
+              {!promoteSearching && promoteQuery && promoteResults.length === 0 && (
+                <div style={{ color: 'var(--muted)', fontSize: 13 }}>No players found for "{promoteQuery}"</div>
+              )}
+              {promoteResults.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--border)' }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', flexShrink: 0
+                  }}>
+                    {p.avatar_url ? <img src={p.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p.name?.[0] || '?').toUpperCase()}
+                  </div>
+                  <span style={{ flex: 1, fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{p.name}</span>
+                  <button onClick={() => handleGrantManager(p.id)} style={{
+                    background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8,
+                    padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}>+ Make Manager</button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                All Managers ({managers.length})
+              </div>
+              {managers.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No managers yet.</div>
+              ) : managers.map((m, i) => {
+                const upcoming = m.games.filter(isUpcomingGame).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+                return (
+                  <div key={m.id} style={{ padding: '16px 20px', borderBottom: i < managers.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: upcoming.length ? 10 : 0 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%', background: 'var(--accent)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', flexShrink: 0
+                      }}>
+                        {m.avatar_url ? <img src={m.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (m.name?.[0] || '?').toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{m.name || 'Unnamed'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{upcoming.length} upcoming · {m.games.length} total game{m.games.length !== 1 ? 's' : ''}</div>
+                      </div>
+                      <button onClick={() => handleRevokeManager(m.id, m.name)} style={{
+                        background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+                        border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8,
+                        padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                      }}>Remove</button>
+                    </div>
+                    {upcoming.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 46 }}>
+                        {upcoming.map(g => (
+                          <div key={g.id} style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <FaLocationDot size={10} />
+                            <span style={{ color: 'var(--text)', fontWeight: 600 }}>{g.fields?.name || g.area}</span>
+                            · {g.date} {g.time} · {g.format}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── GAMES TAB ── */}
+        {activeTab === 'games' && (
+          <div>
+            <div style={sectionCard}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 20 }}>
+                ADD NEW GAME
+              </h3>
+              {renderGameForm(false, gameForm, setGameForm)}
+            </div>
+
+            {/* Games list */}
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                All Games ({games.length})
+              </div>
+              {games.length === 0 ? (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No games yet.</div>
+              ) : games.map((game, i) => {
+                const manager = managers.find(m => m.id === game.assigned_manager_id);
+                return (
+                  <div key={game.id}
+                    style={{
+                      padding: '14px 20px',
+                      borderBottom: i < games.length - 1 ? '1px solid var(--border)' : 'none',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{game.title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}><FaLocationDot size={11} />{game.fields?.name} · <MdOutlineCalendarMonth size={12} />{game.date} · {game.format}</div>
+                      <div style={{ fontSize: 12, color: 'var(--accent)', fontFamily: "'Space Mono'", marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        RM {game.price} · {game.slots} slots
+                        {game.allow_pay_at_court && (
+                          <span style={{
+                            background: 'rgba(74,222,128,0.1)', color: '#4ade80',
+                            border: '1px solid rgba(74,222,128,0.3)', borderRadius: 5,
+                            padding: '1px 7px', fontSize: 10, fontWeight: 700
+                          }}>CASH/QR OK</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                        <IoPeople size={12} style={{ color: manager ? '#64a0ff' : 'var(--red)', flexShrink: 0 }} />
+                        <select
+                          value={game.assigned_manager_id || ''}
+                          onChange={e => handleReassignManager(game, e.target.value)}
+                          style={{
+                            background: manager ? 'rgba(100,160,255,0.1)' : 'rgba(240,101,67,0.1)',
+                            color: manager ? '#64a0ff' : 'var(--red)',
+                            border: `1px solid ${manager ? 'rgba(100,160,255,0.3)' : 'rgba(240,101,67,0.3)'}`,
+                            borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700,
+                            fontFamily: "'Space Mono'", width: 'auto',
+                          }}
+                        >
+                          <option value="">Unassigned</option>
+                          {managers.map(m => <option key={m.id} value={m.id}>{m.name || 'Unnamed'}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => navigate(`/game/${game.id}/rate`)} style={{
+                        background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                        border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
+                        padding: '5px 10px', fontSize: 12, fontWeight: 600,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}><LuMedal size={14} /></button>
+                      <button onClick={() => handleEditGame(game)} style={{
+                        background: 'var(--card2)', color: 'var(--text)',
+                        border: '1px solid var(--border)', borderRadius: 8,
+                        padding: '5px 12px', fontSize: 12
+                      }}>Edit</button>
+                      <button onClick={() => handleOpenCancelModal(game)} style={{
+                        background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                        border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8,
+                        padding: '5px 10px', fontSize: 12, fontWeight: 600,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}><MdOutlineCancel size={14} /></button>
+                      <button onClick={() => handleDeleteGame(game.id)} style={{
+                        background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+                        border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8,
+                        padding: '5px 12px', fontSize: 12, fontWeight: 600
+                      }}>Delete</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── BANNERS TAB ── */}
         {activeTab === 'banners' && (
@@ -1835,6 +2321,82 @@ create policy "Admins can delete requests" on game_requests
         )}
 
       </div>
+
+      {/* ── EDIT GAME MODAL ── */}
+      {showEditGameModal && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowEditGameModal(false); setEditingGame(null); resetEditGameForm(); } }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 2, color: 'var(--text)', margin: 0 }}>EDIT GAME</h3>
+              <button
+                onClick={() => { setShowEditGameModal(false); setEditingGame(null); resetEditGameForm(); }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
+              ><IoClose size={18} /></button>
+            </div>
+            {renderGameForm(true, editGameForm, setEditGameForm)}
+          </div>
+        </div>
+      )}
+
+      {/* ── CANCEL GAME MODAL ── */}
+      {cancelingGame && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !cancelling) setCancelingGame(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 420 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 24, letterSpacing: 2, color: 'var(--text)', margin: 0 }}>CANCEL GAME</h3>
+              <button
+                onClick={() => !cancelling && setCancelingGame(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
+              ><IoClose size={18} /></button>
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20 }}>
+              {cancelingGame.title} · {cancelingGame._playerCount} player{cancelingGame._playerCount !== 1 ? 's' : ''} joined
+            </p>
+
+            <label style={labelStyle}>REASON</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              {CANCEL_REASONS.map(r => (
+                <button key={r} type="button" onClick={() => setCancelReason(r)} style={{
+                  flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  background: cancelReason === r ? 'var(--accent)' : 'var(--card2)',
+                  color: cancelReason === r ? '#fff' : 'var(--muted)',
+                  border: `1px solid ${cancelReason === r ? 'var(--accent)' : 'var(--border)'}`,
+                }}>{r}</button>
+              ))}
+            </div>
+
+            {cancelingGame._playerCount > 0 && (
+              <div style={{
+                background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.25)',
+                borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+                fontSize: 13, color: 'var(--accent)', lineHeight: 1.6,
+              }}>
+                All {cancelingGame._playerCount} player{cancelingGame._playerCount !== 1 ? 's' : ''} will be refunded RM {Number(cancelingGame.price).toFixed(2)} each
+                (RM {(cancelingGame._playerCount * cancelingGame.price).toFixed(2)} total) to their wallets.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setCancelingGame(null)}
+                disabled={cancelling}
+                style={{ flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, fontSize: 14 }}
+              >Back</button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelling}
+                style={{ flex: 2, padding: '12px', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, opacity: cancelling ? 0.6 : 1 }}
+              >{cancelling ? 'Cancelling...' : 'Confirm Cancel & Refund'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,7 +36,7 @@ const formatDateTime = (isoStr) => {
 export default function GameManagerPlayersPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const [game, setGame] = useState(null);
   const [rows, setRows] = useState([]);
   const [cancellations, setCancellations] = useState([]);
@@ -50,7 +50,7 @@ export default function GameManagerPlayersPage() {
   const fetchData = async () => {
     setLoading(true);
     const { data: gameData } = await supabase.from('games').select('*, fields(name)').eq('id', id).single();
-    if (!gameData || gameData.created_by !== user.id) { navigate('/manager'); return; }
+    if (!gameData || (gameData.assigned_manager_id !== user.id && !isSuperAdmin)) { navigate('/manager'); return; }
     setGame(gameData);
 
     const [{ data: playerRows }, { data: cancelRows }] = await Promise.all([
