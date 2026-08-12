@@ -269,7 +269,24 @@ export default function ManagerPage() {
         )}
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <style>{`
+          @media (max-width: 640px) {
+            .manager-tab-row {
+              flex-direction: column !important;
+              align-items: stretch !important;
+            }
+            .manager-tab-actions {
+              width: 100% !important;
+              display: grid !important;
+              grid-template-columns: 1fr !important;
+            }
+            .manager-tab-actions button {
+              width: 100% !important;
+              justify-content: center !important;
+            }
+          }
+        `}</style>
+        <div className="manager-tab-row" style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {TABS.map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
@@ -282,7 +299,7 @@ export default function ManagerPage() {
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="manager-tab-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               onClick={() => navigate('/manager/tutorial')}
               style={{
@@ -294,6 +311,7 @@ export default function ManagerPage() {
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
+                flex: '1 1 150px',
               }}
             >
               Tutorial
@@ -309,6 +327,7 @@ export default function ManagerPage() {
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
+                flex: '1 1 180px',
               }}
             >
               Manager Walkthrough
