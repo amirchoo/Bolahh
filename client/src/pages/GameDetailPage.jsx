@@ -281,12 +281,14 @@ export default function GameDetailPage() {
     setGame(gameData); setField(fieldData);
     setIsOwner(isOwnerVal); setWalletBalance(walletBal);
 
-    const { data: creatorProfile } = await supabase
+    const managerUserId = gameData.assigned_manager_id || gameData.created_by;
+    const { data: managerProfileData } = await supabase
       .from('profiles')
       .select('id, name, avatar_url, position, total_points, games_played, card_stats, is_subscribed, subscription_expires_at')
-      .eq('id', gameData.created_by).single();
-    setManagerName(creatorProfile?.name || null);
-    setManagerProfile(creatorProfile || null);
+      .eq('id', managerUserId)
+      .maybeSingle();
+    setManagerName(managerProfileData?.name || null);
+    setManagerProfile(managerProfileData || null);
 
     const { count } = await supabase
       .from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', id);
@@ -377,7 +379,7 @@ export default function GameDetailPage() {
       game: gameData, field: fieldData, isOwner: isOwnerVal,
       walletBalance: walletBal, playerCount: countVal,
       hasJoined: joinedVal, players: playersVal, isRated: ratedVal,
-      managerName: creatorProfile?.name || null, hasFeedback: feedbackVal,
+      managerName: managerProfileData?.name || null, hasFeedback: feedbackVal,
       myFeedback: myFeedbackVal,
     });
     setLoading(false);
