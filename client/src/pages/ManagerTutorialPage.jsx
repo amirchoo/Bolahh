@@ -108,8 +108,65 @@ export default function ManagerTutorialPage() {
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
 
-      <div className="page-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px 64px' }}>
-        <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+      <style>{`
+        @media (max-width: 900px) {
+          .manager-tutorial-page {
+            padding: 24px 16px 40px !important;
+          }
+          .manager-tutorial-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .manager-tutorial-header h1 {
+            font-size: 32px !important;
+            letter-spacing: 2px !important;
+          }
+          .manager-tutorial-header p {
+            font-size: 13px !important;
+          }
+          .manager-tutorial-main-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .manager-tutorial-main-card {
+            padding: 16px !important;
+          }
+          .manager-tutorial-step-tabs {
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+            white-space: nowrap;
+            padding-bottom: 4px;
+          }
+          .manager-tutorial-step-tabs button {
+            flex: 0 0 auto;
+          }
+          .manager-tutorial-preview-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .manager-tutorial-preview-row {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .manager-tutorial-preview-row > * {
+            width: 100% !important;
+          }
+          .manager-tutorial-actions {
+            flex-direction: column !important;
+          }
+          .manager-tutorial-actions button {
+            min-width: 0 !important;
+            width: 100% !important;
+          }
+          .manager-tutorial-summary {
+            grid-template-columns: 1fr !important;
+          }
+          .manager-tutorial-summary .summary-item {
+            min-width: 0 !important;
+          }
+        }
+      `}</style>
+
+      <div className="page-wrap manager-tutorial-page" style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px 64px' }}>
+        <div className="manager-tutorial-header" style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', letterSpacing: 2, marginBottom: 6, textTransform: 'uppercase' }}>
               Manager tutorial
@@ -141,9 +198,9 @@ export default function ManagerTutorialPage() {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(260px, 0.9fr)', gap: 24, alignItems: 'start' }}>
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: 22 }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+        <div className="manager-tutorial-main-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(260px, 0.9fr)', gap: 24, alignItems: 'start' }}>
+          <div className="manager-tutorial-main-card" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: 22 }}>
+            <div className="manager-tutorial-step-tabs" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
               {MOCK_STEPS.map((item, index) => (
                 <button
                   key={item.id}
@@ -199,14 +256,14 @@ export default function ManagerTutorialPage() {
 
               {currentStep === 0 && (
                 <div>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
+                  <div className="manager-tutorial-preview-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
                     {['1 Hour', '1.5 Hours', '2 Hours'].map((item, idx) => (
                       <button key={item} style={{ flex: 1, minWidth: 120, padding: '12px 14px', borderRadius: 10, background: idx === 1 ? 'rgba(240,157,81,0.14)' : 'var(--card)', border: idx === 1 ? '1px solid var(--accent)' : '1px solid var(--border)', color: idx === 1 ? 'var(--accent)' : 'var(--muted)', fontWeight: 700 }}>
                         {item}
                       </button>
                     ))}
                   </div>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <div className="manager-tutorial-preview-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     {[2, 3].map((teamCount) => (
                       <button key={teamCount} style={{ flex: 1, minWidth: 120, padding: '16px 14px', borderRadius: 10, background: teamCount === 3 ? 'rgba(240,157,81,0.14)' : 'var(--card)', border: teamCount === 3 ? '1px solid var(--accent)' : '1px solid var(--border)', color: teamCount === 3 ? 'var(--accent)' : 'var(--muted)', fontWeight: 700 }}>
                         {teamCount} Teams
@@ -217,7 +274,7 @@ export default function ManagerTutorialPage() {
               )}
 
               {currentStep === 1 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+                <div className="manager-tutorial-preview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
                   {['A', 'B', 'C'].map((team) => (
                     <div key={team} style={{ background: TEAM_COLORS[team].bg, border: `1px solid ${TEAM_COLORS[team].border}`, borderRadius: 12, padding: 12 }}>
                       <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: TEAM_COLORS[team].text, marginBottom: 8 }}>Team {team}</div>
@@ -277,7 +334,7 @@ export default function ManagerTutorialPage() {
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
+            <div className="manager-tutorial-actions" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
               <button
                 onClick={prevStep}
                 disabled={currentStep === 0}
@@ -325,14 +382,14 @@ export default function ManagerTutorialPage() {
                 Quick summary
               </div>
 
-              <div style={{ display: 'grid', gap: 10 }}>
+              <div className="manager-tutorial-summary" style={{ display: 'grid', gap: 10 }}>
                 {[
                   { label: 'Setup', value: 'Session + teams', icon: <IoSettingsOutline size={14} /> },
                   { label: 'Matches', value: 'Rotation + breaks', icon: <IoCalendarOutline size={14} /> },
                   { label: 'Rating', value: '6 stat updates', icon: <IoStarOutline size={14} /> },
                   { label: 'Awards', value: 'Top 3 picks', icon: <GiSoccerBall size={14} /> },
                 ].map((item) => (
-                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
+                  <div key={item.label} className="summary-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ color: 'var(--accent)' }}>{item.icon}</span>
                       <span style={{ color: 'var(--muted)', fontSize: 12 }}>{item.label}</span>
