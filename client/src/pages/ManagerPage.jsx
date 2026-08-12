@@ -269,16 +269,51 @@ export default function ManagerPage() {
         )}
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          {TABS.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              background: activeTab === tab.key ? 'var(--accent)' : 'var(--card)',
-              color: activeTab === tab.key ? '#fff' : 'var(--muted)',
-              border: `1px solid ${activeTab === tab.key ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 600,
-              transition: 'all 0.15s'
-            }}>{tab.label}</button>
-          ))}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {TABS.map(tab => (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+                background: activeTab === tab.key ? 'var(--accent)' : 'var(--card)',
+                color: activeTab === tab.key ? '#fff' : 'var(--muted)',
+                border: `1px solid ${activeTab === tab.key ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 600,
+                transition: 'all 0.15s'
+              }}>{tab.label}</button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => navigate('/manager/tutorial')}
+              style={{
+                background: 'rgba(240,157,81,0.08)',
+                color: 'var(--accent)',
+                border: '1px solid rgba(240,157,81,0.25)',
+                borderRadius: 8,
+                padding: '8px 14px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Tutorial
+            </button>
+            <button
+              onClick={() => navigate('/manager/walkthrough')}
+              style={{
+                background: 'rgba(100,160,255,0.08)',
+                color: '#64a0ff',
+                border: '1px solid rgba(100,160,255,0.25)',
+                borderRadius: 8,
+                padding: '8px 14px',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Manager Walkthrough
+            </button>
+          </div>
         </div>
 
         {/* ── OVERVIEW TAB ── */}
