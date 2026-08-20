@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
 import ProgressionPage from './pages/ProgressionPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import TermsPage from './pages/TermsPage';
 import GameDetailPage from './pages/GameDetailPage';
 import GameRatingPage from './pages/GameRatingPage';
 import ManagerPage from './pages/ManagerPage';
@@ -61,6 +62,7 @@ function AnimatedRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/wallet/topup" element={<PrivateRoute><WalletTopupPage /></PrivateRoute>} />
         <Route path="/game/:id/checkout" element={<PrivateRoute><GameCheckoutPage /></PrivateRoute>} />
         <Route path="/game/:id/cancel" element={<PrivateRoute><GameCancelPage /></PrivateRoute>} />

@@ -76,7 +76,8 @@
     "footer": {
       "rights": "© 2026 Bolahh. Hak cipta terpelihara.",
       "login": "Log Masuk",
-      "signup": "Daftar"
+      "signup": "Daftar",
+      "terms": "Terma & Syarat"
     }
   },
   "login": {
@@ -214,6 +215,7 @@
       "contact": "HUBUNGI KAMI",
       "reportBug": "🐛 LAPOR BUG",
       "guideHelp": "PANDUAN & BANTUAN →",
+      "terms": "TERMA",
       "rights": "© 2026 Bolahh. Hak cipta terpelihara."
     }
   },

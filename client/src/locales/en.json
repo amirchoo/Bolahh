@@ -76,7 +76,8 @@
     "footer": {
       "rights": "© 2026 Bolahh. All rights reserved.",
       "login": "Login",
-      "signup": "Sign Up"
+      "signup": "Sign Up",
+      "terms": "Terms & Conditions"
     }
   },
   "login": {
@@ -214,6 +215,7 @@
       "contact": "CONTACT US",
       "reportBug": "🐛 REPORT BUG",
       "guideHelp": "GUIDE & HELP →",
+      "terms": "TERMS",
       "rights": "© 2026 Bolahh. All rights reserved."
     }
   },

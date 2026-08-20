@@ -13,10 +13,12 @@ import { LuToilet } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { FaLocationDot, FaWhatsapp, FaTelegram } from "react-icons/fa6";
 import { FaLink } from "react-icons/fa";
-import { IoWallet, IoTimer, IoClose, IoCheckmark, IoInformationCircleOutline, IoStar, IoStarOutline } from 'react-icons/io5';
+import { IoWallet, IoTimer, IoClose, IoCheckmark, IoInformationCircleOutline, IoStar, IoStarOutline, IoNavigateOutline } from 'react-icons/io5';
+import { getMapsLink, getMapsEmbedSrc } from '../lib/mapsUtils';
 import { FaArrowTrendUp, FaArrowTrendDown } from 'react-icons/fa6';
 import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
 import { getRank, getRankColor } from '../lib/rankUtils';
+import { getCardTheme } from '../components/FifaCard';
 import { isNegativePlayerTag } from '../lib/feedbackTags';
 import GameRulesDisplay from '../components/GameRulesDisplay';
 import FifaCard from '../components/FifaCard';
@@ -395,8 +397,7 @@ export default function GameDetailPage() {
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
         <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}><IconLoading size={16} /></div>
-          <p>Loading game...</p>
+          <IconLoading size={56} />
         </div>
       </div>
     );
@@ -797,25 +798,26 @@ export default function GameDetailPage() {
                 </div>
               )}
 
-              <button
-                onClick={handleJoinClick}
-                disabled={full || hasJoined || timedOut}
-                style={{
-                  width: '100%', padding: '13px',
-                  background: hasJoined ? 'transparent' : full ? 'transparent' : timedOut ? 'transparent' : 'var(--accent)',
-                  color: hasJoined ? 'var(--accent)' : full ? 'var(--muted)' : timedOut ? 'var(--accent)' : '#fff',
-                  border: hasJoined ? '1.5px solid var(--accent)' : full ? '1px solid var(--border)' : timedOut ? '1.5px solid var(--accent)' : 'none',
-                  borderRadius: 10, fontWeight: 700, fontSize: 15, transition: 'all 0.15s',
-                  cursor: hasJoined || full || timedOut ? 'default' : 'pointer',
-                  opacity: timedOut ? 0.7 : 1
-                }}
-              >
-                {hasJoined
-                  ? <><IoCheckmark size={15} style={{ verticalAlign: 'middle', marginRight: 4 }} />Already Joined</>
-                  : full ? 'Game Full'
-                  : timedOut ? <><IoTimer size={15} style={{ verticalAlign: 'middle', marginRight: 4 }} />Game Starting Soon</>
-                  : 'Join Game'}
-              </button>
+              {!full && (
+                <button
+                  onClick={handleJoinClick}
+                  disabled={hasJoined || timedOut}
+                  style={{
+                    width: '100%', padding: '13px',
+                    background: hasJoined ? 'transparent' : timedOut ? 'transparent' : 'var(--accent)',
+                    color: hasJoined ? 'var(--accent)' : timedOut ? 'var(--accent)' : '#fff',
+                    border: hasJoined ? '1.5px solid var(--accent)' : timedOut ? '1.5px solid var(--accent)' : 'none',
+                    borderRadius: 10, fontWeight: 700, fontSize: 15, transition: 'all 0.15s',
+                    cursor: hasJoined || timedOut ? 'default' : 'pointer',
+                    opacity: timedOut ? 0.7 : 1
+                  }}
+                >
+                  {hasJoined
+                    ? <><IoCheckmark size={15} style={{ verticalAlign: 'middle', marginRight: 4 }} />Already Joined</>
+                    : timedOut ? <><IoTimer size={15} style={{ verticalAlign: 'middle', marginRight: 4 }} />Game Starting Soon</>
+                    : 'Join Game'}
+                </button>
+              )}
             </div>
 
             {/* Cancel booking */}
@@ -1024,7 +1026,7 @@ export default function GameDetailPage() {
             {(() => {
               const avgOvr = Math.round(players.reduce((sum, p) => sum + (p.total_points || 30), 0) / players.length);
               const avgRank = getRank(avgOvr);
-              const avgColor = getRankColor(avgRank);
+              const avgColor = getCardTheme(avgRank).border;
               return (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)' }}>
@@ -1044,31 +1046,38 @@ export default function GameDetailPage() {
                 const name = p.name || 'Player';
                 const initials = name.slice(0, 2).toUpperCase();
                 const rank = getRank(p.total_points);
-                const rankColor = getRankColor(rank);
+                const theme = getCardTheme(rank);
                 const isVerified = p.is_subscribed && p.subscription_expires_at && new Date(p.subscription_expires_at) > new Date();
                 return (
                   <div key={p.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 14px',
-                    background: isMe ? `${rankColor}14` : 'var(--card2)',
-                    border: `1px solid ${isMe ? rankColor + '55' : 'var(--border)'}`,
-                    borderLeft: `3px solid ${rankColor}`,
+                    background: theme.bg,
+                    border: `1.5px solid ${theme.border}`,
                     borderRadius: 10,
+                    boxShadow: isMe ? '0 0 0 2px var(--accent)' : 'none',
+                    position: 'relative',
+                    // No overflow:hidden here — combining it with border-radius + box-shadow on a
+                    // card inside a scrolling list is a known WebKit bug that tears/ghosts the
+                    // paint between rows while scrolling. The gloss overlay below clips itself
+                    // instead, via its own matching border-radius.
+                    transform: 'translateZ(0)',
                   }}>
+                    <div style={{ position: 'absolute', inset: 0, borderRadius: 9, background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, transparent 55%)', pointerEvents: 'none' }} />
                     <div style={{
                       width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-                      border: `2px solid ${rankColor}`,
+                      border: `2px solid ${theme.border}`,
                       overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'var(--card)'
+                      background: theme.statBg, position: 'relative', zIndex: 1,
                     }}>
                       {p.avatar_url
                         ? <img src={p.avatar_url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : <span style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: rankColor }}>{initials}</span>
+                        : <span style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: theme.text }}>{initials}</span>
                       }
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-                        <span style={{ fontWeight: 700, fontSize: 14, color: isMe ? rankColor : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {name}
                         </span>
                         {isVerified && (
@@ -1076,13 +1085,13 @@ export default function GameDetailPage() {
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: rankColor }}>{rank}</span>
-                        {p.position && <span style={{ fontSize: 11, color: 'var(--muted)' }}>· {p.position}</span>}
+                        <span style={{ fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: theme.text }}>{rank}</span>
+                        {p.position && <span style={{ fontSize: 11, color: theme.muted }}>· {p.position}</span>}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, color: rankColor, lineHeight: 1 }}>{p.total_points || 30}</div>
-                      <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, marginTop: 1 }}>OVR</div>
+                    <div style={{ textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, color: theme.text, lineHeight: 1 }}>{p.total_points || 30}</div>
+                      <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: theme.muted, letterSpacing: 1, marginTop: 1 }}>OVR</div>
                     </div>
                   </div>
                 );
@@ -1157,6 +1166,33 @@ export default function GameDetailPage() {
           <p style={{ color: 'var(--text)', fontSize: 14, opacity: 0.8 }}>{field?.address}</p>
           {game.court && (
             <p style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 700, marginTop: 6 }}>Head to Court {game.court} on arrival</p>
+          )}
+          {field && (
+            <>
+              <a
+                href={getMapsLink(field)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 14,
+                  background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                  border: '1px solid rgba(240,157,81,0.3)', borderRadius: 8,
+                  padding: '8px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                }}
+              ><IoNavigateOutline size={15} /> Open in Google Maps</a>
+
+              <div style={{ marginTop: 14, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <iframe
+                  title="Field location"
+                  src={getMapsEmbedSrc(field)}
+                  width="100%"
+                  height="220"
+                  style={{ border: 0, display: 'block' }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+            </>
           )}
         </div>
 

@@ -211,11 +211,15 @@ export default function Navbar() {
 
               {notifOpen && (
                 <div style={{
-                  position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                  // Fixed to the viewport (not the bell button itself) so the panel always
+                  // sits flush against the screen edge — anchoring to the bell's own edge
+                  // overflowed off-screen on mobile since it isn't the rightmost nav icon
+                  // (the language toggle and logout button sit to its right).
+                  position: 'fixed', top: 62, right: 16,
                   background: 'var(--card)', border: '1px solid var(--border)',
                   borderRadius: 10, overflow: 'hidden',
                   boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                  width: 320, maxWidth: '90vw', maxHeight: 420, zIndex: 200,
+                  width: 320, maxWidth: 'calc(100vw - 32px)', maxHeight: 420, zIndex: 200,
                   display: 'flex', flexDirection: 'column',
                 }}>
                   <div style={{

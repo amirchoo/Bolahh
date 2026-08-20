@@ -50,8 +50,9 @@ export default function GameCard({ game }) {
   const ongoing  = now >= gameStart && now < gameEnd;
   const ended    = now >= gameEnd;
 
-  // Cards are clickable once game has started (ongoing/ended); blocked only during 10-min window or if full+not started
-  const clickable = (ongoing || ended) || (!timedOut && !full);
+  // Cards are always clickable — full games just show the player list with no join option.
+  // Blocked only during the 10-min pre-kickoff lockout window.
+  const clickable = (ongoing || ended) || !timedOut;
 
   const handleClick = () => {
     if (!clickable) return;
@@ -205,7 +206,7 @@ export default function GameCard({ game }) {
               {ended ? t('home.viewSummary') : t('home.viewMatch')}
             </span>
           )}
-          {!timedOut && !ongoing && !ended && !full && (
+          {!timedOut && !ongoing && !ended && (
             <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
               {t('home.viewDetails')}
             </span>
