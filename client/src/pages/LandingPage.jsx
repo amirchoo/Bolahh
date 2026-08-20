@@ -733,6 +733,7 @@ export default function LandingPage() {
         <div style={{ display:'flex', gap:20 }}>
           <span className="nav-link" onClick={() => navigate('/login')}>{t('landing.footer.login')}</span>
           <span className="nav-link" onClick={() => navigate('/signup')}>{t('landing.footer.signup')}</span>
+          <span className="nav-link" onClick={() => navigate('/terms')}>{t('landing.footer.terms')}</span>
         </div>
       </footer>
 

@@ -132,7 +132,7 @@ export default function AdminPage() {
   const [fieldForm, setFieldForm] = useState({
     name: '', area: '', address: '', field_rules: '', images: [],
     has_toilet: false, has_parking: false, has_shop: false, has_shoe_rent: false,
-    default_slots: 15, default_price: 15
+    default_slots: 15, default_price: 15, maps_url: ''
   });
 
   // ── Managers state ────────────────────────────────────
@@ -419,7 +419,7 @@ export default function AdminPage() {
   const resetFieldForm = () => setFieldForm({
     name: '', area: '', address: '', field_rules: '', images: [],
     has_toilet: false, has_parking: false, has_shop: false, has_shoe_rent: false,
-    default_slots: 15, default_price: 15
+    default_slots: 15, default_price: 15, maps_url: ''
   });
 
   const handleImageUpload = async (e) => {
@@ -449,6 +449,7 @@ export default function AdminPage() {
       has_shop: fieldForm.has_shop, has_shoe_rent: fieldForm.has_shoe_rent,
       default_slots: parseInt(fieldForm.default_slots) || 15,
       default_price: parseInt(fieldForm.default_price) || 15,
+      maps_url: fieldForm.maps_url.trim() || null,
     });
     if (error) { showError(error.message); return; }
     showSuccess('Field added!'); resetFieldForm(); fetchFields();
@@ -462,6 +463,7 @@ export default function AdminPage() {
       has_toilet: field.has_toilet, has_parking: field.has_parking,
       has_shop: field.has_shop, has_shoe_rent: field.has_shoe_rent,
       default_slots: field.default_slots ?? 15, default_price: field.default_price ?? 15,
+      maps_url: field.maps_url || '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -475,6 +477,7 @@ export default function AdminPage() {
       has_shop: fieldForm.has_shop, has_shoe_rent: fieldForm.has_shoe_rent,
       default_slots: parseInt(fieldForm.default_slots) || 15,
       default_price: parseInt(fieldForm.default_price) || 15,
+      maps_url: fieldForm.maps_url.trim() || null,
     }, { count: 'exact' }).eq('id', editingField);
     if (error) { showError(error.message); return; }
     if (count === 0) {
@@ -1246,6 +1249,14 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                   <label style={labelStyle}>ADDRESS *</label>
                   <input placeholder="e.g. Jalan SS15, Subang Jaya" value={fieldForm.address}
                     onChange={e => setFieldForm({ ...fieldForm, address: e.target.value })} />
+                </div>
+                <div>
+                  <label style={labelStyle}>GOOGLE MAPS LINK</label>
+                  <input placeholder="Paste link from Google Maps → Share" value={fieldForm.maps_url}
+                    onChange={e => setFieldForm({ ...fieldForm, maps_url: e.target.value })} />
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                    Open Google Maps, drop a pin on the field, tap Share, and paste the link here. Leave blank to fall back to a search built from the address above.
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div style={{ flex: 1 }}>

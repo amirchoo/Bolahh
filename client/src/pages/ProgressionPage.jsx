@@ -92,7 +92,7 @@ export default function ProgressionPage() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>
-            <IconLoading size={16} />
+            <IconLoading size={48} />
           </div>
         ) : (
           <>

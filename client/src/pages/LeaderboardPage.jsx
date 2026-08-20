@@ -4,7 +4,7 @@ import { getCached, setCached } from '../lib/dataCache';
 import { usePersistedState } from '../lib/usePersistedState';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { getRank, getRankColor, getRankTier } from '../lib/rankUtils';
+import { getRank, getRankTier } from '../lib/rankUtils';
 import { getCardTheme, STATS, POSITION_ABBR } from '../components/FifaCard';
 import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
@@ -21,6 +21,7 @@ const POSITION_TABS = [
 ];
 
 const RANK_NUM_COLOR = { 1: '#FFD700', 2: '#C0C0C0', 3: '#CD7F32' };
+const PAGE_SIZE = 15;
 
 const TIER_ORDER = ['emas', 'perak', 'gangsa'];
 const TIER_DISPLAY = { emas: 'EMAS', perak: 'PERAK', gangsa: 'GANGSA' };
@@ -42,6 +43,10 @@ export default function LeaderboardPage() {
   const [posFilter, setPosFilter] = usePersistedState('lb_pos', 'All');
   const [viewMode, setViewMode] = usePersistedState('lb_view', 'global');
   const [activeTier, setActiveTier] = usePersistedState('lb_tier', 'emas');
+  const [page, setPage] = useState(1);
+
+  // Any filter/tab change can shrink the list below the current page — reset to page 1.
+  useEffect(() => { setPage(1); }, [areaFilter, posFilter, viewMode, activeTier]);
 
   useEffect(() => {
     const cached = getCached('leaderboard');
@@ -88,7 +93,6 @@ export default function LeaderboardPage() {
 
   const renderPlayerRow = (player, pos) => {
     const rank = getRank(player.overall);
-    const rankColor = getRankColor(rank);
     const theme = getCardTheme(rank);
     const isSelf = player.id === user?.id;
     const isSubscribed = player.is_subscribed && player.subscription_expires_at && new Date(player.subscription_expires_at) > new Date();
@@ -97,11 +101,11 @@ export default function LeaderboardPage() {
       <div
         key={player.id}
         style={{
-          background: isSelf ? 'rgba(240,157,81,0.06)' : 'var(--card)',
-          border: `1px solid ${isSelf ? 'rgba(240,157,81,0.35)' : 'var(--border)'}`,
+          background: theme.bg,
+          border: `1.5px solid ${theme.border}`,
+          boxShadow: isSelf ? '0 0 0 2px var(--accent)' : 'none',
           borderRadius: 14, padding: '12px 14px',
           display: 'flex', alignItems: 'center', gap: 12,
-          transition: 'background 0.15s',
         }}
       >
         {/* Rank number */}
@@ -109,7 +113,7 @@ export default function LeaderboardPage() {
           width: 28, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: "'Bebas Neue'", fontSize: 16,
-          color: RANK_NUM_COLOR[pos] || 'var(--muted)',
+          color: RANK_NUM_COLOR[pos] || theme.muted,
           letterSpacing: 1,
         }}>
           {pos <= 3
@@ -117,17 +121,16 @@ export default function LeaderboardPage() {
             : `#${pos}`}
         </div>
 
-        {/* Mini card swatch */}
+        {/* Mini card swatch — statBg (not theme.bg) so it stands out against the row,
+            which now carries the same rank gradient as its background */}
         <div style={{
           width: 36, height: 50, borderRadius: 6, flexShrink: 0,
-          background: theme.bg,
+          background: theme.statBg,
           border: `1.5px solid ${theme.border}`,
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
-          position: 'relative', overflow: 'hidden',
+          position: 'relative',
         }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%)', pointerEvents: 'none' }} />
           {player.avatar_url ? (
             <img src={player.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
           ) : (
@@ -143,7 +146,7 @@ export default function LeaderboardPage() {
         {/* Name + meta */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
               {player.name || 'Unknown'}
             </span>
             {isSubscribed && (
@@ -151,23 +154,23 @@ export default function LeaderboardPage() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: rankColor, fontFamily: "'Space Mono'" }}>{rank}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: theme.text, fontFamily: "'Space Mono'" }}>{rank}</span>
             {player.area && (
-              <span style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span style={{ fontSize: 11, color: theme.muted, display: 'flex', alignItems: 'center', gap: 3 }}>
                 <FaLocationDot size={9} />{player.area}
               </span>
             )}
           </div>
-          {/* Stats — key stats for the active position glow in rank color */}
+          {/* Stats — key stats for the active position stay full-strength, others dim */}
           <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
             {STATS.map(s => {
               const isKey = keyStats.includes(s.key);
               return (
                 <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <div style={{ fontSize: 9, color: isKey ? rankColor : 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: isKey ? 700 : 400 }}>
+                  <div style={{ fontSize: 9, color: isKey ? theme.text : theme.muted, fontFamily: "'Space Mono'", fontWeight: isKey ? 700 : 400 }}>
                     {s.label}
                   </div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: isKey ? rankColor : 'var(--text)', fontFamily: "'Space Mono'" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: isKey ? theme.text : theme.muted, fontFamily: "'Space Mono'" }}>
                     {player[s.key] || 30}
                   </div>
                 </div>
@@ -178,23 +181,62 @@ export default function LeaderboardPage() {
 
         {/* OVR */}
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: rankColor, lineHeight: 1, letterSpacing: 1 }}>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: theme.text, lineHeight: 1, letterSpacing: 1 }}>
             {player.overall || 30}
           </div>
-          <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
+          <div style={{ fontSize: 9, color: theme.muted, fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
           {player.games_played > 0 && (
-            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{player.games_played} games</div>
+            <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>{player.games_played} games</div>
           )}
         </div>
       </div>
     );
   };
 
-  const renderGlobalList = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {filtered.map((player, idx) => renderPlayerRow(player, idx + 1))}
-    </div>
-  );
+  const renderPagination = (totalCount) => {
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    if (totalPages <= 1) return null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 20 }}>
+        <button
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          style={{
+            background: 'var(--card)', color: page === 1 ? 'var(--muted)' : 'var(--text)',
+            border: '1px solid var(--border)', borderRadius: 8,
+            padding: '8px 16px', fontSize: 13, fontWeight: 600,
+            cursor: page === 1 ? 'default' : 'pointer', opacity: page === 1 ? 0.5 : 1,
+          }}
+        >← Prev</button>
+        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: "'Space Mono'" }}>
+          Page {page} / {totalPages}
+        </span>
+        <button
+          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          style={{
+            background: 'var(--card)', color: page === totalPages ? 'var(--muted)' : 'var(--text)',
+            border: '1px solid var(--border)', borderRadius: 8,
+            padding: '8px 16px', fontSize: 13, fontWeight: 600,
+            cursor: page === totalPages ? 'default' : 'pointer', opacity: page === totalPages ? 0.5 : 1,
+          }}
+        >Next →</button>
+      </div>
+    );
+  };
+
+  const renderGlobalList = () => {
+    const start = (page - 1) * PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + PAGE_SIZE);
+    return (
+      <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {pageItems.map((player, idx) => renderPlayerRow(player, start + idx + 1))}
+        </div>
+        {renderPagination(filtered.length)}
+      </>
+    );
+  };
 
   const renderTierList = () => {
     const tierPlayers = filtered.filter(p => getRankTier(getRank(p.overall)) === activeTier);
@@ -231,11 +273,18 @@ export default function LeaderboardPage() {
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 13 }}>
             No {TIER_DISPLAY[activeTier]} players for this filter.
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {tierPlayers.map((player, idx) => renderPlayerRow(player, idx + 1))}
-          </div>
-        )}
+        ) : (() => {
+          const start = (page - 1) * PAGE_SIZE;
+          const pageItems = tierPlayers.slice(start, start + PAGE_SIZE);
+          return (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {pageItems.map((player, idx) => renderPlayerRow(player, start + idx + 1))}
+              </div>
+              {renderPagination(tierPlayers.length)}
+            </>
+          );
+        })()}
       </div>
     );
   };
@@ -319,8 +368,7 @@ export default function LeaderboardPage() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>
-            <IconLoading size={16} />
-            <p style={{ marginTop: 12 }}>Loading rankings...</p>
+            <IconLoading size={48} />
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)', fontSize: 14 }}>

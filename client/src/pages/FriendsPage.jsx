@@ -345,7 +345,7 @@ export default function FriendsPage() {
         {activeTab === 'friends' && (
           <div>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)' }}><IconLoading size={16} />Loading...</div>
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)' }}><IconLoading size={40} /></div>
             ) : friends.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><IoPeople size={40} color="var(--muted)" /></div>
@@ -420,7 +420,7 @@ export default function FriendsPage() {
 
             {!searching && !searchQuery && (
               loadingPlayedWith ? (
-                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)' }}><IconLoading size={16} />Loading...</div>
+                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)' }}><IconLoading size={32} /></div>
               ) : (() => {
                 const suggestions = playedWith.filter(p => getFriendshipStatus(p.id) === 'none').slice(0, 8);
                 if (suggestions.length === 0) {

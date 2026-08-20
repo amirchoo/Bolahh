@@ -9,6 +9,8 @@
 //  <IconGames size={18} color="var(--accent)" />
 // ─────────────────────────────────────────────
 
+import { useId } from 'react';
+
 const base = {
   fill: 'none',
   xmlns: 'http://www.w3.org/2000/svg',
@@ -110,30 +112,26 @@ export function IconUpcoming({ size = 20, color = 'currentColor', style = {} }) 
 }
 
 // ── LOADING (bouncing football) ───
-export function IconLoading({ size = 20, color = 'currentColor', style = {} }) {
+export function IconLoading({ size = 48, color = 'var(--accent)', style = {} }) {
+  const gradId = `bolahh-loading-grad-${useId()}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...base} style={{ color, display: 'inline-block', verticalAlign: 'middle', overflow: 'visible', ...style }}>
+    <svg width={size} height={size} viewBox="0 0 50 50" style={{ display: 'inline-block', verticalAlign: 'middle', ...style }}>
       <style>{`
-        @keyframes bolahh-bounce {
-          0%   { transform: translateY(0) scale(1.15, 0.85) rotate(0deg); }
-          25%  { transform: translateY(-5px) scale(1, 1) rotate(90deg); }
-          50%  { transform: translateY(-8px) scale(0.95, 1.05) rotate(180deg); }
-          75%  { transform: translateY(-5px) scale(1, 1) rotate(270deg); }
-          100% { transform: translateY(0) scale(1.15, 0.85) rotate(360deg); }
-        }
-        @keyframes bolahh-shadow {
-          0%, 100% { transform: scaleX(1); opacity: 0.3; }
-          50%      { transform: scaleX(0.55); opacity: 0.12; }
-        }
+        @keyframes bolahh-spin { to { transform: rotate(360deg); } }
       `}</style>
-      {/* Ground shadow */}
-      <ellipse cx="12" cy="20.5" rx="6" ry="1.6" fill="currentColor" opacity="0.25" style={{ transformOrigin: '12px 20.5px', animation: 'bolahh-shadow 0.8s ease-in-out infinite' }} />
-      {/* Bouncing, rolling ball */}
-      <g style={{ transformOrigin: '12px 18px', animation: 'bolahh-bounce 0.8s ease-in-out infinite' }}>
-        <circle cx="12" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M12 5.5 L14.9 7.7 L13.8 11.1 L10.2 11.1 L9.1 7.7 Z" fill="currentColor" />
-        <path d="M12 5.5 L9.1 7.7 M12 5.5 L14.9 7.7 M9.1 7.7 L6.3 9.2 M14.9 7.7 L17.7 9.2 M10.2 11.1 L8.9 14.7 M13.8 11.1 L15.1 14.7 M8.9 14.7 L12 16.9 L15.1 14.7" stroke="currentColor" strokeWidth="0.9" fill="none" strokeLinecap="round" />
-      </g>
+      <defs>
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={color} stopOpacity="0" />
+          <stop offset="100%" stopColor={color} stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <circle cx="25" cy="25" r="20" fill="none" stroke={color} strokeWidth="4" opacity="0.15" />
+      <circle
+        cx="25" cy="25" r="20" fill="none"
+        stroke={`url(#${gradId})`} strokeWidth="4" strokeLinecap="round"
+        strokeDasharray="80 126"
+        style={{ transformOrigin: '25px 25px', animation: 'bolahh-spin 0.85s linear infinite' }}
+      />
     </svg>
   );
 }

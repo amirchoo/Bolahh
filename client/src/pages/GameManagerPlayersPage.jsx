@@ -113,8 +113,7 @@ export default function GameManagerPlayersPage() {
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
         <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)' }}>
-          <IconLoading size={16} />
-          <p style={{ marginTop: 12 }}>Loading...</p>
+          <IconLoading size={56} />
         </div>
       </div>
     );

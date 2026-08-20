@@ -322,8 +322,7 @@ export default function HomePage() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text)' }}>
-            <div style={{ fontSize: 32, marginBottom: 12, animation: 'pulse 1.5s infinite' }}><IconLoading size={16} /></div>
-            <p>{t('home.loadingGames')}</p>
+            <IconLoading size={48} />
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
@@ -555,6 +554,15 @@ function HomeFooter() {
               cursor: 'pointer', letterSpacing: 1,
             }}
           >{t('home.footer.guideHelp')}</button>
+          <button
+            onClick={() => navigate('/terms')}
+            style={{
+              background: 'transparent', color: 'var(--muted)',
+              border: '1px solid var(--border)', borderRadius: 8,
+              padding: '5px 14px', fontSize: 11, fontFamily: "'Space Mono'",
+              cursor: 'pointer', letterSpacing: 1,
+            }}
+          >{t('home.footer.terms')}</button>
         </div>
       </div>
     </div>

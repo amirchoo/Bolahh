@@ -336,8 +336,7 @@ export default function GameCheckoutPage() {
       <div style={{ minHeight: '100vh' }}>
         <Navbar />
         <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--muted)' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}><IconLoading size={16} /></div>
-          <p>Loading...</p>
+          <IconLoading size={56} />
         </div>
       </div>
     );
