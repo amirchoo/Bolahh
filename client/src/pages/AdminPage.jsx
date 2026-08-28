@@ -4,14 +4,17 @@ import { supabase } from '../lib/supabaseClient';
 import { usePersistedState } from '../lib/usePersistedState';
 import Navbar from '../components/Navbar';
 import { GiRunningShoe, GiSoccerBall } from 'react-icons/gi';
-import { FaSquareParking, FaLocationDot } from 'react-icons/fa6';
+import { FaSquareParking, FaLocationDot, FaMedal } from 'react-icons/fa6';
 import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
-import FifaCard, { buildCustomTheme, getCardTheme, POSITION_ABBR, STATS, STICKER_ICONS } from '../components/FifaCard';
+import FifaCard, { getCardTheme, POSITION_ABBR, STATS } from '../components/FifaCard';
+import PlayerAvatar from '../components/PlayerAvatar';
+import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { drawCardImage } from '../lib/cardCanvas';
-import { RANKS, getRankColor } from '../lib/rankUtils';
+import { RANKS } from '../lib/rankUtils';
+import { RARITY_COLORS, resolveBorderRender } from '../lib/borderCatalog';
 import { AREAS } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
 import { refundGamePlayers } from '../lib/refundGamePlayers';
@@ -31,43 +34,6 @@ const EMPTY_GAME_FORM = {
   slots: DEFAULT_GAME_SLOTS, price: DEFAULT_GAME_PRICE, court: '',
   description: DEFAULT_GAME_DESCRIPTION, game_rules: '', shoes_type: [], allow_pay_at_court: false
 };
-
-const DEFAULT_DESIGN = {
-  gradFrom: '#b8860b', gradMid: '#ffd700', gradTo: '#b8860b',
-  borderColor: '#ffd700',
-  textDark: true,
-  badgeLabel: 'TOTY',
-  badgeColor: '#ffd700',
-  glowEnabled: true,
-  glowColor: '#ffd700',
-  foilEnabled: false,
-  pattern: 'none',
-  patternColor: '#ffffff',
-  patternOpacity: 0.15,
-  elemCorners: false,
-  elemSideBars: false,
-  elemCenterDiamond: false,
-  elemFrame: false,
-  elemColor: '#ffffff',
-  elemOpacity: 0.3,
-  stickerIcon: 'none',
-  stickerPos: 'top-center',
-  stickerSize: 36,
-  stickerColor: '#ffffff',
-  stickerOpacity: 0.9,
-};
-
-const CARD_PRESETS = [
-  { key: 'emas',   label: 'Emas',   accent: '#ffd700', gradFrom: '#b8860b', gradMid: '#ffd700', gradTo: '#b8860b', borderColor: '#ffd700', textDark: true,  badgeLabel: '',       badgeColor: '#ffd700', glowEnabled: false, glowColor: '#ffd700', foilEnabled: false },
-  { key: 'toty',   label: 'TOTY',   accent: '#e0a020', gradFrom: '#5a3a00', gradMid: '#c08020', gradTo: '#5a3a00', borderColor: '#e0a020', textDark: false, badgeLabel: 'TOTY',   badgeColor: '#e0a020', glowEnabled: true,  glowColor: '#e0a020', foilEnabled: true  },
-  { key: 'icon',   label: 'Icon',   accent: '#d4af37', gradFrom: '#111111', gradMid: '#252525', gradTo: '#111111', borderColor: '#d4af37', textDark: false, badgeLabel: 'ICON',   badgeColor: '#d4af37', glowEnabled: true,  glowColor: '#d4af37', foilEnabled: false },
-  { key: 'hero',   label: 'Hero',   accent: '#5090ff', gradFrom: '#041428', gradMid: '#0e2d6e', gradTo: '#041428', borderColor: '#5090ff', textDark: false, badgeLabel: 'HERO',   badgeColor: '#5090ff', glowEnabled: true,  glowColor: '#3060cc', foilEnabled: false },
-  { key: 'tots',   label: 'TOTS',   accent: '#00c454', gradFrom: '#041c10', gradMid: '#085828', gradTo: '#041c10', borderColor: '#00c454', textDark: false, badgeLabel: 'TOTS',   badgeColor: '#00c454', glowEnabled: true,  glowColor: '#00c454', foilEnabled: false },
-  { key: 'promo',  label: 'Promo',  accent: '#c040ff', gradFrom: '#1e0838', gradMid: '#4a1278', gradTo: '#1e0838', borderColor: '#c040ff', textDark: false, badgeLabel: 'PROMO',  badgeColor: '#c040ff', glowEnabled: true,  glowColor: '#c040ff', foilEnabled: false },
-  { key: 'event',  label: 'Event',  accent: '#00c8e0', gradFrom: '#041c26', gradMid: '#085878', gradTo: '#041c26', borderColor: '#00c8e0', textDark: false, badgeLabel: 'EVENT',  badgeColor: '#00c8e0', glowEnabled: true,  glowColor: '#00c8e0', foilEnabled: false },
-  { key: 'legend', label: 'Legend', accent: '#ff6000', gradFrom: '#1a0800', gradMid: '#3c1000', gradTo: '#1a0800', borderColor: '#ff6000', textDark: false, badgeLabel: 'LEGEND', badgeColor: '#ff6000', glowEnabled: true,  glowColor: '#ff6000', foilEnabled: false },
-  { key: 'bolahh', label: 'Bolahh', accent: '#F09D51', gradFrom: '#3a1a00', gradMid: '#7a3c00', gradTo: '#3a1a00', borderColor: '#F09D51', textDark: false, badgeLabel: 'BOLAHH', badgeColor: '#F09D51', glowEnabled: true,  glowColor: '#F09D51', foilEnabled: false },
-];
 
 export default function AdminPage() {
   const navigate = useNavigate();
@@ -92,16 +58,10 @@ export default function AdminPage() {
     name: 'PLAYER ONE', position: 'Attacker', rank: 'Emas I',
     pac: 72, sho: 68, pas: 75, dri: 70, def: 60, phy: 65,
     games_played: 0,
-    useCustomTheme: true,
-    ...DEFAULT_DESIGN,
+    border: null,
   });
   const [cardAvatarPreview, setCardAvatarPreview] = useState(null);
   const [cardDownloading, setCardDownloading] = useState(false);
-
-  // Template save/load
-  const [templateName, setTemplateName] = useState('');
-  const [savedTemplates, setSavedTemplates] = useState([]);
-  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const cardOverall = Math.round(
     [cardForm.pac, cardForm.sho, cardForm.pas, cardForm.dri, cardForm.def, cardForm.phy]
@@ -114,9 +74,6 @@ export default function AdminPage() {
     { key: 'def', label: 'DEF' }, { key: 'phy', label: 'PHY' },
   ];
 
-  const activeCustomTheme = cardForm.useCustomTheme ? buildCustomTheme(cardForm) : null;
-  const activeBadge = cardForm.useCustomTheme && cardForm.badgeLabel ? cardForm.badgeLabel : null;
-
   // ── Game requests state ───────────────────────────────
   const [gameRequests, setGameRequests] = useState([]);
 
@@ -127,6 +84,12 @@ export default function AdminPage() {
   // ── Avatar presets state ──────────────────────────────
   const [avatarPresets, setAvatarPresets] = useState([]);
   const [uploadingAvatarPreset, setUploadingAvatarPreset] = useState(false);
+
+  // ── Card border catalog state ──────────────────────────
+  const [borderCatalogAdmin, setBorderCatalogAdmin] = useState([]);
+  const [uploadingBorder, setUploadingBorder] = useState(false);
+  const [uploadingVariant, setUploadingVariant] = useState(null);
+  const [borderForm, setBorderForm] = useState({ label: '', rarity: 'common', unlockType: 'games_played', unlockValue: 10, unlockLabel: '' });
 
   // ── Field form state ──────────────────────────────────
   const [fieldForm, setFieldForm] = useState({
@@ -155,7 +118,7 @@ export default function AdminPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchFields(), fetchCardBgs(), fetchTemplates(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin(), fetchManagers(), fetchGames()]);
+    await Promise.all([fetchFields(), fetchCardBgs(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin(), fetchBorderCatalogAdmin(), fetchManagers(), fetchGames()]);
     setLoading(false);
   };
 
@@ -382,6 +345,72 @@ export default function AdminPage() {
     showSuccess('Avatar deleted.');
   };
 
+  // ── Card border catalog handlers ───────────────────────
+  const fetchBorderCatalogAdmin = async () => {
+    const { data } = await supabase.from('card_border_catalog').select('*').order('created_at', { ascending: true });
+    if (data) setBorderCatalogAdmin(data);
+  };
+
+  const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+  const handleBorderUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!borderForm.label.trim() || !borderForm.unlockLabel.trim() || !borderForm.unlockValue) {
+      showError('Fill in label, unlock value and unlock label first.');
+      e.target.value = '';
+      return;
+    }
+    setUploadingBorder(true);
+    const key = `${slugify(borderForm.label)}-${Date.now().toString(36).slice(-4)}`;
+    const ext = file.name.split('.').pop();
+    const filename = `${key}.${ext}`;
+    const uploadBody = await resizeImageFile(file).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type });
+    if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingBorder(false); return; }
+    const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
+    const { error: insertErr } = await supabase.from('card_border_catalog').insert({
+      key, label: borderForm.label.trim(), rarity: borderForm.rarity,
+      unlock_type: borderForm.unlockType, unlock_value: Number(borderForm.unlockValue),
+      unlock_label: borderForm.unlockLabel.trim(), card_image_url: data.publicUrl,
+    });
+    if (insertErr) { showError(insertErr.message); setUploadingBorder(false); return; }
+    showSuccess('Border added.');
+    await fetchBorderCatalogAdmin();
+    setBorderForm({ label: '', rarity: 'common', unlockType: 'games_played', unlockValue: 10, unlockLabel: '' });
+    setUploadingBorder(false);
+    e.target.value = '';
+  };
+
+  const handleDeleteBorderCatalog = async (row) => {
+    if (!confirm('Delete this border?')) return;
+    const paths = [row.card_image_url, row.leaderboard_image_url, row.roster_image_url]
+      .filter(Boolean).map(url => url.split('/card-borders/')[1]).filter(Boolean);
+    if (paths.length) await supabase.storage.from('card-borders').remove(paths);
+    const { error } = await supabase.from('card_border_catalog').delete().eq('id', row.id);
+    if (error) { showError(error.message); return; }
+    setBorderCatalogAdmin(prev => prev.filter(b => b.id !== row.id));
+    showSuccess('Border deleted.');
+  };
+
+  const handleBorderVariantUpload = async (e, row, field) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const variantKey = `${row.id}:${field}`;
+    setUploadingVariant(variantKey);
+    const filename = `${row.key}-${field}-${Date.now()}.${file.name.split('.').pop()}`;
+    const uploadBody = await resizeImageFile(file).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type });
+    if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingVariant(null); return; }
+    const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
+    const { error: updateErr } = await supabase.from('card_border_catalog').update({ [field]: data.publicUrl }).eq('id', row.id);
+    if (updateErr) { showError(updateErr.message); setUploadingVariant(null); return; }
+    showSuccess('Border art updated.');
+    await fetchBorderCatalogAdmin();
+    setUploadingVariant(null);
+    e.target.value = '';
+  };
+
   const fetchFields = async () => {
     const { data } = await supabase.from('fields').select('*').order('name');
     if (data) setFields(data);
@@ -397,14 +426,6 @@ export default function AdminPage() {
         url: supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl,
       }));
     setCardBgs(bgs);
-  };
-
-  const fetchTemplates = async () => {
-    const { data } = await supabase
-      .from('card_templates')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) setSavedTemplates(data);
   };
 
   const fetchBanners = async () => {
@@ -524,23 +545,6 @@ export default function AdminPage() {
     e.target.value = '';
   };
 
-  const applyPreset = (preset) => {
-    setCardForm(prev => ({
-      ...prev,
-      useCustomTheme: true,
-      gradFrom:    preset.gradFrom,
-      gradMid:     preset.gradMid,
-      gradTo:      preset.gradTo,
-      borderColor: preset.borderColor,
-      textDark:    preset.textDark,
-      badgeLabel:  preset.badgeLabel,
-      badgeColor:  preset.badgeColor,
-      glowEnabled: preset.glowEnabled,
-      glowColor:   preset.glowColor,
-      foilEnabled: preset.foilEnabled,
-    }));
-  };
-
   const handleDownloadCard = async (fmt = 'png') => {
     setCardDownloading(true);
     try {
@@ -556,7 +560,7 @@ export default function AdminPage() {
         profile,
         cardStats: stats,
         rank: cardForm.rank,
-        customTheme: cardForm.useCustomTheme ? cardForm : null,
+        equippedBorder: cardForm.border || undefined,
       });
       const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
       const a = document.createElement('a');
@@ -566,53 +570,6 @@ export default function AdminPage() {
     } finally {
       setCardDownloading(false);
     }
-  };
-
-  // ── Template save/load ────────────────────────────────
-  const handleSaveTemplate = async () => {
-    if (!templateName.trim()) { showError('Enter a template name first.'); return; }
-    setSavingTemplate(true);
-    const { error } = await supabase.from('card_templates').insert({
-      name:         templateName.trim(),
-      grad_from:    cardForm.gradFrom,
-      grad_mid:     cardForm.gradMid,
-      grad_to:      cardForm.gradTo,
-      border_color: cardForm.borderColor,
-      text_dark:    cardForm.textDark,
-      badge_label:  cardForm.badgeLabel,
-      badge_color:  cardForm.badgeColor,
-      glow_enabled: cardForm.glowEnabled,
-      glow_color:   cardForm.glowColor,
-      foil_enabled: cardForm.foilEnabled,
-    });
-    if (error) showError('Save failed. Make sure the card_templates table exists in Supabase (see console for details). Error: ' + error.message);
-    else { showSuccess(`Template "${templateName.trim()}" saved!`); setTemplateName(''); fetchTemplates(); }
-    setSavingTemplate(false);
-  };
-
-  const handleLoadTemplate = (t) => {
-    setCardForm(prev => ({
-      ...prev,
-      useCustomTheme: true,
-      gradFrom:    t.grad_from,
-      gradMid:     t.grad_mid,
-      gradTo:      t.grad_to,
-      borderColor: t.border_color,
-      textDark:    t.text_dark,
-      badgeLabel:  t.badge_label || '',
-      badgeColor:  t.badge_color,
-      glowEnabled: t.glow_enabled,
-      glowColor:   t.glow_color,
-      foilEnabled: t.foil_enabled,
-    }));
-    showSuccess(`Loaded "${t.name}"`);
-  };
-
-  const handleDeleteTemplate = async (id, name) => {
-    if (!confirm(`Delete template "${name}"?`)) return;
-    const { error } = await supabase.from('card_templates').delete().eq('id', id);
-    if (error) showError(error.message);
-    else { showSuccess('Template deleted.'); fetchTemplates(); }
   };
 
   // ── Banner handlers ───────────────────────────────────
@@ -664,39 +621,6 @@ export default function AdminPage() {
   const checkboxLabel = { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--text)', cursor: 'pointer' };
   const sectionCard = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 20 };
 
-  const colorRow = (label, field) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-      <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5 }}>{label}</span>
-      <input
-        type="color"
-        value={cardForm[field]}
-        onChange={e => setCardForm(prev => ({ ...prev, [field]: e.target.value }))}
-        style={{ width: 36, height: 28, border: '2px solid var(--border)', borderRadius: 6, cursor: 'pointer', padding: 0, background: 'none' }}
-      />
-      <span style={{ fontFamily: "'Space Mono'", fontSize: 10, color: 'var(--muted)' }}>{cardForm[field]}</span>
-    </div>
-  );
-
-  const toggle = (label, field) => (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 8 }}>
-      <div
-        onClick={() => setCardForm(prev => ({ ...prev, [field]: !prev[field] }))}
-        style={{
-          width: 38, height: 20, borderRadius: 10,
-          background: cardForm[field] ? 'var(--accent)' : 'var(--border)',
-          position: 'relative', transition: 'background 0.2s', flexShrink: 0,
-        }}
-      >
-        <div style={{
-          position: 'absolute', top: 2, left: cardForm[field] ? 20 : 2,
-          width: 16, height: 16, borderRadius: '50%', background: '#fff',
-          transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-        }} />
-      </div>
-      <span style={{ fontSize: 13, color: 'var(--text)' }}>{label}</span>
-    </label>
-  );
-
   const TABS = [
     { key: 'managers',    label: 'Managers'    },
     { key: 'games',       label: 'Games'       },
@@ -706,6 +630,7 @@ export default function AdminPage() {
     { key: 'cardmaker',   label: 'Card Maker'  },
     { key: 'coupons',     label: 'Coupons'     },
     { key: 'avatars',     label: 'Avatars'     },
+    { key: 'borders',     label: 'Borders'     },
     { key: 'requests',    label: 'Game Requests' },
   ];
 
@@ -882,7 +807,7 @@ export default function AdminPage() {
             { label: 'Active Banners',       val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
             { label: 'Total Fields',       val: fields.length,    icon: <MdOutlineStadium /> },
             { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
-            { label: 'Saved Card Templates', val: savedTemplates.length, icon: <MdSave size={24} color="var(--accent)" /> },
+            { label: 'Card Borders',        val: borderCatalogAdmin.length, icon: <MdSave size={24} color="var(--accent)" /> },
             { label: 'Game Requests',       val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
             { label: 'Avatar Presets',      val: avatarPresets.length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
@@ -1512,334 +1437,43 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                   </div>
                 </div>
 
-                {/* Card Design */}
+                {/* Border */}
                 <div style={sectionCard}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', margin: 0 }}>CARD DESIGN</h3>
-                    {toggle('Use Custom Design', 'useCustomTheme')}
-                  </div>
-
-                  {cardForm.useCustomTheme && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-                      {/* Presets */}
-                      <div>
-                        <label style={labelStyle}>QUICK PRESETS</label>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {CARD_PRESETS.map(preset => (
-                            <button
-                              key={preset.key}
-                              onClick={() => applyPreset(preset)}
-                              style={{
-                                padding: '6px 14px',
-                                background: `linear-gradient(135deg, ${preset.gradFrom}, ${preset.gradMid})`,
-                                color: preset.textDark ? '#2a1400' : '#fff',
-                                border: `1.5px solid ${preset.accent}`,
-                                borderRadius: 8,
-                                fontSize: 12, fontWeight: 700,
-                                fontFamily: "'Bebas Neue'",
-                                letterSpacing: 1,
-                                cursor: 'pointer',
-                                transition: 'transform 0.1s',
-                                boxShadow: `0 2px 8px ${preset.accent}44`,
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-                              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
-                        </div>
+                  <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>BORDER</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                    <div onClick={() => setCardForm(prev => ({ ...prev, border: null }))} style={{ cursor: 'pointer', textAlign: 'center' }}>
+                      <div style={{ borderRadius: 10, boxShadow: !cardForm.border ? '0 0 0 2px var(--accent)' : 'none' }}>
+                        <FifaCard
+                          size="small"
+                          profile={{ name: cardForm.name || 'PLAYER', position: cardForm.position, avatar_url: cardAvatarPreview, games_played: cardForm.games_played }}
+                          cardStats={{ pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy }}
+                          rank={cardForm.rank}
+                        />
                       </div>
-
-                      {/* Gradient colors */}
-                      <div>
-                        <label style={labelStyle}>GRADIENT COLORS</label>
-                        <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-                          {colorRow('Gradient Start', 'gradFrom')}
-                          {colorRow('Gradient Mid', 'gradMid')}
-                          {colorRow('Gradient End', 'gradTo')}
-                          <div style={{
-                            height: 10, borderRadius: 5, marginTop: 4,
-                            background: `linear-gradient(90deg, ${cardForm.gradFrom}, ${cardForm.gradMid}, ${cardForm.gradTo})`,
-                          }} />
-                        </div>
-                      </div>
-
-                      {/* Border / accent */}
-                      <div>
-                        <label style={labelStyle}>BORDER & ACCENT</label>
-                        <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-                          {colorRow('Border Color', 'borderColor')}
-                        </div>
-                      </div>
-
-                      {/* Text theme */}
-                      <div>
-                        <label style={labelStyle}>TEXT THEME</label>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          {[{ val: true, label: 'Dark Text' }, { val: false, label: 'Light Text' }].map(opt => (
-                            <button
-                              key={String(opt.val)}
-                              onClick={() => setCardForm(prev => ({ ...prev, textDark: opt.val }))}
-                              style={{
-                                flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                                background: cardForm.textDark === opt.val ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                                color: cardForm.textDark === opt.val ? 'var(--accent)' : 'var(--muted)',
-                                border: `1px solid ${cardForm.textDark === opt.val ? 'var(--accent)' : 'var(--border)'}`,
-                                cursor: 'pointer',
-                              }}
-                            >{opt.label}</button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Badge */}
-                      <div>
-                        <label style={labelStyle}>BADGE LABEL</label>
-                        <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                            <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5 }}>Label Text</span>
-                            <input
-                              value={cardForm.badgeLabel}
-                              onChange={e => setCardForm(prev => ({ ...prev, badgeLabel: e.target.value.toUpperCase() }))}
-                              placeholder="e.g. TOTY"
-                              style={{ flex: 1, textTransform: 'uppercase', fontSize: 13, fontFamily: "'Bebas Neue'", letterSpacing: 2, padding: '6px 10px' }}
+                      <div style={{ marginTop: 6, fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 0.5 }}>NONE</div>
+                    </div>
+                    {borderCatalogAdmin.map(b => {
+                      const active = cardForm.border === b.key;
+                      return (
+                        <div key={b.key} onClick={() => setCardForm(prev => ({ ...prev, border: b.key }))} style={{ cursor: 'pointer', textAlign: 'center' }}>
+                          <div style={{ borderRadius: 10, boxShadow: active ? '0 0 0 2px var(--accent)' : 'none' }}>
+                            <FifaCard
+                              size="small"
+                              profile={{ name: cardForm.name || 'PLAYER', position: cardForm.position, avatar_url: cardAvatarPreview, games_played: cardForm.games_played }}
+                              cardStats={{ pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy }}
+                              rank={cardForm.rank}
+                              equippedBorder={b.key}
                             />
                           </div>
-                          {colorRow('Badge Color', 'badgeColor')}
+                          <div style={{ marginTop: 6, fontSize: 11, color: RARITY_COLORS[b.rarity] || 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 0.5 }}>{b.label}</div>
                         </div>
-                      </div>
-
-                      {/* Effects */}
-                      <div>
-                        <label style={labelStyle}>EFFECTS</label>
-                        <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          <div>
-                            {toggle('Glow Effect', 'glowEnabled')}
-                            {cardForm.glowEnabled && (
-                              <div style={{ paddingLeft: 50 }}>
-                                {colorRow('Glow Color', 'glowColor')}
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            {toggle('Foil / Holographic Shimmer', 'foilEnabled')}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Pattern */}
-                      <div>
-                        <label style={labelStyle}>CARD PATTERN</label>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                          {[
-                            { key: 'none',       label: 'None'       },
-                            { key: 'dots',       label: 'Dots'       },
-                            { key: 'diagonal',   label: 'Diagonal'   },
-                            { key: 'grid',       label: 'Grid'       },
-                            { key: 'crosshatch', label: 'Crosshatch' },
-                            { key: 'carbon',     label: 'Carbon'     },
-                          ].map(p => (
-                            <button
-                              key={p.key}
-                              onClick={() => setCardForm(prev => ({ ...prev, pattern: p.key }))}
-                              style={{
-                                padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                                background: cardForm.pattern === p.key ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                                color: cardForm.pattern === p.key ? 'var(--accent)' : 'var(--muted)',
-                                border: `1px solid ${cardForm.pattern === p.key ? 'var(--accent)' : 'var(--border)'}`,
-                                cursor: 'pointer', transition: 'all 0.1s',
-                              }}
-                            >{p.label}</button>
-                          ))}
-                        </div>
-                        {cardForm.pattern !== 'none' && (
-                          <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-                            {colorRow('Pattern Color', 'patternColor')}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                              <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, flexShrink: 0 }}>Opacity</span>
-                              <input
-                                type="range" min={0.03} max={0.5} step={0.01}
-                                value={cardForm.patternOpacity}
-                                onChange={e => setCardForm(prev => ({ ...prev, patternOpacity: parseFloat(e.target.value) }))}
-                                style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
-                              />
-                              <span style={{ width: 34, fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', textAlign: 'right', flexShrink: 0 }}>
-                                {Math.round(cardForm.patternOpacity * 100)}%
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Decorative elements */}
-                      <div>
-                        <label style={labelStyle}>DECORATIVE ELEMENTS</label>
-                        <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-                          {toggle('Corner Ornaments', 'elemCorners')}
-                          {toggle('Side Accent Bars', 'elemSideBars')}
-                          {toggle('Center Diamond', 'elemCenterDiamond')}
-                          {toggle('Inner Frame', 'elemFrame')}
-                          {(cardForm.elemCorners || cardForm.elemSideBars || cardForm.elemCenterDiamond || cardForm.elemFrame) && (
-                            <div style={{ marginTop: 4 }}>
-                              {colorRow('Element Color', 'elemColor')}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                                <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, flexShrink: 0 }}>Opacity</span>
-                                <input
-                                  type="range" min={0.05} max={0.9} step={0.01}
-                                  value={cardForm.elemOpacity}
-                                  onChange={e => setCardForm(prev => ({ ...prev, elemOpacity: parseFloat(e.target.value) }))}
-                                  style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
-                                />
-                                <span style={{ width: 34, fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', textAlign: 'right', flexShrink: 0 }}>
-                                  {Math.round(cardForm.elemOpacity * 100)}%
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Icon sticker */}
-                      <div>
-                        <label style={labelStyle}>ICON STICKER</label>
-
-                        {/* Icon grid */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                          {/* None button */}
-                          <button
-                            onClick={() => setCardForm(prev => ({ ...prev, stickerIcon: 'none' }))}
-                            style={{
-                              padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                              background: cardForm.stickerIcon === 'none' ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                              color: cardForm.stickerIcon === 'none' ? 'var(--accent)' : 'var(--muted)',
-                              border: `1px solid ${cardForm.stickerIcon === 'none' ? 'var(--accent)' : 'var(--border)'}`,
-                              cursor: 'pointer',
-                            }}
-                          >None</button>
-
-                          {STICKER_ICONS.map(icon => {
-                            const active = cardForm.stickerIcon === icon.key;
-                            return (
-                              <button
-                                key={icon.key}
-                                onClick={() => setCardForm(prev => ({ ...prev, stickerIcon: icon.key }))}
-                                title={icon.label}
-                                style={{
-                                  width: 44, height: 44, borderRadius: 10,
-                                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-                                  background: active ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                                  border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                                  cursor: 'pointer', transition: 'all 0.1s',
-                                }}
-                              >
-                                <svg viewBox="0 0 24 24" width={20} height={20} fill={active ? 'var(--accent)' : 'var(--muted)'}>
-                                  <path d={icon.d} />
-                                </svg>
-                                <span style={{ fontSize: 7, fontFamily: "'Space Mono'", color: active ? 'var(--accent)' : 'var(--muted)', letterSpacing: 0 }}>{icon.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {cardForm.stickerIcon !== 'none' && (
-                          <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-                            {/* Position picker */}
-                            <div>
-                              <span style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>Position</span>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, maxWidth: 180 }}>
-                                {[
-                                  { key: 'top-left', label: '↖' }, { key: 'top-center', label: '↑' }, { key: 'top-right', label: '↗' },
-                                  { key: 'bottom-left', label: '↙' }, { key: 'bottom-center', label: '↓' }, { key: 'bottom-right', label: '↘' },
-                                ].map(p => {
-                                  const active = cardForm.stickerPos === p.key;
-                                  return (
-                                    <button
-                                      key={p.key}
-                                      onClick={() => setCardForm(prev => ({ ...prev, stickerPos: p.key }))}
-                                      style={{
-                                        height: 32, borderRadius: 7,
-                                        background: active ? 'rgba(240,157,81,0.18)' : 'var(--card)',
-                                        color: active ? 'var(--accent)' : 'var(--muted)',
-                                        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                                        fontSize: 16, cursor: 'pointer',
-                                      }}
-                                    >{p.label}</button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* Size */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, flexShrink: 0 }}>Size</span>
-                              <input
-                                type="range" min={16} max={72} step={2}
-                                value={cardForm.stickerSize}
-                                onChange={e => setCardForm(prev => ({ ...prev, stickerSize: parseInt(e.target.value) }))}
-                                style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
-                              />
-                              <span style={{ width: 34, fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', textAlign: 'right', flexShrink: 0 }}>
-                                {cardForm.stickerSize}px
-                              </span>
-                            </div>
-
-                            {/* Color */}
-                            {colorRow('Color', 'stickerColor')}
-
-                            {/* Opacity */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <span style={{ width: 110, fontSize: 11, color: 'var(--muted)', letterSpacing: 0.5, flexShrink: 0 }}>Opacity</span>
-                              <input
-                                type="range" min={0.1} max={1} step={0.01}
-                                value={cardForm.stickerOpacity}
-                                onChange={e => setCardForm(prev => ({ ...prev, stickerOpacity: parseFloat(e.target.value) }))}
-                                style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
-                              />
-                              <span style={{ width: 34, fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--accent)', textAlign: 'right', flexShrink: 0 }}>
-                                {Math.round(cardForm.stickerOpacity * 100)}%
-                              </span>
-                            </div>
-
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
+                      );
+                    })}
+                  </div>
+                  {borderCatalogAdmin.length === 0 && (
+                    <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 12 }}>No borders in the catalog yet — add some from the Borders tab.</p>
                   )}
                 </div>
-
-                {/* Save Template */}
-                {cardForm.useCustomTheme && (
-                  <div style={{ ...sectionCard, background: 'rgba(240,157,81,0.06)', borderColor: 'rgba(240,157,81,0.2)' }}>
-                    <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--accent)', marginBottom: 12 }}>SAVE TO WEBSITE</h3>
-                    <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14, lineHeight: 1.7 }}>
-                      Save this card design as a named template. Templates are stored in Supabase and can be loaded back any time.
-                    </p>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input
-                        placeholder="Template name, e.g. TOTY Gold 2025"
-                        value={templateName}
-                        onChange={e => setTemplateName(e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                      <button
-                        onClick={handleSaveTemplate}
-                        disabled={savingTemplate}
-                        style={{
-                          padding: '10px 20px', background: 'var(--accent)', color: '#fff',
-                          border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13,
-                          opacity: savingTemplate ? 0.6 : 1, cursor: savingTemplate ? 'wait' : 'pointer',
-                          display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-                        }}
-                      >
-                        <MdSave size={15} />{savingTemplate ? 'Saving...' : 'Save Template'}
-                      </button>
-                    </div>
-                  </div>
-                )}
 
               </div>
 
@@ -1858,8 +1492,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                       }}
                       cardStats={{ pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy }}
                       rank={cardForm.rank}
-                      customTheme={activeCustomTheme}
-                      badge={activeBadge}
+                      equippedBorder={cardForm.border}
                     />
                   </div>
                   <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
@@ -1867,102 +1500,113 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                   </div>
                 </div>
 
-                {/* Leaderboard strip preview */}
+                {/* Leaderboard strip preview — mirrors LeaderboardPage.jsx's renderPlayerRow
+                    exactly (theme.bg/border/text drive the whole row there, not fixed
+                    colors) so this actually previews how the row will look on the site. */}
                 {(() => {
-                  const lbTheme = activeCustomTheme
-                    ? { bg: activeCustomTheme.bg, border: activeCustomTheme.border, text: activeCustomTheme.text }
-                    : getCardTheme(cardForm.rank);
-                  const lbRankColor = getRankColor(cardForm.rank);
+                  const theme = getCardTheme(cardForm.rank);
                   const posAbbr = POSITION_ABBR[cardForm.position] || cardForm.position;
+                  const catalogRow = borderCatalogAdmin.find(b => b.key === cardForm.border);
+                  const borderRender = resolveBorderRender(catalogRow, 'leaderboard');
                   return (
                     <div style={{ width: '100%', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
                       <div style={{ fontFamily: "'Bebas Neue'", fontSize: 11, letterSpacing: 2, color: 'var(--muted)', marginBottom: 10 }}>LEADERBOARD ROW</div>
                       <div style={{
-                        background: 'rgba(240,157,81,0.04)', border: '1px solid rgba(240,157,81,0.2)',
-                        borderRadius: 12, padding: '10px 12px',
-                        display: 'flex', alignItems: 'center', gap: 10,
+                        background: theme.bg, border: `1.5px solid ${theme.border}`,
+                        borderRadius: 14, padding: '12px 14px',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        position: 'relative',
                       }}>
-                        <div style={{ width: 24, textAlign: 'center', flexShrink: 0, fontFamily: "'Bebas Neue'", fontSize: 16, color: 'var(--muted)', letterSpacing: 1 }}>#1</div>
+                        {borderRender?.type === 'image' && (
+                          <div style={{
+                            position: 'absolute', inset: 0, borderRadius: 14,
+                            pointerEvents: 'none', zIndex: 2,
+                            borderStyle: 'solid', borderWidth: '11px 13px 11px 13px', borderColor: 'transparent',
+                            borderImageSource: `url(${borderRender.imageUrl})`,
+                            borderImageSlice: '32 16 16 16',
+                            borderImageRepeat: 'stretch',
+                          }} />
+                        )}
+                        <div style={{ width: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <FaMedal size={22} color="#FFD700" />
+                        </div>
                         {/* Mini card swatch */}
                         <div style={{
-                          width: 36, height: 50, borderRadius: 6, flexShrink: 0,
-                          background: lbTheme.bg, border: `1.5px solid ${lbTheme.border}`,
+                          width: 36, height: 50, flexShrink: 0, borderRadius: 6,
+                          background: theme.statBg, border: `1.5px solid ${theme.border}`,
                           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.35)', position: 'relative', overflow: 'hidden',
+                          overflow: 'hidden',
                         }}>
-                          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%)', pointerEvents: 'none' }} />
                           {cardAvatarPreview
                             ? <img src={cardAvatarPreview} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-                            : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: lbTheme.text }}>
+                            : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: theme.text }}>
                                 {(cardForm.name || 'P')[0].toUpperCase()}
                               </div>
                           }
-                          <div style={{ fontFamily: "'Space Mono'", fontSize: 6, color: lbTheme.text, fontWeight: 700, marginTop: 2, letterSpacing: 0.5 }}>{posAbbr}</div>
+                          <div style={{ fontFamily: "'Space Mono'", fontSize: 6, color: theme.text, fontWeight: 700, marginTop: 2, letterSpacing: 0.5 }}>{posAbbr}</div>
                         </div>
                         {/* Name + rank + stats */}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
                             {cardForm.name || 'PLAYER'}
                           </div>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: lbRankColor, fontFamily: "'Space Mono'", marginBottom: 4 }}>{cardForm.rank}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: theme.text, fontFamily: "'Space Mono'", marginBottom: 6 }}>{cardForm.rank}</div>
                           <div style={{ display: 'flex', gap: 4 }}>
                             {STATS.map(s => (
-                              <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                                <div style={{ fontSize: 8, color: 'var(--muted)', fontFamily: "'Space Mono'" }}>{s.label}</div>
-                                <div style={{ fontSize: 8, fontWeight: 700, color: 'var(--text)', fontFamily: "'Space Mono'" }}>{cardForm[s.key] || 30}</div>
+                              <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                <div style={{ fontSize: 9, color: theme.text, fontFamily: "'Space Mono'", fontWeight: 700 }}>{s.label}</div>
+                                <div style={{ fontSize: 9, fontWeight: 700, color: theme.text, fontFamily: "'Space Mono'" }}>{cardForm[s.key] || 30}</div>
                               </div>
                             ))}
                           </div>
                         </div>
                         {/* OVR */}
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: lbRankColor, lineHeight: 1, letterSpacing: 1 }}>{cardOverall}</div>
-                          <div style={{ fontSize: 8, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
-                          {cardForm.games_played > 0 && <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 1 }}>{cardForm.games_played}g</div>}
+                          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: theme.text, lineHeight: 1, letterSpacing: 1 }}>{cardOverall}</div>
+                          <div style={{ fontSize: 9, color: theme.muted, fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
+                          {cardForm.games_played > 0 && <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>{cardForm.games_played} games</div>}
                         </div>
                       </div>
                     </div>
                   );
                 })()}
 
-                {/* Game detail strip preview */}
+                {/* Game detail strip preview — mirrors GameDetailPage.jsx's roster row
+                    (theme.bg background + PlayerAvatar for the border/ring), not a
+                    generic accent-bar card, so it matches the real in-game roster look. */}
                 {(() => {
-                  const gdRankColor = cardForm.useCustomTheme && activeCustomTheme ? activeCustomTheme.border : getRankColor(cardForm.rank);
-                  const initials = (cardForm.name || 'P').slice(0, 2).toUpperCase();
+                  const theme = getCardTheme(cardForm.rank);
                   return (
                     <div style={{ width: '100%', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
                       <div style={{ fontFamily: "'Bebas Neue'", fontSize: 11, letterSpacing: 2, color: 'var(--muted)', marginBottom: 10 }}>GAME DETAIL ROW</div>
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 12,
                         padding: '10px 14px',
-                        background: 'rgba(240,157,81,0.04)',
-                        border: `1px solid ${gdRankColor}33`,
-                        borderLeft: `3px solid ${gdRankColor}`,
+                        background: theme.bg,
+                        border: `1.5px solid ${theme.border}`,
                         borderRadius: 10,
+                        position: 'relative',
                       }}>
-                        <div style={{
-                          width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-                          border: `2px solid ${gdRankColor}`,
-                          overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: 'var(--card)',
-                        }}>
-                          {cardAvatarPreview
-                            ? <img src={cardAvatarPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : <span style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, color: gdRankColor }}>{initials}</span>
-                          }
+                        <div style={{ position: 'absolute', inset: 0, borderRadius: 9, background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, transparent 55%)', pointerEvents: 'none' }} />
+                        <EquippedBorderFrame equippedBorder={cardForm.border} context="roster" borderRadius={9} />
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          <PlayerAvatar
+                            profile={{ name: cardForm.name || 'PLAYER', avatar_url: cardAvatarPreview }}
+                            size={42} borderColor={theme.border} background={theme.statBg}
+                          />
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
+                        <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
                             {cardForm.name || 'PLAYER'}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: gdRankColor }}>{cardForm.rank}</span>
-                            {cardForm.position && <span style={{ fontSize: 11, color: 'var(--muted)' }}>· {cardForm.position}</span>}
+                            <span style={{ fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: theme.text }}>{cardForm.rank}</span>
+                            {cardForm.position && <span style={{ fontSize: 11, color: theme.muted }}>· {cardForm.position}</span>}
                           </div>
                         </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, color: gdRankColor, lineHeight: 1 }}>{cardOverall}</div>
-                          <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: 'var(--muted)', letterSpacing: 1, marginTop: 1 }}>OVR</div>
+                        <div style={{ textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+                          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 24, color: theme.text, lineHeight: 1 }}>{cardOverall}</div>
+                          <div style={{ fontFamily: "'Space Mono'", fontSize: 9, color: theme.muted, letterSpacing: 1, marginTop: 1 }}>OVR</div>
                         </div>
                       </div>
                     </div>
@@ -1994,92 +1638,8 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                   </button>
                 </div>
 
-                {/* Quick reset */}
-                <button
-                  onClick={() => setCardForm(prev => ({ ...prev, useCustomTheme: false }))}
-                  style={{
-                    width: '100%', padding: '8px', background: 'transparent', color: 'var(--muted)',
-                    border: '1px solid var(--border)', borderRadius: 10, fontSize: 12,
-                  }}
-                >
-                  Reset to Rank Theme
-                </button>
               </div>
 
-            </div>
-
-            {/* ── Saved Templates ── */}
-            <div style={{ marginTop: 32 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>
-                SAVED TEMPLATES
-                <span style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)', fontWeight: 400, letterSpacing: 1, marginLeft: 12 }}>
-                  {savedTemplates.length} saved
-                </span>
-              </div>
-
-              {savedTemplates.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 14, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16 }}>
-                  No templates saved yet. Customize a card design above and click "Save Template".
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
-                  {savedTemplates.map(t => {
-                    const grad = `linear-gradient(145deg, ${t.grad_from}, ${t.grad_mid}, ${t.grad_to})`;
-                    return (
-                      <div key={t.id} style={{
-                        background: 'var(--card)', border: '1px solid var(--border)',
-                        borderRadius: 14, overflow: 'hidden',
-                      }}>
-                        {/* Color swatch */}
-                        <div style={{
-                          height: 56, background: grad,
-                          border: `3px solid ${t.border_color}`,
-                          borderRadius: '14px 14px 0 0',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          boxShadow: t.glow_enabled ? `inset 0 0 20px ${t.glow_color}55` : 'none',
-                        }}>
-                          {t.badge_label && (
-                            <span style={{
-                              fontFamily: "'Bebas Neue'", fontSize: 15, letterSpacing: 2,
-                              color: t.badge_color, background: `${t.badge_color}22`,
-                              border: `1px solid ${t.badge_color}70`, borderRadius: 4,
-                              padding: '2px 10px',
-                            }}>{t.badge_label}</span>
-                          )}
-                          {t.foil_enabled && (
-                            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontFamily: "'Space Mono'" }}>✦ FOIL</span>
-                          )}
-                        </div>
-
-                        <div style={{ padding: '12px 14px' }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 6 }}>{t.name}</div>
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-                            {t.glow_enabled && (
-                              <span style={{ fontSize: 10, background: `${t.glow_color}20`, color: t.glow_color, border: `1px solid ${t.glow_color}50`, borderRadius: 4, padding: '1px 7px', fontFamily: "'Space Mono'" }}>Glow</span>
-                            )}
-                            {t.foil_enabled && (
-                              <span style={{ fontSize: 10, background: 'rgba(200,150,255,0.15)', color: '#c096ff', border: '1px solid rgba(200,150,255,0.3)', borderRadius: 4, padding: '1px 7px', fontFamily: "'Space Mono'" }}>Foil</span>
-                            )}
-                            <span style={{ fontSize: 10, background: 'var(--card2)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 7px', fontFamily: "'Space Mono'" }}>
-                              {t.text_dark ? 'Dark text' : 'Light text'}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={() => handleLoadTemplate(t)} style={{
-                              flex: 1, padding: '7px 10px', background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
-                              border: '1px solid rgba(240,157,81,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer'
-                            }}>Load</button>
-                            <button onClick={() => handleDeleteTemplate(t.id, t.name)} style={{
-                              padding: '7px 10px', background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
-                              border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer'
-                            }}>Del</button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
           </div>
@@ -2228,6 +1788,93 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                       border: '2px solid var(--border)', background: 'var(--card)',
                     }} />
                     <button onClick={() => handleDeleteAvatarPreset(preset)} style={{
+                      background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+                      border: '1px solid rgba(240,101,67,0.25)', borderRadius: 6,
+                      padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    }}>Delete</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'borders' && (
+          <div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20, marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>CARD BORDERS</div>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
+                Custom card border cosmetics, unlocked automatically once a player crosses the threshold. Fill in the details, then upload a transparent PNG (2:3 aspect ratio, e.g. 600×900px) to add it.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+                <input placeholder="Label (e.g. Iron Wall)" value={borderForm.label} onChange={e => setBorderForm({ ...borderForm, label: e.target.value })} style={{ flex: '1 1 180px' }} />
+                <select value={borderForm.rarity} onChange={e => setBorderForm({ ...borderForm, rarity: e.target.value })} style={{ flex: '0 1 130px' }}>
+                  <option value="common">Common</option>
+                  <option value="rare">Rare</option>
+                  <option value="epic">Epic</option>
+                  <option value="legendary">Legendary</option>
+                </select>
+                <select value={borderForm.unlockType} onChange={e => setBorderForm({ ...borderForm, unlockType: e.target.value })} style={{ flex: '0 1 160px' }}>
+                  <option value="games_played">Games Played</option>
+                  <option value="mvp_count">MVP Count</option>
+                  <option value="podium_count">Podium Count</option>
+                </select>
+                <input type="number" min="1" placeholder="Threshold" value={borderForm.unlockValue} onChange={e => setBorderForm({ ...borderForm, unlockValue: e.target.value })} style={{ flex: '0 1 100px' }} />
+                <input placeholder="Unlock text (e.g. Play 25 games)" value={borderForm.unlockLabel} onChange={e => setBorderForm({ ...borderForm, unlockLabel: e.target.value })} style={{ flex: '1 1 200px' }} />
+              </div>
+              <label style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '10px 20px', borderRadius: 10,
+                background: uploadingBorder ? 'var(--card2)' : 'var(--accent)',
+                color: uploadingBorder ? 'var(--muted)' : '#fff',
+                fontWeight: 700, fontSize: 13, cursor: uploadingBorder ? 'default' : 'pointer',
+                opacity: uploadingBorder ? 0.6 : 1,
+              }}>
+                {uploadingBorder ? 'Uploading...' : '+ Upload Border Image'}
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBorderUpload} disabled={uploadingBorder} />
+              </label>
+            </div>
+
+            {borderCatalogAdmin.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 14 }}>
+                No borders yet.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 16 }}>
+                {borderCatalogAdmin.map(b => (
+                  <div key={b.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    {b.card_image_url ? (
+                      <img src={b.card_image_url} alt="" style={{ width: 60, height: 90, objectFit: 'contain' }} />
+                    ) : (
+                      <div style={{ width: 60, height: 90, borderRadius: 6, background: 'var(--card2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--muted)', textAlign: 'center' }}>
+                        Built-in
+                      </div>
+                    )}
+                    <div style={{ fontSize: 12, fontWeight: 700, color: RARITY_COLORS[b.rarity] || 'var(--text)', textAlign: 'center' }}>{b.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'center' }}>{b.unlock_label}</div>
+
+                    {/* Compact-context art — uploaded per row, separate from the card image above */}
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[['leaderboard_image_url', 'LB'], ['roster_image_url', 'Roster']].map(([field, short]) => {
+                        const has = !!b[field];
+                        const busy = uploadingVariant === `${b.id}:${field}`;
+                        return (
+                          <label key={field} title={has ? `${short} art uploaded` : `Upload ${short} art`} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '3px 8px', borderRadius: 6, cursor: busy ? 'default' : 'pointer',
+                            background: has ? 'rgba(74,222,128,0.1)' : 'var(--card2)',
+                            border: `1px solid ${has ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
+                            color: has ? '#4ade80' : 'var(--muted)',
+                            fontSize: 10, fontWeight: 700, opacity: busy ? 0.6 : 1,
+                          }}>
+                            {busy ? '...' : `${has ? '✓ ' : '+ '}${short}`}
+                            <input type="file" accept="image/*" style={{ display: 'none' }} disabled={busy} onChange={e => handleBorderVariantUpload(e, b, field)} />
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <button onClick={() => handleDeleteBorderCatalog(b)} style={{
                       background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
                       border: '1px solid rgba(240,101,67,0.25)', borderRadius: 6,
                       padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',

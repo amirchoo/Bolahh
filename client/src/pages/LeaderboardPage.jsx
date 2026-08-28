@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankTier } from '../lib/rankUtils';
 import { getCardTheme, STATS, POSITION_ABBR } from '../components/FifaCard';
+import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot, FaMedal } from 'react-icons/fa6';
@@ -60,7 +61,7 @@ export default function LeaderboardPage() {
     // total_points is the authoritative OVR — synced every time a user visits their profile
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats')
+      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats, equipped_border')
       .gt('total_points', 0)
       .order('total_points', { ascending: false });
 
@@ -106,8 +107,11 @@ export default function LeaderboardPage() {
           boxShadow: isSelf ? '0 0 0 2px var(--accent)' : 'none',
           borderRadius: 14, padding: '12px 14px',
           display: 'flex', alignItems: 'center', gap: 12,
+          position: 'relative',
         }}
       >
+        <EquippedBorderFrame equippedBorder={player.equipped_border} context="leaderboard" borderRadius={14} />
+
         {/* Rank number */}
         <div style={{
           width: 28, flexShrink: 0,
@@ -123,14 +127,13 @@ export default function LeaderboardPage() {
 
         {/* Mini card swatch — statBg (not theme.bg) so it stands out against the row,
             which now carries the same rank gradient as its background */}
-        <div style={{
-          width: 36, height: 50, borderRadius: 6, flexShrink: 0,
-          background: theme.statBg,
-          border: `1.5px solid ${theme.border}`,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          position: 'relative',
-        }}>
+        <div style={{ width: 36, height: 50, flexShrink: 0, borderRadius: 6,
+            background: theme.statBg,
+            border: `1.5px solid ${theme.border}`,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
+          }}>
           {player.avatar_url ? (
             <img src={player.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
           ) : (

@@ -39,12 +39,8 @@ cd client
 npm install
 ```
 
-### 6. Set up environment variables
-Create a `.env` file inside the `client` folder:
-```env
-VITE_SUPABASE_URL=https://tzzqhkzxzmmnqljnosyu.supabase.co
-VITE_SUPABASE_ANON_KEY=ask_amir_for_this
-```
+### 6. Set up your local database and environment variables
+Follow **[SUPABASE_LOCAL_SETUP.md](SUPABASE_LOCAL_SETUP.md)** — it walks through running Supabase locally (via Docker) so you're developing against your own isolated database, not production.
 
 ### 7. Run locally
 ```bash
@@ -56,18 +52,45 @@ App runs at `http://localhost:5173`
 
 ## Daily Workflow
 
-### Start of every session — sync latest changes
-```bash
-git checkout dev      # make sure you're on dev
-git pull              # get your teammates' latest changes
-```
-Always do this before starting work to avoid conflicts.
+With 3 people now working in the same repo, **don't push straight to `dev`
+either.** Do your work on a short-lived branch of your own, then merge it into
+`dev` via a Pull Request. This is the single biggest thing that prevents
+people from stepping on each other's changes.
 
-### Do your work, then push
+### 1. Start of every session — sync `dev`
+```bash
+git checkout dev
+git pull
+```
+Always start from an up-to-date `dev`, never from an old copy.
+
+### 2. Create a branch for the thing you're working on
+```bash
+git checkout -b feature/game-filter-by-area
+```
+One branch per task/feature — **not** one branch per person. You'll create
+and delete many of these over time. See naming convention below.
+
+### 3. Do your work, commit as you go
 ```bash
 git add .
 git commit -m "describe what you changed"
-git push
+```
+
+### 4. Push your branch
+```bash
+git push -u origin feature/game-filter-by-area
+```
+(`-u` only needed the first time you push this branch — after that, plain `git push` works.)
+
+### 5. Open a Pull Request into `dev`
+See [Opening a Pull Request](#opening-a-pull-request) below.
+
+### 6. After it's merged, clean up
+```bash
+git checkout dev
+git pull
+git branch -d feature/game-filter-by-area
 ```
 
 ### Good commit message examples
@@ -77,6 +100,42 @@ add game filter by area
 update navbar styling
 fix join button not working
 ```
+
+---
+
+## Branch Naming Convention
+
+Prefix branches by what they do, then a short description:
+
+| Prefix | Use for | Example |
+|---|---|---|
+| `feature/` | New functionality | `feature/friend-invite-link` |
+| `fix/` | Bug fixes | `fix/wallet-balance-not-updating` |
+| `chore/` | Cleanup, refactors, deps | `chore/remove-unused-icons` |
+
+This makes it obvious in the PR list and in `git branch` what each branch is
+for, especially once 3 people have several open at once.
+
+---
+
+## Opening a Pull Request
+
+1. Push your branch (see step 4 above)
+2. Go to the repo on GitHub — it usually shows a **"Compare & pull request"**
+   banner for your just-pushed branch. Click it.
+   (Or manually: **Pull requests → New pull request**, set **base:** `dev` ←
+   **compare:** `your-branch-name`)
+3. Write a short title and description — what changed and why
+4. Click **Create pull request**
+5. **Tag the others** (Amir + the other dev) as reviewers if the change is
+   non-trivial — a second pair of eyes catches bugs before they hit `dev`
+6. Once approved (or if it's a small/safe change and you're confident), click
+   **Merge pull request**
+7. Click **Delete branch** (GitHub offers this right after merging) to keep
+   the branch list clean
+
+If GitHub shows a merge conflict on the PR page instead of a green "Merge"
+button, see [Handling Conflicts](#handling-conflicts) below.
 
 ---
 
@@ -121,14 +180,25 @@ git checkout dev    # always switch back to dev after!
 
 ## Handling Conflicts
 
-A conflict happens when two people edited the same file. Git will flag it like this:
+A conflict happens when two people edited the same lines of the same file.
+Most often you'll hit this when your feature branch has fallen behind `dev`
+because a teammate's branch merged first. Before opening (or right after
+opening) your PR, bring your branch up to date:
+
+```bash
+git checkout feature/your-branch
+git fetch origin
+git merge origin/dev
+```
+
+If there's a conflict, git will flag it inline like this:
 
 ```
 <<<<<<< HEAD
 your version of the code
 =======
-your teammate's version
->>>>>>> dev
+the incoming version from dev
+>>>>>>> origin/dev
 ```
 
 To fix it:
@@ -137,27 +207,34 @@ To fix it:
 3. Delete the `<<<<<<<`, `=======`, `>>>>>>>` lines
 4. Save the file
 5. Run `git add .` and `git commit -m "resolve conflict"`
+6. `git push` — your PR updates automatically
+
+The same applies if GitHub shows a conflict on the PR page itself — just do
+the same steps locally, then push.
 
 ---
 
 ## Branch Structure
 
 ```
-main ──────────────────────────────► bolahh.com (live)
-         ↑ merge when ready
-dev  ──────────────────────────────► where all work happens
+main ────────────────────────────────────────► bolahh.com (live)
+         ↑ PR merge, only when dev is tested and stable
+dev  ────────────────────────────────────────► shared integration branch
+    ↑ PR merge          ↑ PR merge          ↑ PR merge
+feature/x            fix/y                chore/z      ← short-lived, one per task
 ```
 
 ---
 
 ## Important Reminders
 
-- ✅ Always `git pull` before starting work
-- ✅ Always work on `dev`, never `main`
+- ✅ Always `git pull` on `dev` before branching off for new work
+- ✅ One branch per task/feature, not one branch per person — delete it after merging
+- ✅ Always work on a feature branch, never directly on `dev` or `main`
 - ✅ Never commit your `.env` file — it contains secret keys
 - ✅ Write clear commit messages so teammates know what changed
-- ✅ Only merge to `main` when the feature is tested and working
-- ❌ Don't push broken code to `dev` — teammates will pull it
+- ✅ Only merge to `main` when `dev` is tested and working
+- ❌ Don't merge your own PR straight to `dev` without at least glancing at the diff — cheap insurance against a bad `git add .`
 
 ---
 

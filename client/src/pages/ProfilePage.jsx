@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const [premiumBgs, setPremiumBgs] = useState([]);
   const [selectedBg, setSelectedBg] = useState(DEFAULT_BG);
   const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
+  const [showBordersModal, setShowBordersModal] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -96,9 +97,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!showCardModal || !profile) return;
-    drawCardImage({ profile, cardStats, rank: getRank(calcOverall(cardStats)), bgUrl: selectedBg.src })
+    drawCardImage({ profile, cardStats, rank: getRank(calcOverall(cardStats)), bgUrl: selectedBg.src, equippedBorder: profile.equipped_border })
       .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
-  }, [showCardModal, selectedBg, cardStats]);
+  }, [showCardModal, selectedBg, cardStats, profile?.equipped_border]);
 
   const fetchProfile = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -264,7 +265,7 @@ export default function ProfilePage() {
   };
 
   const getCardCanvas = () =>
-    drawCardImage({ profile, cardStats, rank, bgUrl: selectedBg.src });
+    drawCardImage({ profile, cardStats, rank, bgUrl: selectedBg.src, equippedBorder: profile?.equipped_border });
 
   const handleShareCard = async () => {
     setSharing(true);
@@ -461,6 +462,36 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Borders Modal */}
+      {showBordersModal && (
+        <div
+          onClick={() => setShowBordersModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.97)', backdropFilter: 'blur(10px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: 16, padding: '24px 16px', overflowY: 'auto',
+          }}
+        >
+          <button onClick={() => setShowBordersModal(false)} style={{
+            position: 'absolute', top: 16, right: 16,
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+            color: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}><IoClose size={20} /></button>
+
+          <div onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: '#fff', marginBottom: 10 }}>
+              CARD BORDERS
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 0.5 }}>
+              Coming Soon
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
@@ -478,20 +509,31 @@ export default function ProfilePage() {
             marginBottom: 20, cursor: 'pointer', position: 'relative',
           }}
         >
-          <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" onAvatarClick={() => setShowAvatarModal(true)} />
+          <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" equippedBorder={profile?.equipped_border} onAvatarClick={() => setShowAvatarModal(true)} />
           <div className="card-tap-hint" style={{
             marginTop: 8, fontSize: 11, color: 'var(--muted)',
             fontFamily: "'Space Mono'", letterSpacing: 1,
           }}>
             {t('profile.tapToShare')}
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); navigate('/guide#ranks'); }}
-            style={{
-              marginTop: 10, background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--accent)', fontSize: 12, fontWeight: 600, textDecoration: 'underline',
-            }}
-          >How does the rank system work?</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 10 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowBordersModal(true); }}
+              style={{
+                background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.3)',
+                borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
+                color: 'var(--accent)', fontSize: 12, fontWeight: 700,
+                fontFamily: "'Space Mono'", letterSpacing: 1,
+              }}
+            >BORDERS</button>
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate('/guide#ranks'); }}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'var(--accent)', fontSize: 12, fontWeight: 600, textDecoration: 'underline',
+              }}
+            >How does the rank system work?</button>
+          </div>
         </div>
 
         <button

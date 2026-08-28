@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react';
 import { IoCameraOutline, IoCheckmark } from 'react-icons/io5';
+import { fetchBorderCatalog, resolveBorderRender } from '../lib/borderCatalog';
+
+export const CROWN_PATH = 'M2 19H22V21H2ZM4.5 17.5L2 9L6.5 13.5L12 3L17.5 13.5L22 9L19.5 17.5Z';
 
 export const STATS = [
   { key: 'pac', label: 'PAC' },
@@ -99,7 +103,103 @@ function patternBgStyle(pattern, hexColor, opacity, gradientBg) {
   }
 }
 
-export default function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick, customTheme, badge }) {
+// Renders an equipped cosmetic border as an SVG overlay, composed from the
+// small set of primitives a procedural border descriptor can turn on (frame /
+// corners / ticks / badgeIcon / laurel / animated) rather than bespoke path
+// data per border — cardCanvas.js draws the same descriptor with Canvas2D
+// for PNG export.
+function renderCardBorder(border, w, h, isSmall) {
+  const pad = isSmall ? 7 : 11;
+  const arm = isSmall ? 10 : 16;
+  const sw = isSmall ? 1.3 : 2;
+  const rx = isSmall ? 8 : 13;
+  const innerGap = isSmall ? 3 : 5;
+  const c = border.color;
+  const ac = border.accentColor || border.color;
+
+  const outerRect = { x: pad, y: pad, width: w - pad * 2, height: h - pad * 2 };
+  const innerRect = { x: pad + innerGap, y: pad + innerGap, width: w - (pad + innerGap) * 2, height: h - (pad + innerGap) * 2 };
+
+  const tickSpots = border.ticks
+    ? Array.from({ length: border.ticks }, (_, i) => pad + ((w - pad * 2) / (border.ticks + 1)) * (i + 1))
+    : [];
+
+  const laurelAt = (cx, cy, flip) => {
+    const s = flip ? -1 : 1;
+    return [0, 1, 2].map(i => {
+      const lx = cx + s * (6 + i * 5);
+      const ly = cy - i * 2;
+      return <ellipse key={i} cx={lx} cy={ly} rx={4} ry={2} transform={`rotate(${s * (18 + i * 9)} ${lx} ${ly})`} />;
+    });
+  };
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 6, pointerEvents: 'none' }}
+      fill="none"
+    >
+      {border.animated && (
+        <style>{`
+          @keyframes borderTrace { to { stroke-dashoffset: -100; } }
+        `}</style>
+      )}
+
+      <rect {...outerRect} rx={rx} stroke={c} strokeWidth={sw}
+        strokeDasharray={border.frameDash ? (isSmall ? '2 3' : '3 4') : undefined}
+        pathLength={border.animated ? 100 : undefined}
+        style={border.animated ? { strokeDasharray: '18 82', animation: 'borderTrace 3.5s linear infinite' } : undefined}
+      />
+      {border.frame === 'double' && (
+        <rect {...innerRect} rx={Math.max(rx - innerGap, 2)} stroke={ac} strokeWidth={sw * 0.7} />
+      )}
+
+      {border.corners && (
+        <g stroke={c} strokeWidth={sw} strokeLinecap="round">
+          <path d={`M ${pad + arm} ${pad} H ${pad} V ${pad + arm}`} />
+          <path d={`M ${w - pad - arm} ${pad} H ${w - pad} V ${pad + arm}`} />
+          <path d={`M ${pad + arm} ${h - pad} H ${pad} V ${h - pad - arm}`} />
+          <path d={`M ${w - pad - arm} ${h - pad} H ${w - pad} V ${h - pad - arm}`} />
+        </g>
+      )}
+
+      {tickSpots.map((x, i) => (
+        <line key={i} x1={x} y1={h - pad} x2={x} y2={h - pad - (isSmall ? 5 : 8)} stroke={c} strokeWidth={sw} strokeLinecap="round" />
+      ))}
+
+      {border.badgeIcon === 'crown' && (() => {
+        const size = isSmall ? 14 : 20;
+        return (
+          <g transform={`translate(${w / 2 - size / 2}, ${pad - size * 0.55}) scale(${size / 24})`}>
+            <path d={CROWN_PATH} fill={ac} />
+          </g>
+        );
+      })()}
+
+      {border.laurel && (
+        <g fill={ac} opacity={0.85}>
+          {laurelAt(pad + (isSmall ? 4 : 6), h - pad - (isSmall ? 10 : 16), false)}
+          {laurelAt(w - pad - (isSmall ? 4 : 6), h - pad - (isSmall ? 10 : 16), true)}
+        </g>
+      )}
+    </svg>
+  );
+}
+
+export default function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick, customTheme, badge, equippedBorder }) {
+  const [borderRender, setBorderRender] = useState(null);
+
+  useEffect(() => {
+    if (!equippedBorder) { setBorderRender(null); return; }
+    let cancelled = false;
+    fetchBorderCatalog().then(rows => {
+      if (cancelled) return;
+      const row = rows.find(r => r.key === equippedBorder);
+      setBorderRender(resolveBorderRender(row, 'card'));
+    });
+    return () => { cancelled = true; };
+  }, [equippedBorder]);
+
   const rankTheme = getCardTheme(rank);
   const theme = customTheme
     ? { bg: customTheme.bg, border: customTheme.border, text: customTheme.text, muted: customTheme.muted, statBg: customTheme.statBg }
@@ -124,12 +224,13 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
     : null;
 
   return (
+    <div style={{ width: w, height: h, position: 'relative', flexShrink: 0 }}>
     <div style={{
-      width: w, height: h, borderRadius: isSmall ? 10 : 16,
+      width: '100%', height: '100%', borderRadius: isSmall ? 10 : 16,
       ...(patternStyle || { background: theme.bg }),
       border: `2px solid ${theme.border}`,
       boxShadow,
-      position: 'relative', overflow: 'hidden', flexShrink: 0,
+      position: 'relative', overflow: 'hidden',
       fontFamily: "'DM Sans'",
     }}>
 
@@ -357,6 +458,19 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           <span style={{ fontWeight: 700, color: theme.text }}>{calcOverall(cardStats)}</span> OVR
         </div>
       </div>
+    </div>
+
+    {/* Equipped cosmetic border — a sibling overlay, not clipped by the
+        card's own rounded rect, so it renders its full shape uncropped and
+        can genuinely overlap the card's edge like a frame around a photo. */}
+    {borderRender?.type === 'procedural' && renderCardBorder(borderRender, w, h, isSmall)}
+    {borderRender?.type === 'image' && (
+      <img
+        src={borderRender.imageUrl}
+        alt=""
+        style={{ position: 'absolute', top: '-2%', left: '-2%', width: '104%', height: '104%', objectFit: 'contain', zIndex: 10, pointerEvents: 'none' }}
+      />
+    )}
     </div>
   );
 }

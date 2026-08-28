@@ -1,15 +1,17 @@
 /**
  * Circular player avatar with initials fallback.
- * Props: profile { name, avatar_url }, size (px number), borderColor (css string)
+ * Props: profile { name, avatar_url }, size (px number), borderColor (css string),
+ * background (css string, defaults to var(--card)).
  */
-export default function PlayerAvatar({ profile, size = 40, borderColor = 'var(--accent)' }) {
+export default function PlayerAvatar({ profile, size = 40, borderColor = 'var(--accent)', background = 'var(--card)' }) {
   const name = profile?.name || '?';
+
   return (
     <div style={{
-      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      width: size, height: size, borderRadius: '50%',
       border: `2px solid ${borderColor}`,
       overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--card)',
+      background, position: 'relative', flexShrink: 0,
     }}>
       {profile?.avatar_url
         ? <img src={profile.avatar_url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

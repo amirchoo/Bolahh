@@ -35,7 +35,16 @@ A futsal match booking and player progression platform for Malaysia. Find open g
 - OVR (0–99) = average of the 6 stats
 - Card theme upgrades automatically across 4 tiers: **Novis → Gangsa → Perak → Emas**
 - Stats are rated per-game by an admin with Bayesian smoothing to prevent wild swings
-- Download or share your card as an image
+- Download or share your card as an image (rendered client-side via `html2canvas` / Canvas2D)
+
+### Card Borders
+- Cosmetic border overlays, separate from the rank-based card theme
+- Unlocked automatically via a DB trigger when a player crosses a threshold (`games_played`, `mvp_count`, or `podium_count`)
+- 7 built-in borders (common → legendary rarity) plus admin-uploadable custom border art — new borders need no code deploy, just a catalog row
+- Equipped border renders on the profile card, leaderboard row, and game roster
+
+### Progression
+- Personal growth chart tracking OVR / rank history over time (`/progression`)
 
 ### Rank System (10 tiers, OVR-based)
 
@@ -54,6 +63,12 @@ A futsal match booking and player progression platform for Malaysia. Find open g
 ### Post-Match Rating (Admin)
 4-step flow: session setup → team assignment → match schedule → per-player stat rating. Progress is auto-saved to `localStorage` so a phone screen-off or browser refresh does not lose work.
 
+### Game Feedback (Player)
+After a game, players rate teammates and the venue via tagged feedback (positive/negative player tags, venue tags) at `/game/:id/feedback`.
+
+### Baller Info
+A reference page (`/baller-info`) explaining how each stat (PAC/SHO/PAS/DRI/DEF/PHY) is earned during a match.
+
 ### Friends System
 Send / accept / reject friend requests and view friends' Bolahh Cards.
 
@@ -64,7 +79,7 @@ Top-up via ToyyibPay (RM 5 – RM 100). Balance deducted on game join; all trans
 Players with an active Bolahh subscription get a blue verified badge next to their name across the leaderboard, game player list, and friends page.
 
 ### Manager Dashboard
-Create and delete fields (with image uploads) and games. Navigate to the rating page per game.
+Create and delete fields (with image uploads) and games. View/manage players joined per game (`/manager/game/:id/players`) and navigate to the rating page per game. A guided walkthrough (`/manager/walkthrough`) onboards new managers.
 
 ### Admin Panel (Super Admin)
 Manage homepage banners, fields, card backgrounds, and a custom FIFA-card maker with downloadable output.
@@ -79,19 +94,24 @@ Manage homepage banners, fields, card backgrounds, and a custom FIFA-card maker 
 | `/login` | Login | Public |
 | `/signup` | Sign Up | Public |
 | `/reset-password` | Reset Password | Public |
-| `/home` | Home (game browser) | Auth required |
-| `/game/:id` | Game Detail | Auth required |
+| `/terms` | Terms & Conditions | Public |
+| `/home` | Home (game browser) | Public |
+| `/game/:id` | Game Detail | Public |
+| `/wallet/topup` | Wallet Top-Up | Auth required |
 | `/game/:id/checkout` | Checkout | Auth required |
 | `/game/:id/cancel` | Cancel Booking | Auth required |
-| `/game/:id/summary` | Game Summary | Auth required |
+| `/game/:id/feedback` | Post-Game Feedback | Auth required |
 | `/profile` | Profile & Bolahh Card | Auth required |
+| `/progression` | Progression (growth chart) | Auth required |
 | `/friends` | Friends | Auth required |
-| `/wallet/topup` | Wallet Top-Up | Auth required |
 | `/leaderboard` | Leaderboard | Auth required |
 | `/guide` | Guide & Help | Auth required |
+| `/baller-info` | Baller Info | Auth required |
 | `/subscription` | Subscription | Auth required |
 | `/game/:id/rate` | Post-Match Rating | Admin only |
 | `/manager` | Manager Dashboard | Admin only |
+| `/manager/walkthrough` | Manager Walkthrough | Admin only |
+| `/manager/game/:id/players` | Game Player Manager | Admin only |
 | `/admin` | Admin Panel | Super admin only |
 
 ---

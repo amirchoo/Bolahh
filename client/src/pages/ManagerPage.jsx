@@ -301,22 +301,6 @@ export default function ManagerPage() {
 
           <div className="manager-tab-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
-              onClick={() => navigate('/manager/tutorial')}
-              style={{
-                background: 'rgba(240,157,81,0.08)',
-                color: 'var(--accent)',
-                border: '1px solid rgba(240,157,81,0.25)',
-                borderRadius: 8,
-                padding: '8px 14px',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-                flex: '1 1 150px',
-              }}
-            >
-              Tutorial
-            </button>
-            <button
               onClick={() => navigate('/manager/walkthrough')}
               style={{
                 background: 'rgba(100,160,255,0.08)',
