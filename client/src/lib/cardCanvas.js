@@ -3,7 +3,8 @@
 //  to an off-screen canvas via Canvas 2D API.
 //  No html2canvas: avoids CORS/border-radius bugs.
 // ─────────────────────────────────────────────
-import { STICKER_ICONS, getStickerPos } from '../components/FifaCard';
+import { STICKER_ICONS, getStickerPos, CROWN_PATH } from '../components/FifaCard';
+import { fetchBorderCatalog, resolveBorderRender } from './borderCatalog';
 
 const CW = 520;   // output canvas width
 const CH = 720;   // output canvas height
@@ -158,6 +159,89 @@ function drawElements(ctx, ct, cx, cy, cw, ch) {
   ctx.restore();
 }
 
+// Canvas2D counterpart to renderCardBorder() in FifaCard.jsx — draws the
+// same procedural border descriptor primitives so the exported PNG matches the
+// live card. The animated shimmer is a live-card-only flourish (CSS
+// animation has no meaning on a static snapshot), so it's skipped here.
+function drawBorder(ctx, border, cx, cy, cw, ch) {
+  const pad = 11, arm = 16, sw = 2, rx = 13, innerGap = 5;
+  const c  = border.color;
+  const ac = border.accentColor || border.color;
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = c; ctx.lineWidth = sw;
+  if (border.frameDash) ctx.setLineDash([3, 4]);
+  rrect(ctx, cx + pad, cy + pad, cw - pad * 2, ch - pad * 2, rx);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (border.frame === 'double') {
+    ctx.strokeStyle = ac; ctx.lineWidth = sw * 0.7;
+    rrect(ctx, cx + pad + innerGap, cy + pad + innerGap, cw - (pad + innerGap) * 2, ch - (pad + innerGap) * 2, Math.max(rx - innerGap, 2));
+    ctx.stroke();
+  }
+
+  if (border.corners) {
+    ctx.strokeStyle = c; ctx.lineWidth = sw;
+    const corners = [
+      [[cx + pad + arm, cy + pad], [cx + pad, cy + pad], [cx + pad, cy + pad + arm]],
+      [[cx + cw - pad - arm, cy + pad], [cx + cw - pad, cy + pad], [cx + cw - pad, cy + pad + arm]],
+      [[cx + pad + arm, cy + ch - pad], [cx + pad, cy + ch - pad], [cx + pad, cy + ch - pad - arm]],
+      [[cx + cw - pad - arm, cy + ch - pad], [cx + cw - pad, cy + ch - pad], [cx + cw - pad, cy + ch - pad - arm]],
+    ];
+    for (const pts of corners) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      ctx.lineTo(pts[1][0], pts[1][1]);
+      ctx.lineTo(pts[2][0], pts[2][1]);
+      ctx.stroke();
+    }
+  }
+
+  if (border.ticks) {
+    ctx.strokeStyle = c; ctx.lineWidth = sw;
+    for (let i = 1; i <= border.ticks; i++) {
+      const x = cx + pad + ((cw - pad * 2) / (border.ticks + 1)) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, cy + ch - pad);
+      ctx.lineTo(x, cy + ch - pad - 8);
+      ctx.stroke();
+    }
+  }
+
+  if (border.badgeIcon === 'crown') {
+    const size = 20;
+    ctx.save();
+    ctx.translate(cx + cw / 2 - size / 2, cy + pad - size * 0.55);
+    ctx.scale(size / 24, size / 24);
+    ctx.fillStyle = ac;
+    ctx.fill(new Path2D(CROWN_PATH));
+    ctx.restore();
+  }
+
+  if (border.laurel) {
+    ctx.fillStyle = ac;
+    ctx.globalAlpha = 0.85;
+    const ly = cy + ch - pad - 16;
+    [[cx + pad + 6, false], [cx + cw - pad - 6, true]].forEach(([lx, flip]) => {
+      const s = flip ? -1 : 1;
+      for (let i = 0; i < 3; i++) {
+        ctx.save();
+        ctx.translate(lx + s * (6 + i * 5), ly - i * 2);
+        ctx.rotate((s * (18 + i * 9)) * Math.PI / 180);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
 function rrect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   if (ctx.roundRect) {
@@ -172,7 +256,7 @@ function rrect(ctx, x, y, w, h, r) {
   }
 }
 
-export async function drawCardImage({ profile, cardStats, rank, bgUrl, customTheme }) {
+export async function drawCardImage({ profile, cardStats, rank, bgUrl, customTheme, equippedBorder }) {
   await document.fonts.ready;
 
   const DPR = Math.min(window.devicePixelRatio || 1, 3);
@@ -424,6 +508,26 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl, customThe
 
   // ── Decorative elements (topmost layer) ──────────────
   if (customTheme) drawElements(ctx, customTheme, cx, cy, cw, ch);
+
+  // ── Equipped cosmetic border ──────────────────────────
+  if (equippedBorder) {
+    const rows = await fetchBorderCatalog();
+    const render = resolveBorderRender(rows.find(r => r.key === equippedBorder), 'card');
+    if (render?.type === 'procedural') {
+      drawBorder(ctx, render, cx, cy, cw, ch);
+    } else if (render?.type === 'image') {
+      const img = await loadImg(render.imageUrl);
+      if (img) {
+        // Unclipped, same 4% overscale as the live card (FifaCard.jsx) — the
+        // border renders its full shape on top rather than being cropped to
+        // the card's rounded rect.
+        const bleed = 1.04;
+        const bw = cw * bleed, bh = ch * bleed;
+        const bx = cx - (bw - cw) / 2, by = cy - (bh - ch) / 2;
+        ctx.drawImage(img, bx, by, bw, bh);
+      }
+    }
+  }
 
   // ── Icon sticker ──────────────────────────────────────
   if (customTheme?.stickerIcon && customTheme.stickerIcon !== 'none') {

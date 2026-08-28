@@ -23,7 +23,6 @@ import GameCancelPage from './pages/GameCancelPage';
 import GameFeedbackPage from './pages/GameFeedbackPage';
 import BallerInfoPage from './pages/BallerInfoPage';
 import GuidePage from './pages/GuidePage';
-import ManagerTutorialPage from './pages/ManagerTutorialPage';
 import ManagerWalkthroughPage from './pages/ManagerWalkthroughPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -73,7 +72,6 @@ function AnimatedRoutes() {
         <Route path="/progression" element={<PrivateRoute><ProgressionPage /></PrivateRoute>} />
         <Route path="/game/:id/rate" element={<AdminRoute><GameRatingPage /></AdminRoute>} />
         <Route path="/manager" element={<AdminRoute><ManagerPage /></AdminRoute>} />
-        <Route path="/manager/tutorial" element={<AdminRoute><ManagerTutorialPage /></AdminRoute>} />
         <Route path="/manager/walkthrough" element={<AdminRoute><ManagerWalkthroughPage /></AdminRoute>} />
         <Route path="/manager/game/:id/players" element={<AdminRoute><GameManagerPlayersPage /></AdminRoute>} />
         <Route path="/admin" element={<SuperAdminRoute><AdminPage /></SuperAdminRoute>} />

@@ -118,7 +118,7 @@ export default function FriendsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border')
       .in('id', ids);
 
     const withCounts = (profiles || [])
@@ -145,7 +145,7 @@ export default function FriendsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border')
       .in('id', friendIds);
 
     setFriends(profiles || []);
@@ -165,7 +165,7 @@ export default function FriendsPage() {
     const senderIds = data.map(f => f.sender_id);
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border')
       .in('id', senderIds);
 
     setPending(profiles || []);
@@ -193,7 +193,7 @@ export default function FriendsPage() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats')
+      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border')
       .ilike('name', `%${q}%`)
       .neq('id', user.id)
       .limit(10);
@@ -491,6 +491,7 @@ export default function FriendsPage() {
               profile={viewingPlayer.profile}
               cardStats={viewingPlayer.cardStats}
               rank={getRank(viewingPlayer.profile.total_points || 0)}
+              equippedBorder={viewingPlayer.profile.equipped_border}
             />
             <button onClick={() => setViewingPlayer(null)} style={{
               background: 'rgba(255,255,255,0.1)', color: '#fff',
