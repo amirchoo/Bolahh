@@ -126,6 +126,7 @@ serve(async (req) => {
       {
         game_id:        gameId,
         user_id:        userId,
+        is_guest:       false,
         amount_paid:    0,
         payment_method: 'direct',
         payment_status: 'pending',
