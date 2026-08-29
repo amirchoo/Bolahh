@@ -56,7 +56,7 @@ export default function GameManagerPlayersPage() {
     const [{ data: playerRows }, { data: cancelRows }] = await Promise.all([
       supabase
         .from('game_players')
-        .select('id, user_id, amount_paid, payment_method, payment_status, joined_at')
+        .select('id, user_id, is_guest, guest_name, booked_by, amount_paid, payment_method, payment_status, joined_at')
         .eq('game_id', id)
         .order('joined_at', { ascending: true }),
       supabase
@@ -68,8 +68,9 @@ export default function GameManagerPlayersPage() {
 
     const userIds = [...new Set([
       ...(playerRows || []).map(p => p.user_id),
+      ...(playerRows || []).map(p => p.booked_by),
       ...(cancelRows || []).map(c => c.user_id),
-    ])];
+    ])].filter(Boolean);
     let profileMap = {};
     let phoneMap = {};
     if (userIds.length > 0) {
@@ -81,7 +82,12 @@ export default function GameManagerPlayersPage() {
       (phoneData || []).forEach(p => { phoneMap[p.user_id] = p.phone_number; });
     }
 
-    setRows((playerRows || []).map(p => ({ ...p, profile: profileMap[p.user_id], phone: phoneMap[p.user_id] })));
+    setRows((playerRows || []).map(p => ({
+      ...p,
+      profile: p.is_guest ? null : profileMap[p.user_id],
+      phone: p.is_guest ? null : phoneMap[p.user_id],
+      bookerName: p.is_guest ? profileMap[p.booked_by]?.name : null,
+    })));
     setCancellations((cancelRows || []).map(c => ({ ...c, profile: profileMap[c.user_id] })));
     setLoading(false);
   };
@@ -97,14 +103,31 @@ export default function GameManagerPlayersPage() {
   };
 
   const handleMarkPaid = async (row) => {
+    // Guests were brought (and paid for) by their booker — marking the booker's row
+    // paid settles the whole group at once, at the group's total price.
+    const guestRows = rows.filter(r => r.is_guest && r.booked_by === row.user_id);
+    const totalSeats = 1 + guestRows.length;
+    const groupAmount = game.price * totalSeats;
+
     setMarkingPaidId(row.id);
     const { error: updateErr } = await supabase
       .from('game_players')
-      .update({ payment_status: 'paid', amount_paid: game.price })
+      .update({ payment_status: 'paid', amount_paid: groupAmount })
       .eq('id', row.id);
+    if (!updateErr && guestRows.length > 0) {
+      await supabase
+        .from('game_players')
+        .update({ payment_status: 'paid' })
+        .in('id', guestRows.map(g => g.id));
+    }
     setMarkingPaidId(null);
     if (updateErr) { setError(updateErr.message); return; }
-    setRows(prev => prev.map(r => r.id === row.id ? { ...r, payment_status: 'paid', amount_paid: game.price } : r));
+    const guestIds = new Set(guestRows.map(g => g.id));
+    setRows(prev => prev.map(r => {
+      if (r.id === row.id) return { ...r, payment_status: 'paid', amount_paid: groupAmount };
+      if (guestIds.has(r.id)) return { ...r, payment_status: 'paid' };
+      return r;
+    }));
     clearCached('manager_data');
   };
 
@@ -192,10 +215,13 @@ export default function GameManagerPlayersPage() {
             const isCash = row.payment_method === 'cash';
             const isDirect = row.payment_method === 'direct';
             const isPending = row.payment_status === 'pending';
+            const guestCount = row.is_guest ? 0 : rows.filter(r => r.is_guest && r.booked_by === row.user_id).length;
+            const displayName = row.is_guest ? row.guest_name : (row.profile?.name || 'Player');
             return (
               <div key={row.id} style={{
                 padding: '14px 20px',
                 borderBottom: i < rows.length - 1 ? '1px solid var(--border)' : 'none',
+                background: row.is_guest ? 'var(--card2)' : 'transparent',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -207,14 +233,27 @@ export default function GameManagerPlayersPage() {
                           border: '1px solid var(--border)', flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 13, fontWeight: 700, color: 'var(--muted)',
-                        }}>{(row.profile?.name?.[0] || '?').toUpperCase()}</div>
+                        }}>{(displayName?.[0] || '?').toUpperCase()}</div>
                       )
                     }
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.profile?.name || 'Player'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
+                        {guestCount > 0 && (
+                          <span style={{
+                            fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: 'var(--accent)',
+                            background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.3)',
+                            borderRadius: 5, padding: '1px 6px', flexShrink: 0,
+                          }}>+{guestCount} guest{guestCount > 1 ? 's' : ''}</span>
+                        )}
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
-                        {isCash ? <IoQrCodeOutline size={12} /> : isDirect ? <IoCardOutline size={12} /> : <IoWalletOutline size={12} />}
-                        {isCash ? 'Cash / QR at court' : isDirect ? (isPending ? 'Online Pay (awaiting payment)' : 'Online Pay') : 'Wallet'}
+                        {row.is_guest
+                          ? <>Guest of {row.bookerName || 'a player'}</>
+                          : <>
+                              {isCash ? <IoQrCodeOutline size={12} /> : isDirect ? <IoCardOutline size={12} /> : <IoWalletOutline size={12} />}
+                              {isCash ? 'Cash / QR at court' : isDirect ? (isPending ? 'Online Pay (awaiting payment)' : 'Online Pay') : 'Wallet'}
+                            </>}
                       </div>
                     </div>
                   </div>
@@ -249,7 +288,7 @@ export default function GameManagerPlayersPage() {
                       }}><IoCallOutline size={14} /></a>
                     </>
                   )}
-                  {(isCash || isDirect) && isPending && (
+                  {!row.is_guest && (isCash || isDirect) && isPending && (
                     <button
                       onClick={() => handleMarkPaid(row)}
                       disabled={markingPaidId === row.id}
@@ -259,7 +298,7 @@ export default function GameManagerPlayersPage() {
                         padding: '6px 12px', fontSize: 12, fontWeight: 700,
                         opacity: markingPaidId === row.id ? 0.6 : 1, marginLeft: 'auto',
                       }}
-                    >{markingPaidId === row.id ? 'Saving...' : 'Mark Paid'}</button>
+                    >{markingPaidId === row.id ? 'Saving...' : guestCount > 0 ? `Mark Group Paid (${guestCount + 1})` : 'Mark Paid'}</button>
                   )}
                 </div>
               </div>

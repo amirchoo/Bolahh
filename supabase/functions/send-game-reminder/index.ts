@@ -139,7 +139,8 @@ serve(async (req) => {
     for (const game of dueGames) {
       const { data: gamePlayers } = await supabase
         .from('game_players').select('user_id').eq('game_id', game.id);
-      const userIds = (gamePlayers || []).map(p => p.user_id);
+      // Guests (booked by someone else, no account) have no user_id to notify.
+      const userIds = (gamePlayers || []).map(p => p.user_id).filter(Boolean);
 
       if (userIds.length > 0) {
         // In-app notification — independent of whether the player has an email on

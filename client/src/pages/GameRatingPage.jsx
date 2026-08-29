@@ -149,6 +149,9 @@ export default function GameRatingPage() {
   const [game, setGame] = useState(null);
   const [players, setPlayers] = useState([]);
   const [profiles, setProfiles] = useState({});
+  // Maps game_players.id (the roster identifier used throughout this page) to the
+  // real profiles.id — only populated for real players, never guests.
+  const [pidToUserId, setPidToUserId] = useState({});
   const [notOwner, setNotOwner] = useState(false);
   const [alreadyRated, setAlreadyRated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -211,6 +214,7 @@ export default function GameRatingPage() {
       if (cached) {
         setGame(cached.game); setPlayers(cached.players);
         setProfiles(cached.profiles); setBaseRatings(cached.baseRatings);
+        setPidToUserId(cached.pidToUserId || {});
         const initRatings = {};
         cached.players.forEach(uid => { initRatings[uid] = { ...(cached.baseRatings[uid] || defaultStats()) }; });
         setRatings(initRatings);
@@ -237,6 +241,7 @@ export default function GameRatingPage() {
       setGame(MOCK_GAME);
       setProfiles(MOCK_PROFILES);
       setPlayers(MOCK_PLAYER_IDS);
+      setPidToUserId(Object.fromEntries(MOCK_PLAYER_IDS.map(id => [id, id])));
       setBaseRatings(MOCK_BASE_TAPS);
       const initRatings = {};
       MOCK_PLAYER_IDS.forEach(uid => { initRatings[uid] = { ...(MOCK_BASE_TAPS[uid] || defaultStats()) }; });
@@ -258,11 +263,19 @@ export default function GameRatingPage() {
     }
 
     const { data: playerData } = await supabase
-      .from('game_players').select('user_id').eq('game_id', id);
+      .from('game_players').select('id, user_id, is_guest, guest_name').eq('game_id', id);
 
     if (!playerData || playerData.length === 0) { setLoading(false); return; }
 
-    const userIds = playerData.map(p => p.user_id);
+    // The roster is keyed by game_players.id (pid) rather than user_id from here on —
+    // guest rows have no user_id (null), so pid is the only identifier unique per seat.
+    const pids = playerData.map(p => p.id);
+    const realRows = playerData.filter(p => !p.is_guest);
+    const userIds = realRows.map(p => p.user_id);
+    const pidMap = {};
+    realRows.forEach(p => { pidMap[p.id] = p.user_id; });
+    setPidToUserId(pidMap);
+
     // Fetched together (rather than sequentially) so there's no `await` gap between
     // resetting ratings/teamMode to defaults below and restoring saved progress —
     // otherwise a render could slip in between and the auto-save effect would
@@ -272,17 +285,25 @@ export default function GameRatingPage() {
       supabase.from('game_ratings').select('user_id').eq('game_id', id).limit(1),
     ]);
 
+    const realProfileMap = {};
+    profileData?.forEach(p => { realProfileMap[p.id] = p; });
+
     const profileMap = {};
-    profileData?.forEach(p => { profileMap[p.id] = p; });
+    playerData.forEach(p => {
+      profileMap[p.id] = p.is_guest
+        ? { id: p.id, name: p.guest_name, avatar_url: null, total_points: null, games_played: 0, card_stats: null, isGuest: true }
+        : realProfileMap[p.user_id];
+    });
     setProfiles(profileMap);
-    setPlayers(userIds);
+    setPlayers(pids);
 
     // Derive base taps from profiles.card_stats — the authoritative pre-computed source.
-    // card_stat = 30 + lifetime_taps  →  taps = card_stat - 30
+    // card_stat = 30 + lifetime_taps  →  taps = card_stat - 30. Guests are skipped —
+    // they have no card_stats to derive a base from and are never rated.
     const baseMap = {};
-    userIds.forEach(uid => {
-      const cs = profileMap[uid]?.card_stats || {};
-      baseMap[uid] = {
+    realRows.forEach(({ id: pid }) => {
+      const cs = profileMap[pid]?.card_stats || {};
+      baseMap[pid] = {
         shooting_quality:   Math.max(0, (cs.sho || 30) - 30),
         passing_quality:    Math.max(0, (cs.pas || 30) - 30),
         good_defending:     Math.max(0, (cs.def || 30) - 30),
@@ -295,17 +316,17 @@ export default function GameRatingPage() {
 
     // Init ratings to current base — manager adjusts from here
     const initRatings = {};
-    userIds.forEach(uid => { initRatings[uid] = { ...baseMap[uid] }; });
+    realRows.forEach(({ id: pid }) => { initRatings[pid] = { ...baseMap[pid] }; });
     setRatings(initRatings);
 
     // Auto-suggest team mode
     const formatNum = parseInt(gameData?.format) || 5;
-    setTeamMode(userIds.length <= formatNum * 2 ? 2 : 3);
+    setTeamMode(pids.length <= formatNum * 2 ? 2 : 3);
 
     // Check already rated
     if (existing && existing.length > 0) setAlreadyRated(true);
 
-    setCached(`rating_data_${id}`, { game: gameData, players: userIds, profiles: profileMap, baseRatings: baseMap });
+    setCached(`rating_data_${id}`, { game: gameData, players: pids, profiles: profileMap, baseRatings: baseMap, pidToUserId: pidMap });
 
     // Restore saved progress if the admin was interrupted mid-session
     restoreSavedProgress();
@@ -355,8 +376,15 @@ export default function GameRatingPage() {
     runAutoBalance();
   }, [step, loading, players, teamMode]);
 
+  // Guests get a team/bib (below) but are never rated or MOTM-eligible — they have
+  // no profile to write stats or awards to.
+  const ratablePlayers = players.filter(pid => !profiles[pid]?.isGuest);
+
   const teamPlayers = (team) =>
     players.filter(uid => teamAssign[uid] === team);
+
+  const teamRatablePlayers = (team) =>
+    ratablePlayers.filter(uid => teamAssign[uid] === team);
 
   const allAssigned = () =>
     players.length > 0 && players.every(uid => teamAssign[uid] && bibAssign[uid]);
@@ -487,9 +515,12 @@ export default function GameRatingPage() {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      for (const uid of players) {
-        const stats = ratings[uid] || defaultStats();
-        const base  = baseRatings[uid] || defaultStats();
+      // Guests (ratablePlayers excludes them) never get a game_ratings row or a
+      // profiles update — there's no account to write to.
+      for (const pid of ratablePlayers) {
+        const uid = pidToUserId[pid];
+        const stats = ratings[pid] || defaultStats();
+        const base  = baseRatings[pid] || defaultStats();
 
         const d_sho = (stats.shooting_quality   || 0) - (base.shooting_quality   || 0);
         const d_pas = (stats.passing_quality    || 0) - (base.passing_quality    || 0);
@@ -511,13 +542,13 @@ export default function GameRatingPage() {
           successful_dribble: d_dri,
           good_chance:       d_pac,
           good_manner: 0,
-          admin_bonus: motmPlayers.indexOf(uid) >= 0 ? motmPlayers.indexOf(uid) + 1 : 0,
+          admin_bonus: motmPlayers.indexOf(pid) >= 0 ? motmPlayers.indexOf(pid) + 1 : 0,
           total_points: 0,
         });
         if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
 
         // Apply deltas directly to existing card_stats (preserves prior rating)
-        const existing = profiles[uid]?.card_stats || {};
+        const existing = profiles[pid]?.card_stats || {};
         const newPac = Math.max(30, Math.min(99, (existing.pac || 30) + d_pac));
         const newSho = Math.max(30, Math.min(99, (existing.sho || 30) + d_sho));
         const newPas = Math.max(30, Math.min(99, (existing.pas || 30) + d_pas));
@@ -530,21 +561,25 @@ export default function GameRatingPage() {
           .from('profiles')
           .update({
             total_points: newOverall,
-            games_played: (profiles[uid]?.games_played || 0) + 1,
+            games_played: (profiles[pid]?.games_played || 0) + 1,
             card_stats: { pac: newPac, sho: newSho, pas: newPas, dri: newDri, def: newDef, phy: newPhy },
           })
           .eq('id', uid);
 
         if (updateError) throw new Error('Profile update failed: ' + updateError.message);
+      }
 
-        // Persist team/bib so the feedback page can show them later — otherwise
-        // this only ever lived in this session's in-memory/localStorage state.
-        const team = teamAssign[uid];
+      // Persist team/bib for everyone, including guests, so the schedule/roster shows
+      // correctly later — otherwise this only ever lived in this session's in-memory/
+      // localStorage state. Keyed by game_players.id (the actual PK), not user_id,
+      // since guest rows have no user_id to key off.
+      for (const pid of players) {
+        const team = teamAssign[pid];
         if (team) {
           await supabase
             .from('game_players')
-            .update({ team_assignment: team, bib_number: getBibNumber(uid) })
-            .eq('game_id', id).eq('user_id', uid);
+            .update({ team_assignment: team, bib_number: getBibNumber(pid) })
+            .eq('id', pid);
         }
       }
 
@@ -590,8 +625,8 @@ export default function GameRatingPage() {
 
   const schedule = buildSchedule();
   const match = schedule[currentMatch] || schedule[0];
-  const homePlayers = teamPlayers(match?.home);
-  const awayPlayers = teamPlayers(match?.away);
+  const homePlayers = teamRatablePlayers(match?.home);
+  const awayPlayers = teamRatablePlayers(match?.away);
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -772,11 +807,19 @@ export default function GameRatingPage() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
-                        <span style={{
-                          fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
-                          color: getRankColor(rank), background: `${getRankColor(rank)}18`,
-                          border: `1px solid ${getRankColor(rank)}40`, borderRadius: 5, padding: '1px 6px',
-                        }}>{rank} · {p?.total_points || 30}</span>
+                        {p?.isGuest ? (
+                          <span style={{
+                            fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                            color: 'var(--muted)', background: 'var(--card2)',
+                            border: '1px solid var(--border)', borderRadius: 5, padding: '1px 6px',
+                          }}>GUEST</span>
+                        ) : (
+                          <span style={{
+                            fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                            color: getRankColor(rank), background: `${getRankColor(rank)}18`,
+                            border: `1px solid ${getRankColor(rank)}40`, borderRadius: 5, padding: '1px 6px',
+                          }}>{rank} · {p?.total_points || 30}</span>
+                        )}
                       </div>
                       {team && bib ? (
                         <span style={{
@@ -901,11 +944,13 @@ export default function GameRatingPage() {
                                 <div style={{ fontSize: 12, fontWeight: 700, color: tc.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {p?.name}
                                 </div>
-                                <div style={{ fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, color: tc.text, opacity: 0.75 }}>{rank}</div>
+                                <div style={{ fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, color: tc.text, opacity: 0.75 }}>{p?.isGuest ? 'GUEST' : rank}</div>
                               </div>
-                              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 16, color: tc.text, flexShrink: 0, position: 'relative', zIndex: 1 }}>
-                                {p?.total_points || 30}
-                              </div>
+                              {!p?.isGuest && (
+                                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 16, color: tc.text, flexShrink: 0, position: 'relative', zIndex: 1 }}>
+                                  {p?.total_points || 30}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1346,7 +1391,7 @@ export default function GameRatingPage() {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-              {players.map(uid => {
+              {ratablePlayers.map(uid => {
                 const p = profiles[uid];
                 const stats = ratings[uid] || defaultStats();
                 const base  = baseRatings[uid] || defaultStats();

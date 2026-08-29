@@ -38,6 +38,9 @@ export default function GameCheckoutPage() {
   const [pendingDirect, setPendingDirect] = useState(null); // { id, payment_ref } — reserved slot awaiting ToyyibPay confirmation
   const [verifyingDirect, setVerifyingDirect] = useState(false);
   const [profileName, setProfileName] = useState('');
+  const [joinedCount, setJoinedCount] = useState(0);
+  const [bookingMode, setBookingMode] = useState('solo'); // 'solo' | 'group'
+  const [guestNames, setGuestNames] = useState(['']);
 
   const returnStatus = searchParams.get('status_id'); // ToyyibPay redirects with status_id
 
@@ -49,11 +52,13 @@ export default function GameCheckoutPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [gameRes, profileRes, joinedRes] = await Promise.all([
+    const [gameRes, profileRes, joinedRes, countRes] = await Promise.all([
       supabase.from('games').select('*, fields(*)').eq('id', id).single(),
       supabase.from('profiles').select('wallet_balance, name').eq('id', user.id).single(),
       supabase.from('game_players').select('id, payment_method, payment_status, payment_ref').eq('game_id', id).eq('user_id', user.id).maybeSingle(),
+      supabase.from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', id),
     ]);
+    setJoinedCount(countRes.count || 0);
     if (gameRes.error || !gameRes.data) { navigate('/home'); return; }
     if (joinedRes.data) {
       if (joinedRes.data.payment_method === 'direct' && joinedRes.data.payment_status === 'pending') {
@@ -116,7 +121,9 @@ export default function GameCheckoutPage() {
   const cancelPendingDirect = async () => {
     if (!pendingDirect) return;
     setVerifyingDirect(true);
-    await supabase.from('game_players').delete().eq('id', pendingDirect.id).eq('payment_status', 'pending');
+    // Removes the booker's row and any guest rows reserved alongside it in the same bill.
+    await supabase.from('game_players').delete()
+      .eq('game_id', id).eq('payment_ref', pendingDirect.payment_ref).eq('payment_status', 'pending');
     setPendingDirect(null);
     setVerifyingDirect(false);
   };
@@ -161,8 +168,24 @@ export default function GameCheckoutPage() {
     setCouponError('');
   };
 
+  const addGuest = () => setGuestNames(prev => [...prev, '']);
+  const removeGuest = (i) => setGuestNames(prev => prev.filter((_, idx) => idx !== i));
+  const updateGuestName = (i, value) => setGuestNames(prev => prev.map((n, idx) => idx === i ? value : n));
+
   const handleConfirm = async () => {
     if (!agreed) { setError('Please agree to the terms before confirming.'); return; }
+
+    const trimmedGuestNames = bookingMode === 'group' ? guestNames.map(n => n.trim()) : [];
+    if (bookingMode === 'group' && (trimmedGuestNames.length === 0 || trimmedGuestNames.some(n => !n))) {
+      setError('Please enter a name for every friend you\'re booking for.');
+      return;
+    }
+    const totalSeats = 1 + trimmedGuestNames.length;
+    if (joinedCount + totalSeats > game.slots) {
+      setError(`Only ${Math.max(0, game.slots - joinedCount)} slot(s) left — reduce your guest count.`);
+      return;
+    }
+
     setConfirming(true);
     setError('');
 
@@ -176,11 +199,19 @@ export default function GameCheckoutPage() {
       return;
     }
 
+    const guestRows = trimmedGuestNames.map(name => ({
+      game_id: id, user_id: null, is_guest: true, guest_name: name, booked_by: user.id,
+      amount_paid: 0,
+    }));
+
     // Pay at Court: skip wallet balance checks/deduction, just hold the slot as pending cash
     if (paymentMethod === 'cash') {
       const { error: joinErr } = await supabase
         .from('game_players')
-        .insert({ game_id: id, user_id: user.id, amount_paid: 0, payment_method: 'cash', payment_status: 'pending' });
+        .insert([
+          { game_id: id, user_id: user.id, amount_paid: 0, payment_method: 'cash', payment_status: 'pending' },
+          ...guestRows.map(g => ({ ...g, payment_method: 'cash', payment_status: 'pending' })),
+        ]);
 
       if (joinErr) { setError('Failed to join game. Please try again.'); setConfirming(false); return; }
 
@@ -212,11 +243,11 @@ export default function GameCheckoutPage() {
     }
 
     const discountAmount = validatedCoupon
-      ? parseFloat((game.price * validatedCoupon.discount_percentage / 100).toFixed(2))
+      ? parseFloat((game.price * totalSeats * validatedCoupon.discount_percentage / 100).toFixed(2))
       : 0;
-    const chargeAmount = parseFloat((game.price - discountAmount).toFixed(2));
+    const chargeAmount = parseFloat((game.price * totalSeats - discountAmount).toFixed(2));
 
-    // Online Pay: create a ToyyibPay bill scoped to this game, reserve the slot as
+    // Online Pay: create a ToyyibPay bill scoped to this game, reserve the slot(s) as
     // pending, then redirect. Confirmed via callback or the verify step on return.
     // Price and coupon are re-validated server-side in create-toyyibpay-game-bill —
     // chargeAmount here is only used for the on-screen summary, not sent as the price.
@@ -238,6 +269,7 @@ export default function GameCheckoutPage() {
               userName:      profileName || user.email,
               couponCode:    validatedCoupon?.code || null,
               paymentMethod: directSubMethod,
+              guestNames:    trimmedGuestNames,
               returnUrl:     window.location.origin + `/game/${id}/checkout`,
             }),
           }
@@ -279,7 +311,10 @@ export default function GameCheckoutPage() {
     // Join the game
     const { error: joinErr } = await supabase
       .from('game_players')
-      .insert({ game_id: id, user_id: user.id, amount_paid: chargeAmount });
+      .insert([
+        { game_id: id, user_id: user.id, amount_paid: chargeAmount },
+        ...guestRows,
+      ]);
 
     if (joinErr) {
       // Refund the deduction if join failed
@@ -298,9 +333,10 @@ export default function GameCheckoutPage() {
     }
 
     // Log transaction
+    const guestSuffix = trimmedGuestNames.length > 0 ? ` (+${trimmedGuestNames.length} guest${trimmedGuestNames.length > 1 ? 's' : ''})` : '';
     const description = validatedCoupon
-      ? `Joined game: ${game.title} (${validatedCoupon.discount_percentage}% off with code ${validatedCoupon.code})`
-      : `Joined game: ${game.title}`;
+      ? `Joined game: ${game.title}${guestSuffix} (${validatedCoupon.discount_percentage}% off with code ${validatedCoupon.code})`
+      : `Joined game: ${game.title}${guestSuffix}`;
     await supabase.from('wallet_transactions').insert({
       user_id: user.id,
       type: 'payment',
@@ -342,10 +378,14 @@ export default function GameCheckoutPage() {
     );
   }
 
+  const trimmedGuestNamesDisplay = bookingMode === 'group' ? guestNames.map(n => n.trim()).filter(Boolean) : [];
+  const totalSeats = 1 + trimmedGuestNamesDisplay.length;
+  const maxGuests = Math.max(0, game.slots - joinedCount - 1);
+  const groupPrice = parseFloat((game.price * totalSeats).toFixed(2));
   const discountAmount = couponData
-    ? parseFloat((game.price * couponData.discount_percentage / 100).toFixed(2))
+    ? parseFloat((groupPrice * couponData.discount_percentage / 100).toFixed(2))
     : 0;
-  const finalPrice = parseFloat((game.price - discountAmount).toFixed(2));
+  const finalPrice = parseFloat((groupPrice - discountAmount).toFixed(2));
   const balanceAfter = walletBalance - finalPrice;
 
   // ── Success Screen ──
@@ -365,14 +405,19 @@ export default function GameCheckoutPage() {
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 36, letterSpacing: 3, color: 'var(--text)', marginBottom: 8 }}>
             YOU'RE IN!
           </div>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28, lineHeight: 1.7 }}>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: trimmedGuestNamesDisplay.length > 0 ? 12 : 28, lineHeight: 1.7 }}>
             Successfully joined <strong style={{ color: 'var(--text)' }}>{game.title}</strong>.<br />
             {paymentMethod === 'cash'
-              ? <>Pay <strong style={{ color: 'var(--text)' }}>RM {Number(game.price).toFixed(2)}</strong> by cash or QR at the court before kickoff.</>
+              ? <>Pay <strong style={{ color: 'var(--text)' }}>RM {groupPrice.toFixed(2)}</strong> by cash or QR at the court before kickoff.</>
               : paymentMethod === 'direct'
               ? <>RM {finalPrice.toFixed(2)} has been paid via ToyyibPay.</>
               : <>RM {finalPrice.toFixed(2)} has been deducted from your wallet.</>}
           </p>
+          {trimmedGuestNamesDisplay.length > 0 && (
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 28 }}>
+              Booked with {trimmedGuestNamesDisplay.length} friend{trimmedGuestNamesDisplay.length > 1 ? 's' : ''}: <strong style={{ color: 'var(--text)' }}>{trimmedGuestNamesDisplay.join(', ')}</strong>
+            </p>
+          )}
           {paymentMethod === 'cash' ? (
             <div style={{
               background: 'var(--card)', border: '1px solid var(--border)',
@@ -380,7 +425,7 @@ export default function GameCheckoutPage() {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <span style={{ color: 'var(--muted)' }}>Amount due at court</span>
-                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--accent)' }}>RM {Number(game.price).toFixed(2)}</span>
+                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--accent)' }}>RM {groupPrice.toFixed(2)}</span>
               </div>
             </div>
           ) : (
@@ -392,7 +437,7 @@ export default function GameCheckoutPage() {
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                   <span style={{ color: 'var(--muted)' }}>Original fee</span>
-                  <span style={{ fontFamily: "'Space Mono'", color: 'var(--muted)', textDecoration: 'line-through' }}>RM {Number(game.price).toFixed(2)}</span>
+                  <span style={{ fontFamily: "'Space Mono'", color: 'var(--muted)', textDecoration: 'line-through' }}>RM {groupPrice.toFixed(2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                   <span style={{ color: '#4ade80' }}>Coupon discount ({couponData?.discount_percentage}% off)</span>
@@ -605,7 +650,7 @@ export default function GameCheckoutPage() {
             }}>
               {[
                 { label: 'Your balance', value: `RM ${walletBalance.toFixed(2)}`, color: 'var(--text)' },
-                { label: 'Amount due', value: `RM ${(game.price - (couponData ? parseFloat((game.price * couponData.discount_percentage / 100).toFixed(2)) : 0)).toFixed(2)}`, color: 'var(--tomato)' },
+                { label: 'Amount due', value: `RM ${finalPrice.toFixed(2)}`, color: 'var(--tomato)' },
               ].map(row => (
                 <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 13 }}>
                   <span style={{ color: 'var(--muted)' }}>{row.label}</span>
@@ -683,6 +728,71 @@ export default function GameCheckoutPage() {
           </div>
         </div>
 
+        {/* Bringing friends? */}
+        {maxGuests > 0 && (
+        <div style={{
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 16, padding: '20px', marginBottom: 16
+        }}>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>BOOKING FOR</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: bookingMode === 'group' ? 16 : 0 }}>
+            {[
+              { key: 'solo', label: 'Just Me' },
+              { key: 'group', label: 'Bringing Friends' },
+            ].map(opt => (
+              <button key={opt.key} onClick={() => setBookingMode(opt.key)} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                background: bookingMode === opt.key ? 'rgba(240,157,81,0.1)' : 'var(--card2)',
+                color: bookingMode === opt.key ? 'var(--accent)' : 'var(--muted)',
+                border: `1.5px solid ${bookingMode === opt.key ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 10, padding: '12px 8px', cursor: 'pointer'
+              }}>
+                <IoPeople size={15} />
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {bookingMode === 'group' && (
+            <>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+                You'll pay for everyone. {maxGuests} more slot{maxGuests !== 1 ? 's' : ''} available.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                {guestNames.map((name, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      placeholder={`Friend ${i + 1} name`}
+                      value={name}
+                      onChange={e => updateGuestName(i, e.target.value)}
+                      style={{ flex: 1, fontSize: 13, height: 38 }}
+                    />
+                    {guestNames.length > 1 && (
+                      <button type="button" onClick={() => removeGuest(i)} style={{
+                        background: 'transparent', border: 'none', color: 'var(--muted)',
+                        cursor: 'pointer', display: 'flex', padding: 6, flexShrink: 0
+                      }}><IoClose size={16} /></button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addGuest}
+                disabled={guestNames.length >= maxGuests}
+                style={{
+                  background: 'var(--card2)', color: guestNames.length >= maxGuests ? 'var(--muted)' : 'var(--accent)',
+                  border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px',
+                  fontSize: 12, fontWeight: 700,
+                  cursor: guestNames.length >= maxGuests ? 'not-allowed' : 'pointer',
+                  opacity: guestNames.length >= maxGuests ? 0.5 : 1,
+                }}
+              >+ Add another friend</button>
+            </>
+          )}
+        </div>
+        )}
+
         {/* Payment method selector */}
         <div style={{
           background: 'var(--card)', border: '1px solid var(--border)',
@@ -737,8 +847,8 @@ export default function GameCheckoutPage() {
           }}>
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>PAYMENT SUMMARY</div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
-              <span style={{ fontWeight: 700, color: 'var(--text)' }}>Due at court</span>
-              <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--accent)' }}>RM {Number(game.price).toFixed(2)}</span>
+              <span style={{ fontWeight: 700, color: 'var(--text)' }}>Due at court{totalSeats > 1 ? ` (${totalSeats} slots)` : ''}</span>
+              <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--accent)' }}>RM {groupPrice.toFixed(2)}</span>
             </div>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
               No wallet charge now. Pay the full amount by cash or QR at the venue before kickoff.
@@ -751,8 +861,8 @@ export default function GameCheckoutPage() {
         }}>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>PAYMENT SUMMARY</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 14 }}>
-            <span style={{ color: 'var(--text)' }}>Game fee</span>
-            <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: couponData ? 'var(--muted)' : 'var(--text)', textDecoration: couponData ? 'line-through' : 'none' }}>RM {Number(game.price).toFixed(2)}</span>
+            <span style={{ color: 'var(--text)' }}>Game fee{totalSeats > 1 ? ` (${totalSeats} slots)` : ''}</span>
+            <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: couponData ? 'var(--muted)' : 'var(--text)', textDecoration: couponData ? 'line-through' : 'none' }}>RM {groupPrice.toFixed(2)}</span>
           </div>
 
           {/* Coupon section */}
@@ -927,13 +1037,13 @@ export default function GameCheckoutPage() {
           </div>
           <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
             {paymentMethod === 'cash' ? (
-              <>I have read and agree to the cancellation policy. I understand I must pay <strong>RM {Number(game.price).toFixed(2)}</strong> by cash or QR at the court before playing.</>
+              <>I have read and agree to the cancellation policy. I understand I must pay <strong>RM {groupPrice.toFixed(2)}</strong> by cash or QR at the court before playing.</>
             ) : paymentMethod === 'direct' ? (
               <>
                 I have read and agree to the refund & cancellation policy. I understand I will be redirected to ToyyibPay to pay{' '}
                 {couponData ? (
                   <>
-                    <strong style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>RM {Number(game.price).toFixed(2)}</strong>{' '}
+                    <strong style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>RM {groupPrice.toFixed(2)}</strong>{' '}
                     <strong style={{ color: '#4ade80' }}>RM {finalPrice.toFixed(2)}</strong>
                   </>
                 ) : (
@@ -946,7 +1056,7 @@ export default function GameCheckoutPage() {
                 I have read and agree to the refund & cancellation policy. I understand that my wallet will be charged{' '}
                 {couponData ? (
                   <>
-                    <strong style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>RM {Number(game.price).toFixed(2)}</strong>{' '}
+                    <strong style={{ color: 'var(--muted)', textDecoration: 'line-through' }}>RM {groupPrice.toFixed(2)}</strong>{' '}
                     <strong style={{ color: '#4ade80' }}>RM {finalPrice.toFixed(2)}</strong>
                   </>
                 ) : (
