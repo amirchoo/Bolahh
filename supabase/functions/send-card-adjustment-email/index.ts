@@ -77,10 +77,10 @@ function buildEmailHtml(opts: { playerName: string; oldRank: string; oldOvr: num
       <div style="padding:24px;">
         <p style="margin:0 0 16px; font-size:15px; line-height:1.6;">Hey ${playerName || 'there'},</p>
         <p style="margin:0 0 16px; font-size:15px; line-height:1.6;">
-          We manually adjusted your Bolahh Card — it's now sitting at <strong style="color:${tier.color};">${newRank}</strong> (${newOvr} OVR), previously ${oldRank} (${oldOvr} OVR).
+          We manually adjusted your Bolahh Card. It's now sitting at <strong style="color:${tier.color};">${newRank}</strong> (${newOvr} OVR), previously ${oldRank} (${oldOvr} OVR).
         </p>
         <p style="margin:0 0 16px; font-size:15px; line-height:1.6;">
-          This usually happens when we catch an error in how a recent game got rated. We're sorry for any inconvenience this may cause — but we believe this update reflects your actual skill level on the pitch${wentUp ? ', and we\'re glad it worked out in your favour' : ''}.
+          This usually happens when we catch an error in how a recent game got rated. We're sorry for any inconvenience this may cause, but we believe this update reflects your actual skill level on the pitch${wentUp ? ', and we\'re glad it worked out in your favour' : ''}.
         </p>
         <div style="background:#222426; border:1px solid #2e3032; border-radius:10px; padding:16px; margin-bottom:20px;">
           <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse;">
@@ -91,7 +91,7 @@ function buildEmailHtml(opts: { playerName: string; oldRank: string; oldOvr: num
           </table>
         </div>
         <p style="margin:0 0 20px; font-size:15px; line-height:1.6;">
-          Play another game and get rated to keep building your card — every match still counts.
+          Play another game and get rated to keep building your card. Every match still counts.
         </p>
         <div style="text-align:center; margin-bottom:4px;">
           <a href="https://bolahh.com/home" style="display:inline-block; background:${tier.color}; color:${tier.textColor}; font-weight:700; font-size:14px; padding:12px 28px; border-radius:8px; text-decoration:none;">
