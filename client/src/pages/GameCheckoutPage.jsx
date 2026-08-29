@@ -209,7 +209,7 @@ export default function GameCheckoutPage() {
       const { error: joinErr } = await supabase
         .from('game_players')
         .insert([
-          { game_id: id, user_id: user.id, amount_paid: 0, payment_method: 'cash', payment_status: 'pending' },
+          { game_id: id, user_id: user.id, is_guest: false, amount_paid: 0, payment_method: 'cash', payment_status: 'pending' },
           ...guestRows.map(g => ({ ...g, payment_method: 'cash', payment_status: 'pending' })),
         ]);
 
@@ -312,7 +312,7 @@ export default function GameCheckoutPage() {
     const { error: joinErr } = await supabase
       .from('game_players')
       .insert([
-        { game_id: id, user_id: user.id, amount_paid: chargeAmount },
+        { game_id: id, user_id: user.id, is_guest: false, amount_paid: chargeAmount },
         ...guestRows,
       ]);
 
