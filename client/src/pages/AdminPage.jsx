@@ -111,6 +111,7 @@ export default function AdminPage() {
   const [selectedStatsPlayer, setSelectedStatsPlayer] = useState(null);
   const [statsForm, setStatsForm] = useState(null);
   const [savingStats, setSavingStats] = useState(false);
+  const [notifyOnStatsSave, setNotifyOnStatsSave] = useState(true);
   // Card as it stood before the player's most recently rated game — reconstructed by
   // subtracting that game's game_ratings delta from their current card_stats, so
   // "PAST CARD" means "before the last change", not just "current DB value" again.
@@ -333,6 +334,7 @@ export default function AdminPage() {
       pac: statsForm.pac, sho: statsForm.sho, pas: statsForm.pas,
       dri: statsForm.dri, def: statsForm.def, phy: statsForm.phy,
     };
+    const oldOverall = selectedStatsPlayer.total_points ?? calcOverall(selectedStatsPlayer.card_stats || {});
     const newOverall = calcOverall(cardStats);
     const { error, count } = await supabase.from('profiles').update({
       card_stats: cardStats,
@@ -341,7 +343,12 @@ export default function AdminPage() {
     setSavingStats(false);
     if (error) { showError(error.message); return; }
     if (count === 0) { showError('Update blocked by RLS. Confirm this account has admin access.'); return; }
-    showSuccess(`${selectedStatsPlayer.name}'s card updated!`);
+    if (notifyOnStatsSave && newOverall !== oldOverall) {
+      supabase.functions.invoke('send-card-adjustment-email', {
+        body: { user_id: selectedStatsPlayer.id, old_ovr: oldOverall, new_ovr: newOverall },
+      }).catch(() => {});
+    }
+    showSuccess(`${selectedStatsPlayer.name}'s card updated!${notifyOnStatsSave && newOverall !== oldOverall ? ' They\'ll get an email about it.' : ''}`);
     setSelectedStatsPlayer(prev => prev ? { ...prev, card_stats: cardStats, total_points: newOverall } : prev);
   };
 
@@ -1088,6 +1095,15 @@ export default function AdminPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  <div onClick={() => setNotifyOnStatsSave(v => !v)} style={{ ...checkboxLabel, padding: '2px 2px 4px' }}>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                      background: notifyOnStatsSave ? 'var(--accent)' : 'transparent',
+                      border: `2px solid ${notifyOnStatsSave ? 'var(--accent)' : 'var(--border)'}`,
+                    }} />
+                    Email the player about this change if their OVR changes
                   </div>
 
                   <button
