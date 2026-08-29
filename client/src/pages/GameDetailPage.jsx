@@ -315,13 +315,19 @@ export default function GameDetailPage() {
     setHasFeedback(feedbackVal);
 
     const { data: gamePlayers } = await supabase
-      .from('game_players').select('user_id').eq('game_id', id);
+      .from('game_players').select('id, user_id, is_guest, guest_name, booked_by').eq('game_id', id);
     let playersVal = [];
     if (gamePlayers?.length) {
+      const realUserIds = gamePlayers.filter(p => !p.is_guest).map(p => p.user_id);
       const { data: profilesData } = await supabase
         .from('profiles').select('id, name, avatar_url, position, total_points, is_subscribed, subscription_expires_at, equipped_border')
-        .in('id', gamePlayers.map(p => p.user_id));
-      playersVal = profilesData || [];
+        .in('id', realUserIds);
+      const profileMap = {};
+      (profilesData || []).forEach(p => { profileMap[p.id] = p; });
+      playersVal = gamePlayers.map(p => p.is_guest
+        ? { id: `guest-${p.id}`, name: p.guest_name, isGuest: true, bookedByName: profileMap[p.booked_by]?.name || 'a player' }
+        : profileMap[p.user_id]
+      ).filter(Boolean);
       setPlayers(playersVal);
     }
 
@@ -1049,6 +1055,30 @@ export default function GameDetailPage() {
             })()}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', paddingRight: 2 }}>
               {players.map((p) => {
+                if (p.isGuest) {
+                  return (
+                    <div key={p.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 14px', background: 'var(--card2)',
+                      border: '1.5px dashed var(--border)', borderRadius: 10,
+                    }}>
+                      <div style={{
+                        width: 42, height: 42, borderRadius: '50%', background: 'var(--card)',
+                        border: '1px solid var(--border)', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 15, fontWeight: 700, color: 'var(--muted)', flexShrink: 0,
+                      }}>{(p.name?.[0] || '?').toUpperCase()}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>Guest of {p.bookedByName}</div>
+                      </div>
+                      <span style={{
+                        fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: 'var(--muted)',
+                        background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 5,
+                        padding: '2px 7px', flexShrink: 0,
+                      }}>GUEST</span>
+                    </div>
+                  );
+                }
                 const isMe = p.id === userId;
                 const name = p.name || 'Player';
                 const rank = getRank(p.total_points);

@@ -49,6 +49,8 @@ serve(async (req) => {
     );
 
     // Idempotent — same condition as the callback, so whichever path runs first wins.
+    // Two calls because the booker's row (holds the full group amount) and any guest
+    // rows reserved alongside it (booked_by = userId, amount stays 0) are matched differently.
     const { error } = await supabase
       .from('game_players')
       .update({ payment_status: 'paid', amount_paid: amount })
@@ -59,6 +61,20 @@ serve(async (req) => {
 
     if (error) {
       return new Response(JSON.stringify({ error: 'Could not confirm booking: ' + error.message }), {
+        status: 500, headers: { ...CORS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { error: guestError } = await supabase
+      .from('game_players')
+      .update({ payment_status: 'paid' })
+      .eq('game_id', gameId)
+      .eq('booked_by', userId)
+      .eq('payment_ref', billCode)
+      .eq('payment_status', 'pending');
+
+    if (guestError) {
+      return new Response(JSON.stringify({ error: 'Could not confirm guest bookings: ' + guestError.message }), {
         status: 500, headers: { ...CORS, 'Content-Type': 'application/json' },
       });
     }

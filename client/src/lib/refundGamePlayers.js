@@ -2,9 +2,14 @@ import { supabase } from './supabaseClient';
 
 export async function refundGamePlayers(gameId, gameTitle, gamePrice, reasonLabel) {
   const { data: gamePlayers } = await supabase
-    .from('game_players').select('user_id, amount_paid, payment_method, payment_status').eq('game_id', gameId);
+    .from('game_players').select('user_id, amount_paid, payment_method, payment_status, is_guest').eq('game_id', gameId);
 
-  await Promise.all((gamePlayers || []).map(async ({ user_id: uid, amount_paid, payment_method, payment_status }) => {
+  // Guests have no wallet/account to refund and no user_id to log against — their
+  // share of the money is already accounted for in the booker's row, which is
+  // still in this same result set and gets refunded normally.
+  const refundableRows = (gamePlayers || []).filter(p => !p.is_guest);
+
+  await Promise.all(refundableRows.map(async ({ user_id: uid, amount_paid, payment_method, payment_status }) => {
     // A 'pending' row (cash-at-court, or a direct-pay ToyyibPay bill never completed)
     // never actually collected money — nothing to refund.
     const refundAmount = payment_status === 'pending' ? 0 : (amount_paid ?? gamePrice);
@@ -30,5 +35,5 @@ export async function refundGamePlayers(gameId, gameTitle, gamePrice, reasonLabe
     });
   }));
 
-  return (gamePlayers || []).length;
+  return refundableRows.length;
 }

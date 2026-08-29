@@ -84,11 +84,13 @@ export default function GameCancelPage() {
       reason: label,
     });
 
+    // Deletes the booker's own row plus any guest rows they brought along, so
+    // cancelling frees every seat from this booking, not just the booker's.
     const { error: leaveErr, count } = await supabase
       .from('game_players')
       .delete({ count: 'exact' })
       .eq('game_id', id)
-      .eq('user_id', user.id);
+      .or(`user_id.eq.${user.id},booked_by.eq.${user.id}`);
 
     if (leaveErr || count === 0) {
       console.error('Cancel failed:', leaveErr, 'rows deleted:', count);

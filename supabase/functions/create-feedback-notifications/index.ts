@@ -66,16 +66,21 @@ serve(async (req) => {
       const pending = players.filter(p => !alreadySubmitted.has(p.user_id));
       if (pending.length === 0) continue;
 
-      const rows = pending.map(p => ({
-        user_id: p.user_id,
-        type: 'game_feedback',
-        title: 'How was your game?',
-        body: `Rate the venue and your teammates from ${game.title}.`,
-        link: `/game/${game.id}/feedback`,
-      }));
+      // Guests (no user_id — no account to notify) never owe feedback, but still get
+      // flagged notified below so they drop out of this query on future runs.
+      const notifiable = pending.filter(p => p.user_id);
+      if (notifiable.length > 0) {
+        const rows = notifiable.map(p => ({
+          user_id: p.user_id,
+          type: 'game_feedback',
+          title: 'How was your game?',
+          body: `Rate the venue and your teammates from ${game.title}.`,
+          link: `/game/${game.id}/feedback`,
+        }));
 
-      const { error: insertErr } = await supabase.from('notifications').insert(rows);
-      if (insertErr) { console.error('Notification insert failed for game', game.id, insertErr); continue; }
+        const { error: insertErr } = await supabase.from('notifications').insert(rows);
+        if (insertErr) { console.error('Notification insert failed for game', game.id, insertErr); continue; }
+      }
 
       await supabase
         .from('game_players')

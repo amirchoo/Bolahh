@@ -126,7 +126,8 @@ serve(async (req) => {
     const { data: gamePlayers } = await supabase
       .from('game_players').select('user_id').eq('game_id', game_id);
 
-    const userIds = (gamePlayers || []).map(p => p.user_id);
+    // Guests (booked by someone else, no account) have no email to send a summary to.
+    const userIds = (gamePlayers || []).map(p => p.user_id).filter(Boolean);
     if (userIds.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
     }
