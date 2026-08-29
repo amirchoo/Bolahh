@@ -9,11 +9,11 @@ import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
-import FifaCard, { getCardTheme, POSITION_ABBR, STATS } from '../components/FifaCard';
+import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
 import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { drawCardImage } from '../lib/cardCanvas';
-import { RANKS } from '../lib/rankUtils';
+import { RANKS, getRank } from '../lib/rankUtils';
 import { RARITY_COLORS, resolveBorderRender } from '../lib/borderCatalog';
 import { AREAS } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
@@ -103,6 +103,20 @@ export default function AdminPage() {
   const [promoteQuery, setPromoteQuery] = useState('');
   const [promoteResults, setPromoteResults] = useState([]);
   const [promoteSearching, setPromoteSearching] = useState(false);
+
+  // ── Player Stats (manual card editor) state ────────────
+  const [statsQuery, setStatsQuery] = useState('');
+  const [statsResults, setStatsResults] = useState([]);
+  const [statsSearching, setStatsSearching] = useState(false);
+  const [selectedStatsPlayer, setSelectedStatsPlayer] = useState(null);
+  const [statsForm, setStatsForm] = useState(null);
+  const [savingStats, setSavingStats] = useState(false);
+  // Card as it stood before the player's most recently rated game — reconstructed by
+  // subtracting that game's game_ratings delta from their current card_stats, so
+  // "PAST CARD" means "before the last change", not just "current DB value" again.
+  const [pastCardStats, setPastCardStats] = useState(null);
+  const [loadingPastCard, setLoadingPastCard] = useState(false);
+  const [pastCardHasHistory, setPastCardHasHistory] = useState(true);
 
   // ── Games state ────────────────────────────────────────
   const [games, setGames] = useState([]);
@@ -262,6 +276,73 @@ export default function AdminPage() {
     if (error) { showError(error.message); return; }
     showSuccess('Manager access removed.');
     fetchManagers();
+  };
+
+  // ── Player Stats (manual card editor) ─────────────────
+  const handleStatsSearch = async (q) => {
+    setStatsQuery(q);
+    if (!q.trim()) { setStatsResults([]); return; }
+    setStatsSearching(true);
+    const { data } = await supabase
+      .from('profiles').select('id, name, avatar_url, position, card_stats, total_points, games_played')
+      .ilike('name', `%${q}%`).limit(10);
+    setStatsResults(data || []);
+    setStatsSearching(false);
+  };
+
+  const STAT_TO_RATING_COL = {
+    pac: 'good_chance', sho: 'shooting_quality', pas: 'passing_quality',
+    dri: 'successful_dribble', def: 'good_defending', phy: 'good_keeping',
+  };
+
+  const handleSelectStatsPlayer = async (p) => {
+    setSelectedStatsPlayer(p);
+    const cs = p.card_stats || {};
+    const currentStats = {
+      pac: cs.pac ?? 30, sho: cs.sho ?? 30, pas: cs.pas ?? 30,
+      dri: cs.dri ?? 30, def: cs.def ?? 30, phy: cs.phy ?? 30,
+    };
+    setStatsForm(currentStats);
+    setStatsQuery(''); setStatsResults([]);
+
+    setPastCardStats(null);
+    setPastCardHasHistory(true);
+    setLoadingPastCard(true);
+    const { data: lastRating } = await supabase
+      .from('game_ratings')
+      .select('shooting_quality, passing_quality, good_defending, good_keeping, successful_dribble, good_chance')
+      .eq('user_id', p.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const past = { ...currentStats };
+    if (lastRating) {
+      Object.entries(STAT_TO_RATING_COL).forEach(([statKey, col]) => {
+        past[statKey] = Math.max(30, Math.min(99, past[statKey] - (lastRating[col] || 0)));
+      });
+    }
+    setPastCardStats(past);
+    setPastCardHasHistory(!!lastRating);
+    setLoadingPastCard(false);
+  };
+
+  const handleSaveStatsPlayer = async () => {
+    if (!selectedStatsPlayer || !statsForm) return;
+    setSavingStats(true);
+    const cardStats = {
+      pac: statsForm.pac, sho: statsForm.sho, pas: statsForm.pas,
+      dri: statsForm.dri, def: statsForm.def, phy: statsForm.phy,
+    };
+    const newOverall = calcOverall(cardStats);
+    const { error, count } = await supabase.from('profiles').update({
+      card_stats: cardStats,
+      total_points: newOverall,
+    }, { count: 'exact' }).eq('id', selectedStatsPlayer.id);
+    setSavingStats(false);
+    if (error) { showError(error.message); return; }
+    if (count === 0) { showError('Update blocked by RLS. Confirm this account has admin access.'); return; }
+    showSuccess(`${selectedStatsPlayer.name}'s card updated!`);
+    setSelectedStatsPlayer(prev => prev ? { ...prev, card_stats: cardStats, total_points: newOverall } : prev);
   };
 
   const fetchGameRequests = async () => {
@@ -623,6 +704,7 @@ export default function AdminPage() {
 
   const TABS = [
     { key: 'managers',    label: 'Managers'    },
+    { key: 'playerstats', label: 'Player Stats' },
     { key: 'games',       label: 'Games'       },
     { key: 'banners',     label: 'Banners'     },
     { key: 'fields',      label: 'Fields'      },
@@ -925,6 +1007,172 @@ export default function AdminPage() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* ── PLAYER STATS TAB ── */}
+        {activeTab === 'playerstats' && (
+          <div>
+            <div style={sectionCard}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
+                EDIT PLAYER CARD
+              </h3>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>
+                Search a player to directly edit their card stats, OVR and games played — use this to fix a card left wrong by a broken or duplicate rating submission.
+              </p>
+              <div style={{ position: 'relative', marginBottom: 12 }}>
+                <IoSearch size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+                <input
+                  placeholder="Search by name..." value={statsQuery}
+                  onChange={e => handleStatsSearch(e.target.value)}
+                  style={{ paddingLeft: 32 }}
+                />
+              </div>
+              {statsSearching && <div style={{ color: 'var(--muted)', fontSize: 13 }}>Searching...</div>}
+              {!statsSearching && statsQuery && statsResults.length === 0 && (
+                <div style={{ color: 'var(--muted)', fontSize: 13 }}>No players found for "{statsQuery}"</div>
+              )}
+              {statsResults.map(p => (
+                <div key={p.id} onClick={() => handleSelectStatsPlayer(p)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--border)', cursor: 'pointer' }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', flexShrink: 0
+                  }}>
+                    {p.avatar_url ? <img src={p.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p.name?.[0] || '?').toUpperCase()}
+                  </div>
+                  <span style={{ flex: 1, fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{p.name}</span>
+                  <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: "'Space Mono'" }}>OVR {p.total_points ?? 0}</span>
+                </div>
+              ))}
+            </div>
+
+            {selectedStatsPlayer && statsForm && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 24, alignItems: 'start' }}>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={sectionCard}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)' }}>
+                        EDITING: {selectedStatsPlayer.name?.toUpperCase()}
+                      </h3>
+                      <button onClick={() => { setSelectedStatsPlayer(null); setStatsForm(null); setPastCardStats(null); }} style={{
+                        background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
+                        borderRadius: 8, padding: '5px 12px', fontSize: 12,
+                      }}>Close</button>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>GAMES PLAYED</label>
+                      <div style={{ fontFamily: "'Space Mono'", fontSize: 14, color: 'var(--text)' }}>
+                        {selectedStatsPlayer.games_played ?? 0} <span style={{ color: 'var(--muted)', fontSize: 12 }}>(fixed to games actually played — not editable here)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={sectionCard}>
+                    <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>PLAYER STATS</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {CARD_STAT_FIELDS.map(({ key, label }) => (
+                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 32, fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1 }}>{label}</span>
+                          <input
+                            type="range" min={30} max={99}
+                            value={statsForm[key]}
+                            onChange={e => setStatsForm({ ...statsForm, [key]: parseInt(e.target.value) })}
+                            style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                          />
+                          <span style={{ width: 28, fontFamily: "'Space Mono'", fontSize: 14, fontWeight: 700, color: 'var(--accent)', textAlign: 'right' }}>
+                            {statsForm[key]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleSaveStatsPlayer}
+                    disabled={savingStats}
+                    style={{
+                      padding: '12px', background: 'var(--accent)', color: '#fff',
+                      border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+                      opacity: savingStats ? 0.6 : 1, cursor: savingStats ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >{savingStats ? 'Saving…' : <><MdSave size={15} />Save Card</>}</button>
+                </div>
+
+                <div style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'center' }}>
+                  {(() => {
+                    const cs = pastCardStats || selectedStatsPlayer.card_stats || {};
+                    const cardStatsBefore = { pac: cs.pac ?? 30, sho: cs.sho ?? 30, pas: cs.pas ?? 30, dri: cs.dri ?? 30, def: cs.def ?? 30, phy: cs.phy ?? 30 };
+                    const overallBefore = calcOverall(cardStatsBefore);
+                    const rankBefore = getRank(overallBefore);
+
+                    const cardStatsPreview = { pac: statsForm.pac, sho: statsForm.sho, pas: statsForm.pas, dri: statsForm.dri, def: statsForm.def, phy: statsForm.phy };
+                    const overallPreview = calcOverall(cardStatsPreview);
+                    const rankPreview = getRank(overallPreview);
+
+                    const overallDelta = overallPreview - overallBefore;
+
+                    return (
+                      <>
+                        <div style={{ ...sectionCard, padding: 20, textAlign: 'center', marginBottom: 0, minWidth: 260, opacity: loadingPastCard ? 0.5 : 1 }}>
+                          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>
+                            PAST CARD {loadingPastCard && '· loading…'}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <FifaCard
+                              profile={{
+                                name: selectedStatsPlayer.name || 'PLAYER',
+                                position: selectedStatsPlayer.position,
+                                avatar_url: selectedStatsPlayer.avatar_url,
+                                games_played: selectedStatsPlayer.games_played,
+                                total_points: overallBefore,
+                              }}
+                              cardStats={cardStatsBefore}
+                              rank={rankBefore}
+                            />
+                          </div>
+                          <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
+                            OVR {overallBefore} · {rankBefore}
+                          </div>
+                          {!loadingPastCard && !pastCardHasHistory && (
+                            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 6 }}>No rated games on record — same as current.</div>
+                          )}
+                        </div>
+
+                        <div style={{ ...sectionCard, padding: 20, textAlign: 'center', marginBottom: 0, minWidth: 260, borderColor: overallDelta !== 0 ? 'var(--accent)' : 'var(--border)' }}>
+                          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>NEW CARD</div>
+                          <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <FifaCard
+                              profile={{
+                                name: selectedStatsPlayer.name || 'PLAYER',
+                                position: selectedStatsPlayer.position,
+                                avatar_url: selectedStatsPlayer.avatar_url,
+                                games_played: selectedStatsPlayer.games_played,
+                                total_points: overallPreview,
+                              }}
+                              cardStats={cardStatsPreview}
+                              rank={rankPreview}
+                            />
+                          </div>
+                          <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
+                            OVR {overallPreview} · {rankPreview}
+                            {overallDelta !== 0 && (
+                              <span style={{ color: overallDelta > 0 ? '#4ade80' : 'var(--red)', fontWeight: 700, marginLeft: 6 }}>
+                                ({overallDelta > 0 ? '+' : ''}{overallDelta})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+              </div>
+            )}
           </div>
         )}
 
