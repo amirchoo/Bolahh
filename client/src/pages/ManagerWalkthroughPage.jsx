@@ -605,70 +605,58 @@ export default function ManagerWalkthroughPage() {
         )}
 
         {showConfigTutorial && (
-          <TutorialModal title="HOW TEAM FORMAT WORKS" badge="Step 1 tutorial" onClose={() => setShowConfigTutorial(false)} maxWidth={720}>
-            <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
-              Before assigning players, decide how many teams share the pitch this session. This single choice drives the entire match schedule that follows, so it's worth getting right before moving on.
+          <TutorialModal title="PICK YOUR FORMAT ⚔️" badge="Step 1 tutorial" onClose={() => setShowConfigTutorial(false)} maxWidth={680}>
+            <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 16 }}>
+              One choice, whole schedule. Here's the difference:
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 16 }}>
               {/* 2 TEAMS */}
-              <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 14, padding: 16 }}>
-                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 1.5, color: 'var(--accent)', marginBottom: 4 }}>2 TEAMS</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Best for 10 players or fewer</div>
+              <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 19, letterSpacing: 1.5, color: 'var(--accent)' }}>2 TEAMS</div>
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10 }}>≤10 players</div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                  <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>Team A</span>
+                  <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>A</span>
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}>vs</span>
-                  <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>Team B</span>
-                  <span style={{ color: 'var(--muted)', fontSize: 11, marginLeft: 4 }}>× 5 matches</span>
+                  <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>B</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 11 }}>× 5</span>
                 </div>
 
-                <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.8 }}>
-                  <li>Same two teams play every match, back to back</li>
-                  <li>Neither team ever rests — everyone's always on the pitch</li>
-                  <li>5 matches, ~15 min each with 7 min breaks between</li>
+                <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--muted)', fontSize: 12, lineHeight: 1.7 }}>
+                  <li>Everyone plays, always — no resting</li>
+                  <li>5 matches, ~15 min each</li>
                 </ul>
               </div>
 
               {/* 3 TEAMS */}
-              <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 14, padding: 16 }}>
-                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 1.5, color: 'var(--accent)', marginBottom: 4 }}>3 TEAMS</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Best for 11+ players</div>
+              <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 19, letterSpacing: 1.5, color: 'var(--accent)' }}>3 TEAMS</div>
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10 }}>11+ players</div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
-                  {[
-                    { home: 'A', away: 'B', rest: 'C' },
-                    { home: 'B', away: 'C', rest: 'A' },
-                    { home: 'A', away: 'C', rest: 'B' },
-                  ].map((m, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ background: TEAM_COLORS[m.home].bg, color: TEAM_COLORS[m.home].text, border: `1px solid ${TEAM_COLORS[m.home].border}`, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>Team {m.home}</span>
-                      <span style={{ color: 'var(--muted)', fontSize: 11 }}>vs</span>
-                      <span style={{ background: TEAM_COLORS[m.away].bg, color: TEAM_COLORS[m.away].text, border: `1px solid ${TEAM_COLORS[m.away].border}`, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>Team {m.away}</span>
-                      <span style={{ color: 'var(--muted)', fontSize: 10 }}>· Team {m.rest} rests</span>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>A</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>vs</span>
+                  <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>B</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 10 }}>· C rests, then rotates</span>
                 </div>
 
-                <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.8 }}>
-                  <li>Round-robin — that 3-match rotation repeats 3×</li>
-                  <li>One team sits out each match, on a fair rotating basis</li>
-                  <li>9 matches total, ~13 min each</li>
+                <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--muted)', fontSize: 12, lineHeight: 1.7 }}>
+                  <li>Round-robin, 1 team rests each match</li>
+                  <li>9 matches, ~13 min each</li>
                 </ul>
               </div>
             </div>
 
-            <div style={{ background: 'rgba(100,160,255,0.08)', border: '1px solid rgba(100,160,255,0.25)', borderRadius: 10, padding: '12px 14px', marginBottom: 20, color: 'var(--text)', fontSize: 12.5, lineHeight: 1.7, display: 'flex', gap: 8 }}>
-              <LuLightbulb size={15} style={{ flexShrink: 0, marginTop: 1, color: '#64a0ff' }} />
-              <span>
-                Bolahh suggests a format automatically — <strong>2 teams</strong> for up to 10 players, <strong>3 teams</strong> once the roster passes that, so no single team ends up sitting out for too long. You can always override it. Either way, no team can ever hold more than <strong>5 players</strong> — bib numbers only go up to 5, matching a 5v5 lineup.
-              </span>
+            <div style={{ background: 'rgba(100,160,255,0.08)', border: '1px solid rgba(100,160,255,0.25)', borderRadius: 10, padding: '10px 12px', marginBottom: 16, color: 'var(--text)', fontSize: 12, lineHeight: 1.6, display: 'flex', gap: 8 }}>
+              <LuLightbulb size={14} style={{ flexShrink: 0, marginTop: 1, color: '#64a0ff' }} />
+              <span>Bolahh picks one for you — override anytime. Teams cap at <strong>5 players</strong> either way (5v5).</span>
             </div>
 
             <button type="button" onClick={() => setShowConfigTutorial(false)} style={{
-              width: '100%', padding: '12px', background: 'var(--accent)', color: '#fff',
+              width: '100%', padding: '11px', background: 'var(--accent)', color: '#fff',
               border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer',
-            }}>Got it, let's assign teams</button>
+            }}>Let's go →</button>
           </TutorialModal>
         )}
 
@@ -865,84 +853,57 @@ export default function ManagerWalkthroughPage() {
         {showSetupTutorial && (
           <TutorialModal
             onClose={() => setShowSetupTutorial(false)}
-            maxWidth={640}
+            maxWidth={600}
             pages={[
               {
-                badge: 'Step 2 tutorial · 1 of 4',
-                title: 'ROSTER, GROUPED BY TEAM',
+                badge: 'Step 2 tutorial · 1 of 3',
+                title: 'ROSTER, SORTED BY TEAM 📋',
                 content: (
                   <div>
-                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 16 }}>
-                      The player list isn't in join order — it's grouped by team (A, then B, then C), with unassigned players at the bottom. Inside each team, players are ordered by bib number. Move someone to a new team and the list re-sorts instantly to their new spot.
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Not join order — team order. A, then B, then C, unassigned last. Move someone and the list follows.
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>Team A · #1</span>
-                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>Team A · #2</span>
-                      <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>Team B · #1</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
+                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>A · #1</span>
+                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>A · #2</span>
+                      <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>B · #1</span>
                       <span style={{ background: 'var(--card)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 9px', fontSize: 11 }}>Unassigned</span>
-                      <span style={{ color: 'var(--muted)', fontSize: 11 }}>← the order the list actually renders in</span>
                     </div>
-                    <p style={{ color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.7, marginTop: 14 }}>
-                      Tap any player's row to expand it and see their team/bib picker, or the small green check-in badge next to their avatar.
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Tap a row to open its team/bib picker, or the green ✓ badge to check someone in.
                     </p>
                   </div>
                 ),
               },
               {
-                badge: 'Step 2 tutorial · 2 of 4',
-                title: 'PICK A TEAM & BIB — TRY IT',
+                badge: 'Step 2 tutorial · 2 of 3',
+                title: 'PICK A TEAM & BIB 🎮',
                 content: (
                   <div>
-                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 14 }}>
-                      This is a live practice roster — nothing here affects your real session. Tap <strong>Hafiz</strong> to expand him, put him on <strong>Team A</strong>, then try bib <strong>#1</strong> — it's grayed out because Danial already has it on Team A. Pick <strong>#2</strong> instead.
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Try it — this mini roster is just for practice. Tap <strong>Hafiz</strong>, put him on <strong>Team A</strong>, then try bib <strong>#1</strong> (taken). Pick <strong>#2</strong> instead.
                     </p>
                     <AssignTeamsPracticeDemo />
-                    <p style={{ color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.7, marginTop: 14 }}>
-                      Now try switching <strong>Danial</strong> from Team A to Team B — Faris already wears #1 on Team B, so Danial's bib clears itself instead of silently duplicating it. Bib numbers only have to be unique <em>within a team</em>, and switching teams re-checks that automatically.
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Now switch <strong>Danial</strong> to Team B — Faris already has #1 there, so Danial's bib clears itself instead of clashing. Bibs only need to be unique per team.
                     </p>
                   </div>
                 ),
               },
               {
-                badge: 'Step 2 tutorial · 3 of 4',
-                title: 'TEAM SIZE CAP & RE-BALANCE',
+                badge: 'Step 2 tutorial · 3 of 3',
+                title: 'CAP, RE-BALANCE & CHECK-IN ⚡',
                 content: (
                   <div>
-                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 14 }}>
-                      A team can never hold more than <strong>5 players</strong> — matching a 5v5 lineup. Once a team is full, its button grays out and shows <strong>"· Full"</strong> for every other player, so you can't accidentally stack six people onto one side.
-                    </p>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                      {['A', 'B', 'C'].map((t) => (
-                        <div key={t} style={{
-                          flex: 1, padding: '10px 0', borderRadius: 8, textAlign: 'center',
-                          background: t === 'C' ? 'var(--card)' : TEAM_COLORS[t].bg,
-                          color: t === 'C' ? 'var(--border)' : TEAM_COLORS[t].text,
-                          border: `1.5px solid ${t === 'C' ? 'var(--border)' : TEAM_COLORS[t].border}`,
-                          fontWeight: 700, fontSize: 12, opacity: t === 'C' ? 0.5 : 1,
-                        }}>Team {t}{t === 'C' ? ' · Full' : ''}</div>
-                      ))}
-                    </div>
-                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 8 }}>
-                      Made a mess rearranging people? The <strong>"↻ Re-balance by rank"</strong> button resets everyone back to an auto-suggested lineup — matched by average rank so both/all sides stay competitive — as long as you haven't manually moved anyone yet.
-                    </p>
-                    <p style={{ color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.7 }}>
-                      The colored cards at the bottom of the page show each team's average OVR/rank live as you assign players, so you can eyeball whether the split still looks fair.
-                    </p>
-                  </div>
-                ),
-              },
-              {
-                badge: 'Step 2 tutorial · 4 of 4',
-                title: 'CHECK IN PLAYERS AS THEY ARRIVE',
-                content: (
-                  <div>
-                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 14 }}>
-                      The small checkmark next to each player's avatar does double duty — confirming their bib is correct <em>and</em> marking them as having actually shown up, timestamped in Malaysia time. Try it below:
+                    <ul style={{ margin: '0 0 14px', paddingLeft: 18, color: 'var(--text)', fontSize: 13, lineHeight: 1.9 }}>
+                      <li><strong>5 players max</strong> per team — full teams show "· Full"</li>
+                      <li>Messed it up? <strong>"↻ Re-balance"</strong> resets everyone by rank</li>
+                      <li>Team cards at the bottom show live avg OVR per side</li>
+                    </ul>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 10 }}>
+                      The ✓ badge checks a player in — confirms their bib <em>and</em> attendance, timestamped instantly. Try it:
                     </p>
                     <CheckInPracticeDemo />
-                    <p style={{ color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.7, marginTop: 14 }}>
-                      It's written the moment you tap it — not held until the end of the session — so attendance is recorded even if the rating flow gets interrupted later. Tap a checked-in player again to undo it.
-                    </p>
                   </div>
                 ),
               },
