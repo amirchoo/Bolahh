@@ -325,6 +325,41 @@ function CheckInPracticeDemo() {
   );
 }
 
+// ── Kickoff tutorial: live minute picker showing how a late start eats into
+// match time (not the session, which always ends at the fixed booked hour).
+// Reuses the same addMinutes/diffMinutes/getScheduleInfo math as the real
+// page, just against a fixed 8:00 PM demo booking.
+function KickoffPracticeDemo() {
+  const [demoMinute, setDemoMinute] = useState(0);
+  const demoScheduledEnd = addMinutes('20:00', SESSION_MINUTES);
+  const demoActualStart = `20:${String(demoMinute).padStart(2, '0')}`;
+  const demoAvailable = Math.max(10, diffMinutes(demoScheduledEnd, demoActualStart));
+
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--text)' }}>8</div>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--muted)' }}>:</div>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--accent)', width: 40, textAlign: 'center' }}>{String(demoMinute).padStart(2, '0')}</div>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 16, color: 'var(--muted)', marginLeft: 2 }}>PM</div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+        {[0, 10, 20, 30].map((offset) => (
+          <button key={offset} type="button" onClick={() => setDemoMinute(offset)} style={{
+            background: demoMinute === offset ? 'var(--accent)' : 'var(--card)',
+            color: demoMinute === offset ? '#fff' : 'var(--muted)',
+            border: `1.5px solid ${demoMinute === offset ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+          }}>{offset === 0 ? 'On time' : `+${offset}m`}</button>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text)', textAlign: 'center' }}>
+        <strong>{Math.floor(demoAvailable / 60)}h {demoAvailable % 60}m</strong> left · {getScheduleInfo(demoAvailable, 3, demoScheduledEnd)}
+      </div>
+    </div>
+  );
+}
+
 export default function ManagerWalkthroughPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState('config');
@@ -360,6 +395,16 @@ export default function ManagerWalkthroughPage() {
       setSeenSetupTutorial(true);
     }
   }, [step, seenSetupTutorial]);
+
+  // Same pattern for the Kickoff Time step.
+  const [showKickoffTutorial, setShowKickoffTutorial] = useState(false);
+  const [seenKickoffTutorial, setSeenKickoffTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'kickoff' && !seenKickoffTutorial) {
+      setShowKickoffTutorial(true);
+      setSeenKickoffTutorial(true);
+    }
+  }, [step, seenKickoffTutorial]);
 
   // Max players per team — 5 for a 5v5 game, mirrors GameRatingPage.jsx.
   const teamSize = 5;
@@ -914,7 +959,16 @@ export default function ManagerWalkthroughPage() {
         {step === 'kickoff' && (
           <div>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18, padding: 18, marginBottom: 20 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>ACTUAL KICKOFF TIME</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)' }}>ACTUAL KICKOFF TIME</div>
+                <button type="button" onClick={() => setShowKickoffTutorial(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}>
+                  <IoHelpCircleOutline size={15} /> How does this work?
+                </button>
+              </div>
               <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
                 This court is booked {formatTime(MOCK_GAME_TIME)}–{formatTime(scheduledEnd)} (2 hours, fixed). Games rarely start right on time — when did the first match actually kick off?
               </p>
@@ -991,6 +1045,50 @@ export default function ManagerWalkthroughPage() {
               </button>
             </div>
           </div>
+        )}
+
+        {showKickoffTutorial && (
+          <TutorialModal
+            onClose={() => setShowKickoffTutorial(false)}
+            maxWidth={560}
+            pages={[
+              {
+                badge: 'Step 3 tutorial · 1 of 2',
+                title: 'A LATE START EATS MATCH TIME ⏰',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      The court booking is fixed — it always ends on schedule. Start late and you don't get extra time, matches just get shorter to still fit. Try it:
+                    </p>
+                    <KickoffPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Bump the minutes up and watch the leftover time — and each match's length — shrink live.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 3 tutorial · 2 of 2',
+                title: 'WHO RESTS FIRST? 🔄',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Only matters in <strong>3-team mode</strong> — some players run late, so pick whichever two teams already have enough people to start. The third just begins the rotation resting; everyone still gets 6 of the 9 halves.
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>A</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 12 }}>vs</span>
+                      <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>B</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 11 }}>· C rests first</span>
+                    </div>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6 }}>
+                      2-team mode? Nothing to pick — both teams play every match from the start.
+                    </p>
+                  </div>
+                ),
+              },
+            ]}
+          />
         )}
 
         {step === 'schedule' && (
