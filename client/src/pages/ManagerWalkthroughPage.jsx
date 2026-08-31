@@ -99,8 +99,9 @@ const PLAYER_IDS = Object.keys(MOCK_PROFILES);
 // reverses each round) so team average OVR stays close, then bibs each
 // player 1..N in the order they landed on their team. Mirrors the same
 // helper in GameRatingPage.jsx — this is only a starting point managers
-// can freely reassign afterward.
-function balanceTeams(playerIds, profiles, teams) {
+// can freely reassign afterward. A team never gets more than maxPerTeam
+// players (5 for a 5v5 game) — anyone who doesn't fit is left unassigned.
+function balanceTeams(playerIds, profiles, teams, maxPerTeam = 5) {
   const sorted = [...playerIds].sort((a, b) => (profiles[b]?.total_points || 30) - (profiles[a]?.total_points || 30));
   const buckets = Object.fromEntries(teams.map((t) => [t, []]));
   sorted.forEach((uid, i) => {
@@ -112,7 +113,7 @@ function balanceTeams(playerIds, profiles, teams) {
   const teamAssign = {};
   const bibAssign = {};
   teams.forEach((t) => {
-    buckets[t].forEach((uid, idx) => {
+    buckets[t].slice(0, maxPerTeam).forEach((uid, idx) => {
       teamAssign[uid] = t;
       bibAssign[uid] = idx + 1;
     });
@@ -196,8 +197,8 @@ export default function ManagerWalkthroughPage() {
   const [startMinute, setStartMinute] = useState(scheduledMinute + 15);
   const [firstRestTeam, setFirstRestTeam] = useState(null);
   const [teamMode, setTeamMode] = useState(3);
-  const [teamAssign, setTeamAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C']).teamAssign);
-  const [bibAssign, setBibAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C']).bibAssign);
+  const [teamAssign, setTeamAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C'], 5).teamAssign);
+  const [bibAssign, setBibAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C'], 5).bibAssign);
   const [autoBalanced, setAutoBalanced] = useState(true);
   const [expandedSetupUid, setExpandedSetupUid] = useState(null);
   const [currentMatch, setCurrentMatch] = useState(0);
@@ -206,6 +207,9 @@ export default function ManagerWalkthroughPage() {
   const [expandedUid, setExpandedUid] = useState(null);
   const [quickRankUid, setQuickRankUid] = useState(null);
   const [testCompleted, setTestCompleted] = useState(false);
+
+  // Max players per team — 5 for a 5v5 game, mirrors GameRatingPage.jsx.
+  const teamSize = 5;
 
   const activeTeams = teamMode === 2 ? ['A', 'B'] : ['A', 'B', 'C'];
   const effectiveRestTeam = teamMode === 3
@@ -216,14 +220,15 @@ export default function ManagerWalkthroughPage() {
   const availableMinutes = Math.max(10, diffMinutes(scheduledEnd, actualStart));
   const schedule = buildSchedule(actualStart, availableMinutes, teamMode, activeTeams, effectiveRestTeam);
   const match = schedule[currentMatch] || schedule[0];
-  const homePlayers = PLAYER_IDS.filter((uid) => teamAssign[uid] === match.home);
-  const awayPlayers = PLAYER_IDS.filter((uid) => teamAssign[uid] === match.away);
+  const bibSort = (a, b) => (bibAssign[a] || 0) - (bibAssign[b] || 0);
+  const homePlayers = PLAYER_IDS.filter((uid) => teamAssign[uid] === match.home).sort(bibSort);
+  const awayPlayers = PLAYER_IDS.filter((uid) => teamAssign[uid] === match.away).sort(bibSort);
   const teamPlayers = (team) => PLAYER_IDS.filter((uid) => teamAssign[uid] === team);
 
   const allAssigned = () => PLAYER_IDS.length > 0 && PLAYER_IDS.every((uid) => teamAssign[uid] && bibAssign[uid]);
 
   const runAutoBalance = () => {
-    const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, activeTeams);
+    const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, activeTeams, teamSize);
     setTeamAssign(nextTeams);
     setBibAssign(nextBibs);
     setAutoBalanced(true);
@@ -235,12 +240,15 @@ export default function ManagerWalkthroughPage() {
     setTeamMode(n);
     if (!autoBalanced) return;
     const teams = n === 2 ? ['A', 'B'] : ['A', 'B', 'C'];
-    const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, teams);
+    const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, teams, teamSize);
     setTeamAssign(nextTeams);
     setBibAssign(nextBibs);
   };
 
   const setPlayerTeam = (uid, team) => {
+    // A full team (already at teamSize members) can't take on another player —
+    // mirrors GameRatingPage.jsx.
+    if (team && teamAssign[uid] !== team && teamPlayers(team).length >= teamSize) return;
     setAutoBalanced(false);
     setTeamAssign((prev) => {
       const next = { ...prev };
@@ -248,6 +256,20 @@ export default function ManagerWalkthroughPage() {
       else next[uid] = team;
       return next;
     });
+    // Moving a player to a different team without re-checking their bib can carry
+    // a number that's already taken there — clear it so it gets re-picked. Mirrors
+    // the same fix in GameRatingPage.jsx.
+    if (team && teamAssign[uid] !== team) {
+      setBibAssign((prev) => {
+        const currentBib = prev[uid];
+        if (currentBib == null) return prev;
+        const collides = PLAYER_IDS.some((other) => other !== uid && teamAssign[other] === team && prev[other] === currentBib);
+        if (!collides) return prev;
+        const next = { ...prev };
+        delete next[uid];
+        return next;
+      });
+    }
   };
 
   const setPlayerBib = (uid, number) => {
@@ -282,21 +304,40 @@ export default function ManagerWalkthroughPage() {
     }));
   };
 
-  // Instantly sets every stat to the midpoint OVR of the chosen rank tier —
-  // for a new player who's clearly stronger than their Novis default, this
-  // skips tapping +/- six separate times to reach the observed level.
+  // Instantly boosts a player to roughly the midpoint OVR of the chosen rank
+  // tier — for a new player who's clearly stronger than their Novis default,
+  // this skips tapping +/- six separate times to reach the observed level.
+  // Stats get random jitter around the target rather than all landing on the
+  // same number, then get nudged back toward the target average one stat at
+  // a time. Mirrors GameRatingPage.jsx.
   const applyQuickRank = (uid, rankName) => {
     const rank = RANKS.find((r) => r.name === rankName);
     if (!rank) return;
     const targetTaps = Math.round((rank.minOvr + rank.maxOvr) / 2) - 30;
     const isRanked = (MOCK_PROFILES[uid]?.games_played || 0) > 0;
+    const TAP_CAP = 69;
+    const spread = Math.max(3, Math.min(10, Math.round((rank.maxOvr - rank.minOvr) / 3)));
     setRatings((prev) => {
-      const next = { ...(prev[uid] || defaultStats()), touched: true };
-      CARD_STATS.forEach(({ key }) => {
-        const baseMin = isRanked ? 0 : (MOCK_BASE_TAPS[uid]?.[key] || 0);
-        next[key] = Math.max(baseMin, targetTaps);
+      const keys = CARD_STATS.map((s) => s.key);
+      const baseMins = {};
+      keys.forEach((key) => { baseMins[key] = isRanked ? 0 : (MOCK_BASE_TAPS[uid]?.[key] || 0); });
+
+      const vals = {};
+      keys.forEach((key) => {
+        const jitter = Math.round((Math.random() * 2 - 1) * spread);
+        vals[key] = Math.max(baseMins[key], Math.min(TAP_CAP, targetTaps + jitter));
       });
-      return { ...prev, [uid]: next };
+
+      let diff = Math.round(targetTaps - keys.reduce((s, k) => s + vals[k], 0) / keys.length);
+      let guard = 0;
+      while (diff !== 0 && guard < 200) {
+        const key = keys[Math.floor(Math.random() * keys.length)];
+        if (diff > 0 && vals[key] < TAP_CAP) { vals[key]++; diff--; }
+        else if (diff < 0 && vals[key] > baseMins[key]) { vals[key]--; diff++; }
+        guard++;
+      }
+
+      return { ...prev, [uid]: { ...(prev[uid] || defaultStats()), ...vals, touched: true } };
     });
     setQuickRankUid(null);
   };
@@ -400,7 +441,7 @@ export default function ManagerWalkthroughPage() {
                 const bib = bibAssign[uid];
                 const tc = team ? TEAM_COLORS[team] : null;
                 const isExpanded = expandedSetupUid === uid;
-                const bibNumbers = Array.from({ length: Math.max(PLAYER_IDS.length, 12) }, (_, n) => n + 1);
+                const bibNumbers = Array.from({ length: teamSize }, (_, n) => n + 1);
                 const taken = team ? takenBibs(team, uid) : [];
 
                 return (
@@ -428,15 +469,21 @@ export default function ManagerWalkthroughPage() {
                       <div style={{ padding: '0 14px 16px' }}>
                         <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, marginBottom: 8 }}>TEAM</div>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                          {activeTeams.map((t) => (
-                            <button key={t} type="button" onClick={() => setPlayerTeam(uid, t)} style={{
-                              flex: 1, padding: '8px 0', borderRadius: 8, fontWeight: 700, fontSize: 13,
-                              background: team === t ? TEAM_COLORS[t].bg : 'var(--card2)',
-                              color: team === t ? TEAM_COLORS[t].text : 'var(--muted)',
-                              border: `1.5px solid ${team === t ? TEAM_COLORS[t].border : 'var(--border)'}`,
-                              cursor: 'pointer',
-                            }}>Team {t}</button>
-                          ))}
+                          {activeTeams.map((t) => {
+                            const isFull = team !== t && teamPlayers(t).length >= teamSize;
+                            return (
+                              <button key={t} type="button" disabled={isFull} onClick={() => setPlayerTeam(uid, t)}
+                                title={isFull ? `Team ${t} already has ${teamSize} players` : undefined}
+                                style={{
+                                  flex: 1, padding: '8px 0', borderRadius: 8, fontWeight: 700, fontSize: 13,
+                                  background: team === t ? TEAM_COLORS[t].bg : 'var(--card2)',
+                                  color: team === t ? TEAM_COLORS[t].text : isFull ? 'var(--border)' : 'var(--muted)',
+                                  border: `1.5px solid ${team === t ? TEAM_COLORS[t].border : 'var(--border)'}`,
+                                  cursor: isFull ? 'default' : 'pointer',
+                                  opacity: isFull ? 0.5 : 1,
+                                }}>Team {t}{isFull ? ' · Full' : ''}</button>
+                            );
+                          })}
                         </div>
 
                         <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, marginBottom: 8 }}>BIB NUMBER</div>

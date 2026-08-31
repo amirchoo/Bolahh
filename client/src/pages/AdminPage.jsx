@@ -1020,6 +1020,16 @@ export default function AdminPage() {
         {/* ── PLAYER STATS TAB ── */}
         {activeTab === 'playerstats' && (
           <div>
+            <style>{`
+              @media (max-width: 860px) {
+                .player-stats-layout { grid-template-columns: 1fr !important; }
+                .player-stats-cards { position: static !important; }
+              }
+              @media (max-width: 600px) {
+                .player-stats-cards { flex-direction: column !important; align-items: center !important; }
+                .player-stats-cards > div { width: 100% !important; max-width: 300px; }
+              }
+            `}</style>
             <div style={sectionCard}>
               <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
                 EDIT PLAYER CARD
@@ -1056,9 +1066,9 @@ export default function AdminPage() {
             </div>
 
             {selectedStatsPlayer && statsForm && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 24, alignItems: 'start' }}>
+              <div className="player-stats-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 24, alignItems: 'start' }}>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                   <div style={sectionCard}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                       <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)' }}>
@@ -1118,7 +1128,7 @@ export default function AdminPage() {
                   >{savingStats ? 'Saving…' : <><MdSave size={15} />Save Card</>}</button>
                 </div>
 
-                <div style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'center' }}>
+                <div className="player-stats-cards" style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'center', minWidth: 0 }}>
                   {(() => {
                     const cs = pastCardStats || selectedStatsPlayer.card_stats || {};
                     const cardStatsBefore = { pac: cs.pac ?? 30, sho: cs.sho ?? 30, pas: cs.pas ?? 30, dri: cs.dri ?? 30, def: cs.def ?? 30, phy: cs.phy ?? 30 };
