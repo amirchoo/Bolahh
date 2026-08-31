@@ -7,7 +7,7 @@ import { calcOverall, getCardTheme } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
 import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown, IoHelpCircleOutline } from 'react-icons/io5';
-import { GiTrophy } from 'react-icons/gi';
+import { GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
 const MOTM_META = {
@@ -50,6 +50,39 @@ const MOCK_GAME_TIME = '20:00';
 function rotationOrder(teams, restTeam) {
   if (teams.length < 3 || !restTeam || !teams.includes(restTeam)) return teams;
   return [...teams.filter((t) => t !== restTeam), restTeam];
+}
+
+// Goalkeeper rotation. Mirrors GameRatingPage.jsx.
+function keeperBibForMatchNumber(teamMatchNumber) {
+  return 5 - ((teamMatchNumber - 1) % 5);
+}
+
+function getTeamMatchInfo(schedule, team, matchIndex) {
+  let matchNumber = 0;
+  let lastIndexForTeam = -1;
+  schedule.forEach((m, i) => {
+    if (m.home === team || m.away === team) {
+      lastIndexForTeam = i;
+      if (i <= matchIndex) matchNumber++;
+    }
+  });
+  return { matchNumber, isLastMatch: matchIndex === lastIndexForTeam };
+}
+
+function KeeperBadge({ schedule, team, matchIndex }) {
+  const { matchNumber, isLastMatch } = getTeamMatchInfo(schedule, team, matchIndex);
+  if (matchNumber === 0) return null;
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      background: 'rgba(167,139,250,0.1)', color: '#a78bfa',
+      border: '1px solid rgba(167,139,250,0.3)', borderRadius: 6,
+      padding: '3px 9px', fontSize: 11, fontWeight: 600,
+    }}>
+      <GiGoalKeeper size={12} />
+      {isLastMatch ? 'GK rotates every goal, starts #5' : `GK #${keeperBibForMatchNumber(matchNumber)}`}
+    </div>
+  );
 }
 
 const TEAM_COLORS = {
@@ -1097,7 +1130,8 @@ export default function ManagerWalkthroughPage() {
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>MATCH SCHEDULE · {formatTime(actualStart)} KICKOFF</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>{getScheduleInfo(availableMinutes, teamMode, scheduledEnd)}</div>
               {schedule.map((s, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, marginBottom: 6, background: 'var(--card2)', border: '1px solid var(--border)' }}>
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 10, marginBottom: 6, background: 'var(--card2)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)', minWidth: 60 }}>{s.time ? formatTime(s.time) : `Match ${i + 1}`}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                     <span style={{ background: TEAM_COLORS[s.home].bg, color: TEAM_COLORS[s.home].text, border: `1px solid ${TEAM_COLORS[s.home].border}`, borderRadius: 6, padding: '3px 12px', fontWeight: 700, fontSize: 13 }}>Team {s.home}</span>
@@ -1106,6 +1140,11 @@ export default function ManagerWalkthroughPage() {
                   </div>
                   {s.rest && <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}><LuMoon size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />Team {s.rest} rests</div>}
                   {!s.rest && i < schedule.length - 1 && <div style={{ background: 'rgba(100,160,255,0.08)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.2)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}><LuCoffee size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />7 min break</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 72 }}>
+                  <KeeperBadge schedule={schedule} team={s.home} matchIndex={i} />
+                  <KeeperBadge schedule={schedule} team={s.away} matchIndex={i} />
+                </div>
                 </div>
               ))}
             </div>
@@ -1150,7 +1189,10 @@ export default function ManagerWalkthroughPage() {
                 const tc = TEAM_COLORS[team];
                 return (
                   <div key={team} style={{ background: tc.bg, border: `1px solid ${tc.border}`, borderRadius: 14, padding: 10 }}>
-                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text, marginBottom: 10 }}>TEAM {team}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text }}>TEAM {team}</div>
+                      <KeeperBadge schedule={schedule} team={team} matchIndex={match.index} />
+                    </div>
                     {teamUids.map((uid) => {
                       const p = MOCK_PROFILES[uid];
                       const stats = ratings[uid] || defaultStats();

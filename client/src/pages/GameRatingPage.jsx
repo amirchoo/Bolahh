@@ -9,7 +9,7 @@ import { getCardTheme, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
 import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline, IoChevronDown } from 'react-icons/io5';
-import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
+import { GiSoccerBall, GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
 const MOTM_META = {
@@ -48,6 +48,49 @@ const RANK_UP_OPTIONS = RANKS.filter(r => r.name !== 'Novis');
 function rotationOrder(teams, restTeam) {
   if (teams.length < 3 || !restTeam || !teams.includes(restTeam)) return teams;
   return [...teams.filter(t => t !== restTeam), restTeam];
+}
+
+// Goalkeeper rotation: bib #5 keeps a team's 1st match, #4 the 2nd, counting
+// down to #1 on the 5th — then wraps back to #5 for a 6th match (only
+// possible in 3-team mode, where each team plays 6 of the 9 matches).
+function keeperBibForMatchNumber(teamMatchNumber) {
+  return 5 - ((teamMatchNumber - 1) % 5);
+}
+
+// Where a team sits within its OWN match sequence (skipping matches it rests
+// for), 1-indexed — plus whether this is that team's last scheduled match,
+// where the keeper instead rotates every goal starting from #5 rather than
+// holding one fixed bib for the whole match.
+function getTeamMatchInfo(schedule, team, matchIndex) {
+  let matchNumber = 0;
+  let lastIndexForTeam = -1;
+  schedule.forEach((m, i) => {
+    if (m.home === team || m.away === team) {
+      lastIndexForTeam = i;
+      if (i <= matchIndex) matchNumber++;
+    }
+  });
+  return { matchNumber, isLastMatch: matchIndex === lastIndexForTeam };
+}
+
+// Small reminder pill showing which bib keeps for a team in a given match —
+// a fixed bib for every match except the team's last, where the keeper
+// rotates after every goal instead (starting from #5), too dynamic to name
+// a single bib for.
+function KeeperBadge({ schedule, team, matchIndex }) {
+  const { matchNumber, isLastMatch } = getTeamMatchInfo(schedule, team, matchIndex);
+  if (matchNumber === 0) return null;
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      background: 'rgba(167,139,250,0.1)', color: '#a78bfa',
+      border: '1px solid rgba(167,139,250,0.3)', borderRadius: 6,
+      padding: '3px 9px', fontSize: 11, fontWeight: 600,
+    }}>
+      <GiGoalKeeper size={12} />
+      {isLastMatch ? 'GK rotates every goal, starts #5' : `GK #${keeperBibForMatchNumber(matchNumber)}`}
+    </div>
+  );
 }
 
 // Every court booking is a fixed 2-hour slot — kickoff usually slips, but the
@@ -1254,10 +1297,11 @@ export default function GameRatingPage() {
 
               {schedule.map((s, i) => (
                 <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
+                  display: 'flex', flexDirection: 'column', gap: 8,
                   padding: '10px 12px', borderRadius: 10, marginBottom: 6,
                   background: 'var(--card2)', border: '1px solid var(--border)'
                 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)', minWidth: 60 }}>
                     {s.time ? formatTime(s.time) : `Match ${i + 1}`}
                   </div>
@@ -1288,6 +1332,11 @@ export default function GameRatingPage() {
                       padding: '3px 10px', fontSize: 11, fontWeight: 600
                     }}><LuCoffee size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />7 min break</div>
                   )}
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 72 }}>
+                  <KeeperBadge schedule={schedule} team={s.home} matchIndex={i} />
+                  <KeeperBadge schedule={schedule} team={s.away} matchIndex={i} />
+                </div>
                 </div>
               ))}
             </div>
@@ -1351,7 +1400,10 @@ export default function GameRatingPage() {
                 const tc = TEAM_COLORS[team];
                 return (
                   <div key={team} style={{ background: tc.bg, border: `1px solid ${tc.border}`, borderRadius: 14, padding: 10 }}>
-                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text, marginBottom: 10 }}>TEAM {team}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text }}>TEAM {team}</div>
+                      <KeeperBadge schedule={schedule} team={team} matchIndex={match.index} />
+                    </div>
                     {teamUids.map((uid) => {
                       const p = profiles[uid];
                       const stats = ratings[uid] || defaultStats();
