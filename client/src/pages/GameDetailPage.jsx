@@ -35,11 +35,8 @@ const STAT_KEYS = [
 const calcAwardPoints = (r) =>
   STAT_KEYS.reduce((sum, { key, weight }) => sum + (r[key] || 0) * weight, 0);
 
-const POSITION_META = {
-  1: { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', label: '1ST PLACE', shadowColor: 'rgba(255,215,0,0.45)' },
-  2: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND PLACE', shadowColor: 'rgba(192,192,192,0.3)' },
-  3: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD PLACE', shadowColor: 'rgba(205,127,50,0.3)' },
-};
+// No ranking — every winner gets the identical gold Bolahh Award treatment.
+const AWARD_META = { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', shadowColor: 'rgba(255,215,0,0.45)' };
 
 // ── PREVIEW / DEV MODE ────────────────────────────────────────────────────────
 // Yesterday, so `ended` always computes true regardless of when this is viewed.
@@ -77,8 +74,8 @@ const MOCK_MY_FEEDBACK = {
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
-function AwardPopup({ position, profile, points, rating, onClose }) {
-  const meta = POSITION_META[position];
+function AwardPopup({ profile, points, rating, onClose }) {
+  const meta = AWARD_META;
   const name = profile?.name || 'Player';
   const rank = getRank(profile?.total_points);
   const rankColor = getRankColor(rank);
@@ -133,7 +130,7 @@ function AwardPopup({ position, profile, points, rating, onClose }) {
           borderRadius: 8, padding: '4px 16px',
           fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700,
           color: meta.color, letterSpacing: 2, marginBottom: 12,
-        }}>{meta.label}</div>
+        }}>TOP PERFORMER</div>
 
         <div style={{
           fontFamily: "'Bebas Neue'", fontSize: 34, letterSpacing: 4,
@@ -229,13 +226,23 @@ export default function GameDetailPage() {
   const [ratingProfiles, setRatingProfiles] = useState({});
   const [hasFeedback, setHasFeedback] = useState(false);
   const [showAwardPopup, setShowAwardPopup] = useState(false);
-  const [myPosition, setMyPosition] = useState(null);
+  const [isAwardWinner, setIsAwardWinner] = useState(false);
   const [myFeedback, setMyFeedback] = useState(null);
 
-  // Full standings list is shuffled (not ranked by points) so it doesn't read as a leaderboard —
-  // the top-3 award ranking above it already covers that.
+  // Full standings list is shuffled (not ranked by points) so it doesn't read as a leaderboard.
   const shuffledRatings = useMemo(() => {
     const arr = [...sortedRatings];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [sortedRatings]);
+
+  // Ballers of the Match grid is shuffled too — with no more 1st/2nd/3rd, card
+  // position shouldn't read as an implicit ranking either.
+  const shuffledTop3 = useMemo(() => {
+    const arr = sortedRatings.slice(0, Math.min(3, sortedRatings.length));
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -344,15 +351,11 @@ export default function GameDetailPage() {
         STAT_KEYS.forEach(({ key }) => { agg[r.user_id][key] += r[key] || 0; });
         if ((r.admin_bonus || 0) > 0) agg[r.user_id].admin_bonus = r.admin_bonus;
       });
-      const hasOfficialMotm = Object.values(agg).some(r => r.admin_bonus > 0);
-      let sorted;
-      if (hasOfficialMotm) {
-        const motmOrder = Object.values(agg).filter(r => r.admin_bonus > 0).sort((a, b) => a.admin_bonus - b.admin_bonus);
-        const others = Object.values(agg).filter(r => !r.admin_bonus).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
-        sorted = [...motmOrder, ...others];
-      } else {
-        sorted = Object.values(agg).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
-      }
+      // No ranking — manager-picked winners (admin_bonus > 0) all count equally,
+      // filled out to a top 3 by computed award points when fewer than 3 were picked.
+      const explicitWinners = Object.values(agg).filter(r => r.admin_bonus > 0);
+      const others = Object.values(agg).filter(r => !r.admin_bonus).sort((a, b) => calcAwardPoints(b) - calcAwardPoints(a));
+      const sorted = [...explicitWinners, ...others];
       setSortedRatings(sorted);
       const uids = sorted.map(r => r.user_id);
       const { data: rProfiles } = await supabase.from('profiles').select('id, name, avatar_url, total_points, position, equipped_border').in('id', uids);
@@ -362,7 +365,7 @@ export default function GameDetailPage() {
 
       const myIdx = user ? sorted.findIndex(r => r.user_id === user.id) : -1;
       if (myIdx >= 0 && myIdx < 3) {
-        setMyPosition(myIdx + 1);
+        setIsAwardWinner(true);
         setTimeout(() => setShowAwardPopup(true), 700);
       }
     }
@@ -482,16 +485,14 @@ export default function GameDetailPage() {
     window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareMessage)}`, '_blank');
   };
 
-  const top3 = sortedRatings.slice(0, Math.min(3, sortedRatings.length));
   const myRating = sortedRatings.find(r => r.user_id === userId);
 
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
 
-      {showAwardPopup && myPosition && myRating && (
+      {showAwardPopup && isAwardWinner && myRating && (
         <AwardPopup
-          position={myPosition}
           profile={ratingProfiles[userId]}
           points={calcAwardPoints(myRating)}
           rating={myRating}
@@ -900,7 +901,7 @@ export default function GameDetailPage() {
             {isRated && sortedRatings.length > 0 ? (
               <>
                 {/* Baller of The Match */}
-                {top3.length > 0 && (
+                {shuffledTop3.length > 0 && (
                   <div style={{
                     background: 'var(--card)', border: '1px solid var(--border)',
                     borderRadius: 14, padding: 16, marginBottom: 16,
@@ -917,8 +918,8 @@ export default function GameDetailPage() {
                         <IoInformationCircleOutline size={18} />
                       </button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${top3.length}, 1fr)`, gap: 10 }}>
-                      {top3.map((r) => {
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${shuffledTop3.length}, 1fr)`, gap: 10 }}>
+                      {shuffledTop3.map((r) => {
                         const p = ratingProfiles[r.user_id];
                         const rank = getRank(p?.total_points);
                         const rankColor = getRankColor(rank);

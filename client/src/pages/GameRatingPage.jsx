@@ -12,11 +12,9 @@ import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, 
 import { GiSoccerBall, GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
-const MOTM_META = {
-  0: { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', label: '1ST' },
-  1: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND' },
-  2: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD' },
-};
+// No ranking — every pick gets the identical Bolahh Award, so there's just
+// one shared gold theme instead of a per-place gold/silver/bronze lookup.
+const AWARD_META = { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)' };
 
 const CARD_STATS = [
   { key: 'shooting_quality',   label: 'SHO', color: '#f87171' },
@@ -695,7 +693,7 @@ export default function GameRatingPage() {
           successful_dribble: d_dri,
           good_chance:       d_pac,
           good_manner: 0,
-          admin_bonus: motmPlayers.indexOf(pid) >= 0 ? motmPlayers.indexOf(pid) + 1 : 0,
+          admin_bonus: motmPlayers.includes(pid) ? 1 : 0,
           total_points: 0,
         });
         if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
@@ -1571,7 +1569,7 @@ export default function GameRatingPage() {
               ) : (
                 <button type="button" onClick={() => setStep('motm')} disabled={alreadyRated}
                   style={{ flex: 1, padding: '11px', background: alreadyRated ? 'var(--card2)' : 'var(--accent)', color: alreadyRated ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  {alreadyRated ? 'Already Submitted' : 'Choose Top 3 →'}
+                  {alreadyRated ? 'Already Submitted' : 'Pick Awards →'}
                 </button>
               )}
             </div>
@@ -1584,14 +1582,14 @@ export default function GameRatingPage() {
           </div>
         )}
 
-        {/* ── STEP 4: MOTM SELECTION ── */}
+        {/* ── STEP 4: BOLAHH AWARDS SELECTION ── */}
         {step === 'motm' && (
           <div>
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>
-              CHOOSE TOP 3 PLAYERS
+              PICK BOLAHH AWARDS
             </div>
             <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>
-              Select the best performers of this session. Tap to assign 1st, 2nd, 3rd place awards. At least 1 required.
+              Select up to 3 standout players from this session — everyone picked gets the same Bolahh Award, no ranking. At least 1 required.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
@@ -1599,9 +1597,7 @@ export default function GameRatingPage() {
                 const p = profiles[uid];
                 const stats = ratings[uid] || defaultStats();
                 const base  = baseRatings[uid] || defaultStats();
-                const motmIdx = motmPlayers.indexOf(uid);
-                const isSelected = motmIdx >= 0;
-                const meta = isSelected ? MOTM_META[motmIdx] : null;
+                const isSelected = motmPlayers.includes(uid);
                 const canSelect = !isSelected && motmPlayers.length < 3;
 
                 return (
@@ -1610,8 +1606,8 @@ export default function GameRatingPage() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '12px 16px', borderRadius: 12, textAlign: 'left',
-                      background: isSelected ? meta.bg : 'var(--card)',
-                      border: `1.5px solid ${isSelected ? meta.border : 'var(--border)'}`,
+                      background: isSelected ? AWARD_META.bg : 'var(--card)',
+                      border: `1.5px solid ${isSelected ? AWARD_META.border : 'var(--border)'}`,
                       cursor: isSelected || canSelect ? 'pointer' : 'default',
                       opacity: !isSelected && motmPlayers.length >= 3 ? 0.45 : 1,
                       transition: 'all 0.15s',
@@ -1619,7 +1615,7 @@ export default function GameRatingPage() {
                     {/* Avatar */}
                     <div style={{
                       width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                      background: isSelected ? meta.color : 'var(--accent)',
+                      background: isSelected ? AWARD_META.color : 'var(--accent)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 15, fontWeight: 700, color: '#1e2123', overflow: 'hidden',
                     }}>
@@ -1630,7 +1626,7 @@ export default function GameRatingPage() {
 
                     {/* Name + this-game stats */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? meta.color : 'var(--text)', marginBottom: 4 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? AWARD_META.color : 'var(--text)', marginBottom: 4 }}>
                         {p?.name || 'Unknown'}
                       </div>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -1651,15 +1647,15 @@ export default function GameRatingPage() {
                       </div>
                     </div>
 
-                    {/* Rank badge or tap hint */}
+                    {/* Award badge or tap hint */}
                     {isSelected ? (
                       <div style={{
-                        background: meta.bg, border: `1px solid ${meta.border}`,
+                        background: AWARD_META.bg, border: `1px solid ${AWARD_META.border}`,
                         borderRadius: 8, padding: '4px 12px', flexShrink: 0,
-                        fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: meta.color,
+                        fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: AWARD_META.color,
                         display: 'flex', alignItems: 'center', gap: 5,
                       }}>
-                        <GiTrophy size={12} />{meta.label}
+                        <GiTrophy size={12} />AWARDED
                       </div>
                     ) : canSelect ? (
                       <div style={{
@@ -1679,20 +1675,17 @@ export default function GameRatingPage() {
               borderRadius: 10, padding: '10px 14px', marginBottom: 20,
               display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
             }}>
-              <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>SELECTED:</span>
+              <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>SELECTED ({motmPlayers.length}/3):</span>
               {motmPlayers.length === 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>None yet</span>}
-              {motmPlayers.map((uid, idx) => {
-                const meta = MOTM_META[idx];
-                return (
-                  <span key={uid} style={{
-                    fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
-                    color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`,
-                    borderRadius: 6, padding: '3px 10px',
-                  }}>
-                    {meta.label} {profiles[uid]?.name || uid}
-                  </span>
-                );
-              })}
+              {motmPlayers.map((uid) => (
+                <span key={uid} style={{
+                  fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                  color: AWARD_META.color, background: AWARD_META.bg, border: `1px solid ${AWARD_META.border}`,
+                  borderRadius: 6, padding: '3px 10px',
+                }}>
+                  {profiles[uid]?.name || uid}
+                </span>
+              ))}
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>

@@ -34,7 +34,7 @@ export default function BallerInfoPage() {
             BALLERS OF THE MATCH
           </h1>
           <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.8 }}>
-            After every match, the top 3 players with the most impact are recognised as the Ballers of the Match.
+            After every match, up to 3 standout players are recognised with a Bolahh Award — no ranking between them, just recognition for a strong performance.
           </p>
         </div>
 
@@ -44,10 +44,10 @@ export default function BallerInfoPage() {
             HOW IT WORKS
           </div>
           <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9 }}>
-            The manager rates each player after the game based on their performance. Each action earns points, and the 3 players with the highest total are crowned Ballers of the Match.
+            The manager rates each player after the game based on their performance. Each action earns points, and the 3 players with the highest total each receive a Bolahh Award.
           </p>
           <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9, marginTop: 10 }}>
-            The manager can also manually pick the top 3 (Man of the Match picks), which overrides the point calculation.
+            The manager can also manually pick up to 3 standout players for a Bolahh Award, which overrides the point calculation — every pick gets the same award, there's no 1st, 2nd or 3rd place.
           </p>
         </div>
 

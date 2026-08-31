@@ -10,11 +10,8 @@ import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown, IoHelpCircleOutl
 import { GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
-const MOTM_META = {
-  0: { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', label: '1ST' },
-  1: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND' },
-  2: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD' },
-};
+// No ranking — every pick gets the identical Bolahh Award. Mirrors GameRatingPage.jsx.
+const AWARD_META = { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)' };
 
 const CARD_STATS = [
   { key: 'shooting_quality', label: 'SHO', color: '#f87171' },
@@ -1445,7 +1442,7 @@ export default function ManagerWalkthroughPage() {
                 </button>
               ) : (
                 <button type="button" onClick={() => setStep('motm')} disabled={allPlayersRated} style={{ flex: 1, padding: '11px', background: allPlayersRated ? 'var(--card2)' : 'var(--accent)', color: allPlayersRated ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  {allPlayersRated ? 'Ratings complete' : 'Choose Top 3 →'}
+                  {allPlayersRated ? 'Ratings complete' : 'Pick Awards →'}
                 </button>
               )}
             </div>
@@ -1516,27 +1513,25 @@ export default function ManagerWalkthroughPage() {
 
         {step === 'motm' && (
           <div>
-            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>CHOOSE TOP 3 PLAYERS</div>
-            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>Select the best performers of this session. Tap to assign 1st, 2nd, 3rd place awards. At least 1 required.</p>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>PICK BOLAHH AWARDS</div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>Select up to 3 standout players from this session — everyone picked gets the same Bolahh Award, no ranking. At least 1 required.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
               {PLAYER_IDS.map((uid) => {
                 const p = MOCK_PROFILES[uid];
                 const stats = ratings[uid] || defaultStats();
                 const base = MOCK_BASE_TAPS[uid] || defaultStats();
-                const motmIdx = motmPlayers.indexOf(uid);
-                const isSelected = motmIdx >= 0;
-                const meta = isSelected ? MOTM_META[motmIdx] : null;
+                const isSelected = motmPlayers.includes(uid);
                 const canSelect = !isSelected && motmPlayers.length < 3;
 
                 return (
-                  <button key={uid} type="button" onClick={() => toggleMotm(uid)} disabled={!isSelected && motmPlayers.length >= 3} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, textAlign: 'left', background: isSelected ? meta.bg : 'var(--card)', border: `1.5px solid ${isSelected ? meta.border : 'var(--border)'}`, cursor: isSelected || canSelect ? 'pointer' : 'default', opacity: !isSelected && motmPlayers.length >= 3 ? 0.45 : 1, transition: 'all 0.15s' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: isSelected ? meta.color : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#1e2123', overflow: 'hidden' }}>
+                  <button key={uid} type="button" onClick={() => toggleMotm(uid)} disabled={!isSelected && motmPlayers.length >= 3} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, textAlign: 'left', background: isSelected ? AWARD_META.bg : 'var(--card)', border: `1.5px solid ${isSelected ? AWARD_META.border : 'var(--border)'}`, cursor: isSelected || canSelect ? 'pointer' : 'default', opacity: !isSelected && motmPlayers.length >= 3 ? 0.45 : 1, transition: 'all 0.15s' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: isSelected ? AWARD_META.color : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#1e2123', overflow: 'hidden' }}>
                       {p?.name?.[0] || '?'}
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? meta.color : 'var(--text)', marginBottom: 4 }}>{p?.name || 'Unknown'}</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? AWARD_META.color : 'var(--text)', marginBottom: 4 }}>{p?.name || 'Unknown'}</div>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         {CARD_STATS.map(({ key, label, color }) => {
                           const delta = (stats[key] || 0) - (base[key] || 0);
@@ -1548,7 +1543,7 @@ export default function ManagerWalkthroughPage() {
                     </div>
 
                     {isSelected ? (
-                      <div style={{ background: meta.bg, border: `1px solid ${meta.border}`, borderRadius: 8, padding: '4px 12px', flexShrink: 0, fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: meta.color, display: 'flex', alignItems: 'center', gap: 5 }}><GiTrophy size={12} />{meta.label}</div>
+                      <div style={{ background: AWARD_META.bg, border: `1px solid ${AWARD_META.border}`, borderRadius: 8, padding: '4px 12px', flexShrink: 0, fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: AWARD_META.color, display: 'flex', alignItems: 'center', gap: 5 }}><GiTrophy size={12} />AWARDED</div>
                     ) : canSelect ? (
                       <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px', flexShrink: 0, fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Tap</div>
                     ) : null}

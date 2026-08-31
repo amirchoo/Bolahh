@@ -51,7 +51,7 @@ function buildEmailHtml(opts: {
       <div style="padding:24px;">
         <p style="margin:0 0 16px; font-size:15px; line-height:1.6;">Hey ${playerName || 'there'},</p>
         <p style="margin:0 0 16px; font-size:15px; line-height:1.6;">
-          Thanks for playing <strong style="color:#F09D51;">${gameTitle}</strong>. Your match summary, including stats, ratings and MVP awards, is now ready to view.
+          Thanks for playing <strong style="color:#F09D51;">${gameTitle}</strong>. Your match summary, including stats, ratings and Bolahh Awards, is now ready to view.
         </p>
         <div style="background:#222426; border:1px solid #2e3032; border-radius:10px; padding:14px 16px; margin-bottom:20px; font-family:'Space Mono', 'Courier New', monospace; font-size:13px; line-height:1.9; color:#e8e9eb;">
           <div>📍 ${fieldName}</div>
