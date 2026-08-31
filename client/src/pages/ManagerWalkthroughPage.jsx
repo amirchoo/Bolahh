@@ -467,6 +467,51 @@ function RatePlayerPracticeDemo() {
   );
 }
 
+// ── Awards tutorial: pick up to 3 practice players and watch every pick get
+// the identical flat badge — no ranking, no gold/silver/bronze.
+const AWARD_PRACTICE_PLAYERS = [
+  { id: 'w1', name: 'Zamri' },
+  { id: 'w2', name: 'Nabil' },
+  { id: 'w3', name: 'Rafiq' },
+];
+
+function AwardsPracticeDemo() {
+  const [picked, setPicked] = useState([]);
+  const toggle = (id) => setPicked((prev) => {
+    if (prev.includes(id)) return prev.filter((x) => x !== id);
+    if (prev.length >= 3) return prev;
+    return [...prev, id];
+  });
+
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      {AWARD_PRACTICE_PLAYERS.map((p, i) => {
+        const isSelected = picked.includes(p.id);
+        const canSelect = !isSelected && picked.length < 3;
+        return (
+          <button key={p.id} type="button" onClick={() => toggle(p.id)} disabled={!isSelected && !canSelect} style={{
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+            padding: '10px 12px', border: 'none', borderTop: i > 0 ? '1px solid var(--border)' : 'none',
+            background: isSelected ? AWARD_META.bg : 'transparent',
+            cursor: isSelected || canSelect ? 'pointer' : 'default',
+            opacity: !isSelected && !canSelect ? 0.4 : 1,
+          }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: isSelected ? AWARD_META.color : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#1e2123', flexShrink: 0 }}>{p.name[0]}</div>
+            <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: isSelected ? AWARD_META.color : 'var(--text)' }}>{p.name}</span>
+            {isSelected ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, background: AWARD_META.bg, border: `1px solid ${AWARD_META.border}`, borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700, color: AWARD_META.color }}>
+                <GiTrophy size={11} />AWARDED
+              </span>
+            ) : (
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>Tap to add</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ManagerWalkthroughPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState('config');
@@ -531,6 +576,15 @@ export default function ManagerWalkthroughPage() {
       setSeenRatingTutorial(true);
     }
   }, [step, seenRatingTutorial]);
+
+  const [showAwardsTutorial, setShowAwardsTutorial] = useState(false);
+  const [seenAwardsTutorial, setSeenAwardsTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'motm' && !seenAwardsTutorial) {
+      setShowAwardsTutorial(true);
+      setSeenAwardsTutorial(true);
+    }
+  }, [step, seenAwardsTutorial]);
 
   // Max players per team — 5 for a 5v5 game, mirrors GameRatingPage.jsx.
   const teamSize = 5;
@@ -1513,7 +1567,16 @@ export default function ManagerWalkthroughPage() {
 
         {step === 'motm' && (
           <div>
-            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>PICK BOLAHH AWARDS</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)' }}>PICK BOLAHH AWARDS</div>
+              <button type="button" onClick={() => setShowAwardsTutorial(true)} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+              }}>
+                <IoHelpCircleOutline size={15} /> How does this work?
+              </button>
+            </div>
             <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>Select up to 3 standout players from this session — everyone picked gets the same Bolahh Award, no ranking. At least 1 required.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
@@ -1565,6 +1628,46 @@ export default function ManagerWalkthroughPage() {
               </div>
             )}
           </div>
+        )}
+
+        {showAwardsTutorial && (
+          <TutorialModal
+            onClose={() => setShowAwardsTutorial(false)}
+            maxWidth={560}
+            pages={[
+              {
+                badge: 'Step 6 tutorial · 1 of 2',
+                title: 'EVERYONE GETS THE SAME AWARD 🏆',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      No 1st, 2nd or 3rd — tap up to 3 standout players and they all get the identical Bolahh Award. Try it:
+                    </p>
+                    <AwardsPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Tap an awarded player again to undo it. At least 1 pick is required to submit ratings.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 6 tutorial · 2 of 2',
+                title: "WHAT IF YOU DON'T PICK? 🤔",
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Your picks aren't the only way it's decided. Every rated action earns award points behind the scenes — the top scorers get the award automatically.
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.9 }}>
+                      <li>Pick fewer than 3? The rest get filled in by points.</li>
+                      <li>Pick none at all? All 3 are chosen by points alone.</li>
+                      <li>Either way — no ranking shown, just the same award.</li>
+                    </ul>
+                  </div>
+                ),
+              },
+            ]}
+          />
         )}
       </div>
     </div>
