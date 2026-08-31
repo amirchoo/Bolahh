@@ -198,6 +198,133 @@ function buildInitialRatings() {
   return Object.fromEntries(PLAYER_IDS.map((uid) => [uid, { ...MOCK_BASE_TAPS[uid], touched: false }]));
 }
 
+// ── Assign Teams tutorial: a small, fully self-contained hands-on practice
+// widget — its own state, disconnected from the real walkthrough — so a
+// manager can actually tap team/bib buttons inside the tutorial and see
+// real behavior (per-team bib uniqueness, the auto-clear-on-collision fix)
+// instead of just reading about it.
+const PRACTICE_PLAYERS = [
+  { id: 'x1', name: 'Danial' },
+  { id: 'x2', name: 'Faris' },
+  { id: 'x3', name: 'Hafiz' },
+];
+
+function AssignTeamsPracticeDemo() {
+  const [team, setTeam] = useState({ x1: 'A', x2: 'B' });
+  const [bib, setBib] = useState({ x1: 1, x2: 1 });
+  const [expanded, setExpanded] = useState(null);
+
+  const takenBibs = (t, excludeId) =>
+    PRACTICE_PLAYERS.filter((p) => p.id !== excludeId && team[p.id] === t).map((p) => bib[p.id]);
+
+  const setPlayerTeam = (id, t) => {
+    const prevTeam = team[id];
+    setTeam((prev) => {
+      const next = { ...prev };
+      if (next[id] === t) delete next[id]; else next[id] = t;
+      return next;
+    });
+    if (prevTeam !== t) {
+      setBib((prev) => {
+        const currentBib = prev[id];
+        if (currentBib == null) return prev;
+        const collides = PRACTICE_PLAYERS.some((p) => p.id !== id && team[p.id] === t && prev[p.id] === currentBib);
+        if (!collides) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const setPlayerBib = (id, n) => {
+    setBib((prev) => {
+      const next = { ...prev };
+      if (next[id] === n) delete next[id]; else next[id] = n;
+      return next;
+    });
+  };
+
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      {PRACTICE_PLAYERS.map((p, i) => {
+        const t = team[p.id];
+        const b = bib[p.id];
+        const tc = t ? TEAM_COLORS[t] : null;
+        const isExpanded = expanded === p.id;
+        const taken = t ? takenBibs(t, p.id) : [];
+        return (
+          <div key={p.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+            <div onClick={() => setExpanded(isExpanded ? null : p.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', cursor: 'pointer' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{p.name[0]}</div>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
+              {t && b ? (
+                <span style={{ background: tc.bg, color: tc.text, border: `1px solid ${tc.border}`, borderRadius: 6, padding: '3px 9px', fontWeight: 700, fontSize: 11 }}>Team {t} · #{b}</span>
+              ) : t ? (
+                <span style={{ background: 'rgba(240,101,67,0.12)', color: 'var(--red)', border: '1px solid rgba(240,101,67,0.3)', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 }}>Team {t} · pick a bib!</span>
+              ) : (
+                <span style={{ background: 'var(--card)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 9px', fontSize: 11 }}>Unassigned</span>
+              )}
+              <IoChevronDown size={14} style={{ color: 'var(--muted)', flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </div>
+            {isExpanded && (
+              <div style={{ padding: '0 12px 12px' }}>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {['A', 'B'].map((opt) => (
+                    <button key={opt} type="button" onClick={() => setPlayerTeam(p.id, opt)} style={{
+                      flex: 1, padding: '7px 0', borderRadius: 7, fontWeight: 700, fontSize: 12,
+                      background: t === opt ? TEAM_COLORS[opt].bg : 'var(--card)',
+                      color: t === opt ? TEAM_COLORS[opt].text : 'var(--muted)',
+                      border: `1.5px solid ${t === opt ? TEAM_COLORS[opt].border : 'var(--border)'}`, cursor: 'pointer',
+                    }}>Team {opt}</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {[1, 2, 3, 4, 5].map((n) => {
+                    const isTaken = taken.includes(n) && b !== n;
+                    const isSelected = b === n;
+                    return (
+                      <button key={n} type="button" disabled={isTaken} onClick={() => setPlayerBib(p.id, n)} title={isTaken ? 'Already used on this team' : undefined} style={{
+                        width: 28, height: 28, borderRadius: 6, fontWeight: 700, fontSize: 11,
+                        background: isSelected ? 'var(--accent)' : 'var(--card)',
+                        color: isSelected ? '#fff' : isTaken ? 'var(--border)' : 'var(--text)',
+                        border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                        cursor: isTaken ? 'default' : 'pointer', opacity: isTaken ? 0.4 : 1,
+                      }}>{n}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Attendance tutorial page: a tiny live check-in toggle, same idea as
+// AssignTeamsPracticeDemo but for the Check In button.
+function CheckInPracticeDemo() {
+  const [checkedInAt, setCheckedInAt] = useState(null);
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>Z</div>
+      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Zamri</span>
+      <button type="button" onClick={() => setCheckedInAt((prev) => prev ? null : new Date().toISOString())} style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        background: checkedInAt ? 'rgba(74,222,128,0.12)' : 'var(--card)',
+        color: checkedInAt ? '#4ade80' : 'var(--text)',
+        border: `1.5px solid ${checkedInAt ? '#4ade80' : 'var(--border)'}`,
+        borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+      }}>
+        <IoCheckmarkCircle size={14} />
+        {checkedInAt ? `Checked in at ${formatCheckInTime(checkedInAt)}` : 'Check In'}
+      </button>
+    </div>
+  );
+}
+
 export default function ManagerWalkthroughPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState('config');
@@ -222,6 +349,17 @@ export default function ManagerWalkthroughPage() {
   useEffect(() => {
     if (step !== 'config') setShowConfigTutorial(false);
   }, [step]);
+
+  // Auto-opens the first time the manager reaches the Assign Teams step
+  // (not on every return trip to it) — the "?" button reopens it any time.
+  const [showSetupTutorial, setShowSetupTutorial] = useState(false);
+  const [seenSetupTutorial, setSeenSetupTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'setup' && !seenSetupTutorial) {
+      setShowSetupTutorial(true);
+      setSeenSetupTutorial(true);
+    }
+  }, [step, seenSetupTutorial]);
 
   // Max players per team — 5 for a 5v5 game, mirrors GameRatingPage.jsx.
   const teamSize = 5;
@@ -541,6 +679,14 @@ export default function ManagerWalkthroughPage() {
               <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0, flex: 1, minWidth: 220 }}>
                 Teams start balanced by average rank — tap a player to move them to a different team or bib number, handy for keeping friends grouped together.
               </p>
+              <button type="button" onClick={() => setShowSetupTutorial(true)} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}>
+                <IoHelpCircleOutline size={15} /> How does this work?
+              </button>
               <button type="button" onClick={runAutoBalance} style={{
                 background: 'var(--card2)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.35)',
                 borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
@@ -714,6 +860,94 @@ export default function ManagerWalkthroughPage() {
               </button>
             </div>
           </div>
+        )}
+
+        {showSetupTutorial && (
+          <TutorialModal
+            onClose={() => setShowSetupTutorial(false)}
+            maxWidth={640}
+            pages={[
+              {
+                badge: 'Step 2 tutorial · 1 of 4',
+                title: 'ROSTER, GROUPED BY TEAM',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 16 }}>
+                      The player list isn't in join order — it's grouped by team (A, then B, then C), with unassigned players at the bottom. Inside each team, players are ordered by bib number. Move someone to a new team and the list re-sorts instantly to their new spot.
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>Team A · #1</span>
+                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>Team A · #2</span>
+                      <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>Team B · #1</span>
+                      <span style={{ background: 'var(--card)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 9px', fontSize: 11 }}>Unassigned</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 11 }}>← the order the list actually renders in</span>
+                    </div>
+                    <p style={{ color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.7, marginTop: 14 }}>
+                      Tap any player's row to expand it and see their team/bib picker, or the small green check-in badge next to their avatar.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 2 tutorial · 2 of 4',
+                title: 'PICK A TEAM & BIB — TRY IT',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 14 }}>
+                      This is a live practice roster — nothing here affects your real session. Tap <strong>Hafiz</strong> to expand him, put him on <strong>Team A</strong>, then try bib <strong>#1</strong> — it's grayed out because Danial already has it on Team A. Pick <strong>#2</strong> instead.
+                    </p>
+                    <AssignTeamsPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.7, marginTop: 14 }}>
+                      Now try switching <strong>Danial</strong> from Team A to Team B — Faris already wears #1 on Team B, so Danial's bib clears itself instead of silently duplicating it. Bib numbers only have to be unique <em>within a team</em>, and switching teams re-checks that automatically.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 2 tutorial · 3 of 4',
+                title: 'TEAM SIZE CAP & RE-BALANCE',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 14 }}>
+                      A team can never hold more than <strong>5 players</strong> — matching a 5v5 lineup. Once a team is full, its button grays out and shows <strong>"· Full"</strong> for every other player, so you can't accidentally stack six people onto one side.
+                    </p>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                      {['A', 'B', 'C'].map((t) => (
+                        <div key={t} style={{
+                          flex: 1, padding: '10px 0', borderRadius: 8, textAlign: 'center',
+                          background: t === 'C' ? 'var(--card)' : TEAM_COLORS[t].bg,
+                          color: t === 'C' ? 'var(--border)' : TEAM_COLORS[t].text,
+                          border: `1.5px solid ${t === 'C' ? 'var(--border)' : TEAM_COLORS[t].border}`,
+                          fontWeight: 700, fontSize: 12, opacity: t === 'C' ? 0.5 : 1,
+                        }}>Team {t}{t === 'C' ? ' · Full' : ''}</div>
+                      ))}
+                    </div>
+                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 8 }}>
+                      Made a mess rearranging people? The <strong>"↻ Re-balance by rank"</strong> button resets everyone back to an auto-suggested lineup — matched by average rank so both/all sides stay competitive — as long as you haven't manually moved anyone yet.
+                    </p>
+                    <p style={{ color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.7 }}>
+                      The colored cards at the bottom of the page show each team's average OVR/rank live as you assign players, so you can eyeball whether the split still looks fair.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 2 tutorial · 4 of 4',
+                title: 'CHECK IN PLAYERS AS THEY ARRIVE',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 14 }}>
+                      The small checkmark next to each player's avatar does double duty — confirming their bib is correct <em>and</em> marking them as having actually shown up, timestamped in Malaysia time. Try it below:
+                    </p>
+                    <CheckInPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.7, marginTop: 14 }}>
+                      It's written the moment you tap it — not held until the end of the session — so attendance is recorded even if the rating flow gets interrupted later. Tap a checked-in player again to undo it.
+                    </p>
+                  </div>
+                ),
+              },
+            ]}
+          />
         )}
 
         {step === 'kickoff' && (
