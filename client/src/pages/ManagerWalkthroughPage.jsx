@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import TutorialModal from '../components/TutorialModal';
 import { RANKS, getRank, getRankColor } from '../lib/rankUtils';
 import { calcOverall, getCardTheme } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
 import EquippedBorderFrame from '../components/EquippedBorderFrame';
-import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown } from 'react-icons/io5';
+import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown, IoHelpCircleOutline } from 'react-icons/io5';
 import { GiTrophy } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
@@ -215,6 +216,12 @@ export default function ManagerWalkthroughPage() {
   const [expandedUid, setExpandedUid] = useState(null);
   const [quickRankUid, setQuickRankUid] = useState(null);
   const [testCompleted, setTestCompleted] = useState(false);
+  // Auto-opens once when the walkthrough loads, on the very first step — the
+  // "?" button next to TEAM FORMAT reopens it any time after that.
+  const [showConfigTutorial, setShowConfigTutorial] = useState(true);
+  useEffect(() => {
+    if (step !== 'config') setShowConfigTutorial(false);
+  }, [step]);
 
   // Max players per team — 5 for a 5v5 game, mirrors GameRatingPage.jsx.
   const teamSize = 5;
@@ -425,7 +432,16 @@ export default function ManagerWalkthroughPage() {
         {step === 'config' && (
           <div>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18, padding: 18, marginBottom: 20 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>TEAM FORMAT</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)' }}>TEAM FORMAT</div>
+                <button type="button" onClick={() => setShowConfigTutorial(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}>
+                  <IoHelpCircleOutline size={15} /> How does this work?
+                </button>
+              </div>
               <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 8 }}>{PLAYER_IDS.length} players joined · 5v5 format</p>
               <div style={{ background: 'rgba(100,160,255,0.08)', border: '1px solid rgba(100,160,255,0.25)', borderRadius: 10, padding: '12px 14px', marginBottom: 16, color: 'var(--text)', fontSize: 13, lineHeight: 1.7 }}>
                 <strong style={{ color: '#64a0ff' }}>Before kickoff:</strong> arrive at least 15 minutes early to set up the location, confirm the pitch is clear and unoccupied for the session, and arrange bibs in advance so the game flow stays smooth.
@@ -448,6 +464,74 @@ export default function ManagerWalkthroughPage() {
               Assign Teams →
             </button>
           </div>
+        )}
+
+        {showConfigTutorial && (
+          <TutorialModal title="HOW TEAM FORMAT WORKS" badge="Step 1 tutorial" onClose={() => setShowConfigTutorial(false)} maxWidth={720}>
+            <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+              Before assigning players, decide how many teams share the pitch this session. This single choice drives the entire match schedule that follows, so it's worth getting right before moving on.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 18 }}>
+              {/* 2 TEAMS */}
+              <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 14, padding: 16 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 1.5, color: 'var(--accent)', marginBottom: 4 }}>2 TEAMS</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Best for 10 players or fewer</div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>Team A</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>vs</span>
+                  <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>Team B</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 11, marginLeft: 4 }}>× 5 matches</span>
+                </div>
+
+                <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.8 }}>
+                  <li>Same two teams play every match, back to back</li>
+                  <li>Neither team ever rests — everyone's always on the pitch</li>
+                  <li>5 matches, ~15 min each with 7 min breaks between</li>
+                </ul>
+              </div>
+
+              {/* 3 TEAMS */}
+              <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 14, padding: 16 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 1.5, color: 'var(--accent)', marginBottom: 4 }}>3 TEAMS</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Best for 11+ players</div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
+                  {[
+                    { home: 'A', away: 'B', rest: 'C' },
+                    { home: 'B', away: 'C', rest: 'A' },
+                    { home: 'A', away: 'C', rest: 'B' },
+                  ].map((m, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ background: TEAM_COLORS[m.home].bg, color: TEAM_COLORS[m.home].text, border: `1px solid ${TEAM_COLORS[m.home].border}`, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>Team {m.home}</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 11 }}>vs</span>
+                      <span style={{ background: TEAM_COLORS[m.away].bg, color: TEAM_COLORS[m.away].text, border: `1px solid ${TEAM_COLORS[m.away].border}`, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>Team {m.away}</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 10 }}>· Team {m.rest} rests</span>
+                    </div>
+                  ))}
+                </div>
+
+                <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.8 }}>
+                  <li>Round-robin — that 3-match rotation repeats 3×</li>
+                  <li>One team sits out each match, on a fair rotating basis</li>
+                  <li>9 matches total, ~13 min each</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(100,160,255,0.08)', border: '1px solid rgba(100,160,255,0.25)', borderRadius: 10, padding: '12px 14px', marginBottom: 20, color: 'var(--text)', fontSize: 12.5, lineHeight: 1.7, display: 'flex', gap: 8 }}>
+              <LuLightbulb size={15} style={{ flexShrink: 0, marginTop: 1, color: '#64a0ff' }} />
+              <span>
+                Bolahh suggests a format automatically — <strong>2 teams</strong> for up to 10 players, <strong>3 teams</strong> once the roster passes that, so no single team ends up sitting out for too long. You can always override it. Either way, no team can ever hold more than <strong>5 players</strong> — bib numbers only go up to 5, matching a 5v5 lineup.
+              </span>
+            </div>
+
+            <button type="button" onClick={() => setShowConfigTutorial(false)} style={{
+              width: '100%', padding: '12px', background: 'var(--accent)', color: '#fff',
+              border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+            }}>Got it, let's assign teams</button>
+          </TutorialModal>
         )}
 
         {step === 'setup' && (
