@@ -136,6 +136,13 @@ function formatTime(timeStr) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+// Mirrors GameRatingPage.jsx — always shown in Malaysia time.
+function formatCheckInTime(iso) {
+  return new Date(iso).toLocaleTimeString('en-MY', {
+    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur',
+  });
+}
+
 function diffMinutes(endStr, startStr) {
   const [eh, em] = endStr.split(':').map(Number);
   const [sh, sm] = startStr.split(':').map(Number);
@@ -201,6 +208,7 @@ export default function ManagerWalkthroughPage() {
   const [bibAssign, setBibAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C'], 5).bibAssign);
   const [autoBalanced, setAutoBalanced] = useState(true);
   const [expandedSetupUid, setExpandedSetupUid] = useState(null);
+  const [checkedIn, setCheckedIn] = useState({});
   const [currentMatch, setCurrentMatch] = useState(0);
   const [ratings, setRatings] = useState(buildInitialRatings);
   const [motmPlayers, setMotmPlayers] = useState([]);
@@ -291,6 +299,16 @@ export default function ManagerWalkthroughPage() {
       const next = { ...prev };
       if (next[uid] === number) delete next[uid];
       else next[uid] = number;
+      return next;
+    });
+  };
+
+  // Local-only toggle (this page is a mock walkthrough, nothing to persist).
+  // Mirrors GameRatingPage.jsx's toggleCheckIn.
+  const toggleCheckIn = (uid) => {
+    setCheckedIn((prev) => {
+      const next = { ...prev };
+      if (next[uid]) delete next[uid]; else next[uid] = new Date().toISOString();
       return next;
     });
   };
@@ -470,6 +488,18 @@ export default function ManagerWalkthroughPage() {
                         <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
                         <span style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: getRankColor(rank), background: `${getRankColor(rank)}18`, border: `1px solid ${getRankColor(rank)}40`, borderRadius: 5, padding: '1px 6px' }}>{rank} · {p?.total_points || 30}</span>
                       </div>
+                      <button type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleCheckIn(uid); }}
+                        title={checkedIn[uid] ? `Checked in at ${formatCheckInTime(checkedIn[uid])} — tap to undo` : 'Tap to check in'}
+                        style={{
+                          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: checkedIn[uid] ? 'rgba(74,222,128,0.15)' : 'var(--card2)',
+                          border: `1.5px solid ${checkedIn[uid] ? '#4ade80' : 'var(--border)'}`,
+                          color: checkedIn[uid] ? '#4ade80' : 'var(--muted)', cursor: 'pointer',
+                        }}>
+                        <IoCheckmarkCircle size={16} />
+                      </button>
                       {team && bib ? (
                         <span style={{ background: tc.bg, color: tc.text, border: `1px solid ${tc.border}`, borderRadius: 6, padding: '4px 10px', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>Team {team} · #{bib}</span>
                       ) : (
@@ -518,6 +548,25 @@ export default function ManagerWalkthroughPage() {
                                 }}>{n}</button>
                             );
                           })}
+                        </div>
+
+                        <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, marginBottom: 8 }}>ATTENDANCE</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                          <button type="button" onClick={() => toggleCheckIn(uid)} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            background: checkedIn[uid] ? 'rgba(74,222,128,0.12)' : 'var(--card2)',
+                            color: checkedIn[uid] ? '#4ade80' : 'var(--text)',
+                            border: `1.5px solid ${checkedIn[uid] ? '#4ade80' : 'var(--border)'}`,
+                            borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                          }}>
+                            <IoCheckmarkCircle size={15} />
+                            {checkedIn[uid] ? 'Checked In' : 'Check In'}
+                          </button>
+                          {checkedIn[uid] && (
+                            <span style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)' }}>
+                              at {formatCheckInTime(checkedIn[uid])}
+                            </span>
+                          )}
                         </div>
 
                         {(team || bib) && (
