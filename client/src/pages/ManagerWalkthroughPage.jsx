@@ -393,6 +393,83 @@ function KickoffPracticeDemo() {
   );
 }
 
+// ── Schedule tutorial: step through a team's own match count and watch the
+// keeper bib count down, then rotate on the final one.
+function ScheduleKeeperDemo() {
+  const [n, setN] = useState(1);
+  const isFinal = n === 5;
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+        {[1, 2, 3, 4, 5].map((m) => (
+          <button key={m} type="button" onClick={() => setN(m)} style={{
+            background: n === m ? 'var(--accent)' : 'var(--card)',
+            color: n === m ? '#fff' : 'var(--muted)',
+            border: `1.5px solid ${n === m ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: 7, padding: '6px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+          }}>{m === 5 ? 'Final' : `Match ${m}`}</button>
+        ))}
+      </div>
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        background: 'rgba(167,139,250,0.1)', color: '#a78bfa',
+        border: '1px solid rgba(167,139,250,0.3)', borderRadius: 8,
+        padding: '8px 14px', fontSize: 13, fontWeight: 700,
+      }}>
+        <GiGoalKeeper size={16} />
+        {isFinal ? 'Rotates every goal, starts #5' : `Bib #${keeperBibForMatchNumber(n)} keeps`}
+      </div>
+    </div>
+  );
+}
+
+// ── Rate Players tutorial: a single practice player row with the exact same
+// tap +/- mechanic as the real rating grid, live OVR/rank re-theming included.
+function RatePlayerPracticeDemo() {
+  const [taps, setTaps] = useState(defaultStats());
+  const liveCardStats = {};
+  CARD_STATS.forEach(({ key, label }) => {
+    liveCardStats[label.toLowerCase()] = Math.max(30, Math.min(99, 30 + (taps[key] || 0)));
+  });
+  const liveOvr = calcOverall(liveCardStats);
+  const liveRank = getRank(liveOvr);
+  const rt = getCardTheme(liveRank);
+  const totalDelta = CARD_STATS.reduce((sum, { key }) => sum + (taps[key] || 0), 0);
+  const bump = (key, delta) => setTaps((prev) => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) + delta) }));
+
+  return (
+    <div style={{ background: rt.bg, border: `2px solid ${rt.border}`, borderRadius: 12, padding: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', background: rt.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#1e2123', flexShrink: 0 }}>3</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: rt.text }}>Practice Player</div>
+          <div style={{ fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, color: rt.text, background: rt.statBg, border: `1px solid ${rt.border}`, borderRadius: 5, padding: '2px 7px', display: 'inline-block', marginTop: 3 }}>{liveRank.toUpperCase()} · {liveOvr} OVR</div>
+        </div>
+        {totalDelta !== 0 && (
+          <div style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: '#4ade80', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 5, padding: '2px 6px' }}>+{totalDelta}</div>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+        {CARD_STATS.map(({ key, label }) => {
+          const t = taps[key] || 0;
+          const cardVal = Math.max(30, Math.min(99, 30 + t));
+          return (
+            <div key={key} style={{ borderRadius: 8, border: `1.5px solid ${t !== 0 ? rt.border : 'transparent'}`, background: rt.statBg }}>
+              <div style={{ fontFamily: "'Space Mono'", fontSize: 7, fontWeight: 700, color: t !== 0 ? rt.text : rt.muted, letterSpacing: 1, textAlign: 'center', paddingTop: 5 }}>{label}</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <button type="button" onClick={() => bump(key, -1)} disabled={t === 0} style={{ flex: 1, background: 'none', border: 'none', cursor: t > 0 ? 'pointer' : 'default', color: t > 0 ? '#f87171' : rt.muted, fontSize: 15, fontWeight: 700, padding: '3px 0', opacity: t > 0 ? 1 : 0.3 }}>−</button>
+                <div style={{ flex: 2, textAlign: 'center', fontFamily: "'Bebas Neue'", fontSize: 20, color: t !== 0 ? rt.text : rt.muted }}>{cardVal}</div>
+                <button type="button" onClick={() => bump(key, 1)} style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', color: '#4ade80', fontSize: 15, fontWeight: 700, padding: '3px 0' }}>+</button>
+              </div>
+              <div style={{ height: 5 }} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function ManagerWalkthroughPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState('config');
@@ -438,6 +515,25 @@ export default function ManagerWalkthroughPage() {
       setSeenKickoffTutorial(true);
     }
   }, [step, seenKickoffTutorial]);
+
+  // Same pattern for the Schedule and Rate Players steps.
+  const [showScheduleTutorial, setShowScheduleTutorial] = useState(false);
+  const [seenScheduleTutorial, setSeenScheduleTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'schedule' && !seenScheduleTutorial) {
+      setShowScheduleTutorial(true);
+      setSeenScheduleTutorial(true);
+    }
+  }, [step, seenScheduleTutorial]);
+
+  const [showRatingTutorial, setShowRatingTutorial] = useState(false);
+  const [seenRatingTutorial, setSeenRatingTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'rating' && !seenRatingTutorial) {
+      setShowRatingTutorial(true);
+      setSeenRatingTutorial(true);
+    }
+  }, [step, seenRatingTutorial]);
 
   // Max players per team — 5 for a 5v5 game, mirrors GameRatingPage.jsx.
   const teamSize = 5;
@@ -1127,7 +1223,16 @@ export default function ManagerWalkthroughPage() {
         {step === 'schedule' && (
           <div>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18, padding: 18, marginBottom: 20 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>MATCH SCHEDULE · {formatTime(actualStart)} KICKOFF</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)' }}>MATCH SCHEDULE · {formatTime(actualStart)} KICKOFF</div>
+                <button type="button" onClick={() => setShowScheduleTutorial(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}>
+                  <IoHelpCircleOutline size={15} /> How does this work?
+                </button>
+              </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>{getScheduleInfo(availableMinutes, teamMode, scheduledEnd)}</div>
               {schedule.map((s, i) => (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 10, marginBottom: 6, background: 'var(--card2)', border: '1px solid var(--border)' }}>
@@ -1156,6 +1261,48 @@ export default function ManagerWalkthroughPage() {
           </div>
         )}
 
+        {showScheduleTutorial && (
+          <TutorialModal
+            onClose={() => setShowScheduleTutorial(false)}
+            maxWidth={560}
+            pages={[
+              {
+                badge: 'Step 4 tutorial · 1 of 2',
+                title: 'READING THE SCHEDULE 🗓️',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Auto-built from your format and kickoff time. Each row is one match — its time, who's playing, and who's got the break.
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.9 }}>
+                      <li><LuMoon size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />"Team X rests" — only in 3-team mode</li>
+                      <li><LuCoffee size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />"7 min break" — both teams play back-to-back</li>
+                    </ul>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Changed your mind on kickoff time? Go back and this list updates automatically.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 4 tutorial · 2 of 2',
+                title: 'SPOT THE KEEPER 🧤',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Each match now shows a GK badge per team — bib #5 keeps first, counting down each match. Try it:
+                    </p>
+                    <ScheduleKeeperDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      3-team mode gets one extra match per team before the countdown repeats — same rule either way.
+                    </p>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
+
         {step === 'rating' && (
           <div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -1173,6 +1320,13 @@ export default function ManagerWalkthroughPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {match.rest && <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><LuMoon size={11} />Team {match.rest} rests</div>}
                 {match.time && <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)' }}>{formatTime(match.time)}</div>}
+                <button type="button" onClick={() => setShowRatingTutorial(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}>
+                  <IoHelpCircleOutline size={15} /> How does this work?
+                </button>
               </div>
             </div>
 
@@ -1298,6 +1452,66 @@ export default function ManagerWalkthroughPage() {
 
             <button type="button" onClick={() => setStep('schedule')} style={{ width: '100%', padding: '10px', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><IoCalendar size={14} />View Schedule</button>
           </div>
+        )}
+
+        {showRatingTutorial && (
+          <TutorialModal
+            onClose={() => setShowRatingTutorial(false)}
+            maxWidth={560}
+            pages={[
+              {
+                badge: 'Step 5 tutorial · 1 of 3',
+                title: 'SWITCH BETWEEN MATCHES 🔀',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      The M1, M2... buttons jump between matches — rate them in any order, none locked until you're done. The header shows who's playing, who's resting, and now each team's keeper reminder too.
+                    </p>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6 }}>
+                      "Prev/Next Match" at the bottom moves through them in order if that's easier.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 5 tutorial · 2 of 3',
+                title: 'TAP TO RATE — TRY IT 👆',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Every stat starts at their current card value. Tap <strong>+</strong> or <strong>−</strong> per event — watch the card's color and OVR shift live as you go.
+                    </p>
+                    <RatePlayerPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Only taps that change something matter — leave a player untouched and nothing's recorded for them.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 5 tutorial · 3 of 3',
+                title: 'INSTANT RANK-UP ⚡',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Obviously stronger than their card shows? Tap a player's rank badge for quick tier options — one tap jumps their stats close to that tier, with a little natural variance so it doesn't look flat.
+                    </p>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {['Gangsa I', 'Perak II', 'Emas III', 'Emas I'].map((r) => {
+                        const rc = getRankColor(r);
+                        return (
+                          <span key={r} style={{ fontSize: 11, fontWeight: 700, color: rc, background: `${rc}15`, border: `1.5px solid ${rc}50`, borderRadius: 6, padding: '5px 9px' }}>{r}</span>
+                        );
+                      })}
+                    </div>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Try it on any player below — tap their rank badge (the one next to their name).
+                    </p>
+                  </div>
+                ),
+              },
+            ]}
+          />
         )}
 
         {step === 'motm' && (
