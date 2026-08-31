@@ -227,6 +227,19 @@ export default function ManagerWalkthroughPage() {
 
   const allAssigned = () => PLAYER_IDS.length > 0 && PLAYER_IDS.every((uid) => teamAssign[uid] && bibAssign[uid]);
 
+  // Setup-step roster grouped by team (in activeTeams order, unassigned last),
+  // then by bib within each team. Mirrors GameRatingPage.jsx.
+  const setupSortedPlayers = [...PLAYER_IDS].sort((a, b) => {
+    const teamIdx = (uid) => {
+      const t = teamAssign[uid];
+      const idx = activeTeams.indexOf(t);
+      return idx === -1 ? activeTeams.length : idx;
+    };
+    const diff = teamIdx(a) - teamIdx(b);
+    if (diff !== 0) return diff;
+    return (bibAssign[a] ?? Infinity) - (bibAssign[b] ?? Infinity);
+  });
+
   const runAutoBalance = () => {
     const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, activeTeams, teamSize);
     setTeamAssign(nextTeams);
@@ -434,7 +447,7 @@ export default function ManagerWalkthroughPage() {
             </div>
 
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, marginBottom: 20, overflow: 'hidden' }}>
-              {PLAYER_IDS.map((uid, i) => {
+              {setupSortedPlayers.map((uid, i) => {
                 const p = MOCK_PROFILES[uid];
                 const rank = getRank(p?.total_points || 0);
                 const team = teamAssign[uid];

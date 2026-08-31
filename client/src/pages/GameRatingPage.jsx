@@ -398,6 +398,20 @@ export default function GameRatingPage() {
   const allAssigned = () =>
     players.length > 0 && players.every(uid => teamAssign[uid] && bibAssign[uid]);
 
+  // Setup-step roster grouped by team (in activeTeams order, unassigned last),
+  // then by bib within each team, so the list stays neat instead of showing
+  // players in raw join order — and reorders live as team assignments change.
+  const setupSortedPlayers = [...players].sort((a, b) => {
+    const teamIdx = uid => {
+      const t = teamAssign[uid];
+      const idx = activeTeams.indexOf(t);
+      return idx === -1 ? activeTeams.length : idx;
+    };
+    const diff = teamIdx(a) - teamIdx(b);
+    if (diff !== 0) return diff;
+    return (bibAssign[a] ?? Infinity) - (bibAssign[b] ?? Infinity);
+  });
+
   const setPlayerTeam = (uid, team) => {
     // A full team (already at teamSize members) can't take on another player —
     // this is the same cap enforced by disabling the button in the UI, kept
@@ -835,7 +849,7 @@ export default function GameRatingPage() {
             </div>
 
             <div style={{ ...cardStyle, marginBottom: 20, padding: 0, overflow: 'hidden' }}>
-              {players.map((uid, i) => {
+              {setupSortedPlayers.map((uid, i) => {
                 const p = profiles[uid];
                 const rank = getRank(p?.total_points || 0);
                 const team = teamAssign[uid];
