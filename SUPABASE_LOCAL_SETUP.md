@@ -78,7 +78,10 @@ This automatically:
 - Spins up a local Postgres database on port `54322`
 - Applies **every migration** in `supabase/migrations/` in order, so your
   local schema matches production exactly
-- Creates the storage buckets defined via migration (e.g. `avatar-presets`, `card-borders`)
+- Creates every storage bucket (`avatars`, `field-images`, `avatar-presets`,
+  `card-borders`, `card-backgrounds`) via migration — nothing to create by hand
+- Seeds reference data from `supabase/seed.sql` (avatar presets, banners,
+  fields) so the app isn't staring at an empty database
 - Starts Studio (dashboard) on port `54323`
 - Starts Inbucket (fake email inbox) on port `54324`
 
@@ -98,11 +101,6 @@ service_role key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 **Keep this output** — you need the `API URL` and `anon key` in the next step.
 
 > Lost the output? Run `supabase status` any time to reprint it.
-
-⚠️ Two manual buckets don't live in migrations yet (`avatars`, `field-images`
-were created by hand in the production dashboard). After `supabase start`,
-open Studio → **Storage** and create these two buckets manually (mark both
-**Public**). Ask Amir if you hit a missing-bucket error for anything else.
 
 ---
 
@@ -229,6 +227,7 @@ payments or transactional emails.
 |---|---|
 | `supabase start` hangs or errors | Make sure Docker Desktop is open and running |
 | Port already in use | Another `supabase start` is already running (maybe from another project) — run `supabase stop` first |
-| Missing storage bucket error | Create it manually in Studio → Storage (see step 4 note), or ask Amir if it should be a migration |
+| Missing storage bucket error | All current buckets are created by migration now — if you hit this, a new bucket is probably missing a migration; ask Amir |
+| `relation "X" does not exist` | Your migrations are out of date or didn't apply — run `supabase db reset` and check the output for errors |
 | Local DB looks out of date after pulling | `supabase db reset` |
 | Signup/reset emails never arrive | They're not really sent locally — check Inbucket at `localhost:54324` |
