@@ -14,7 +14,6 @@ import { isNegativePlayerTag } from '../lib/feedbackTags';
 import { LuMedal } from 'react-icons/lu';
 import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
-import IncomeChart from '../components/IncomeChart';
 
 // Every game now shares the same title, so the feedback tab identifies games by
 // when they were played instead.
@@ -66,7 +65,6 @@ export default function ManagerPage() {
   const [fields, setFields] = useState([]);
   const [games, setGames] = useState([]);
   const [players, setPlayers] = useState([]);
-  const [income, setIncome] = useState([]);
   const [feedback, setFeedback] = useState([]);
   const [sportsmanship, setSportsmanship] = useState({});
   const [loading, setLoading] = useState(true);
@@ -86,7 +84,7 @@ export default function ManagerPage() {
     }
     const cached = getCached('manager_data');
     if (cached) {
-      setFields(cached.fields); setGames(cached.games); setPlayers(cached.players); setIncome(cached.income || []);
+      setFields(cached.fields); setGames(cached.games); setPlayers(cached.players);
       setFeedback(cached.feedback || []); setSportsmanship(cached.sportsmanship || {});
       setLoading(false);
     }
@@ -96,10 +94,9 @@ export default function ManagerPage() {
   const fetchAll = async (silent = false) => {
     if (!silent) setLoading(true);
     const [fieldsData, gamesData, playersData] = await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
-    const incomeData = await fetchIncome(gamesData);
     const { feedback: feedbackData, sportsmanship: sportsmanshipData } = await fetchFeedback();
     setCached('manager_data', {
-      fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [], income: incomeData,
+      fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [],
       feedback: feedbackData, sportsmanship: sportsmanshipData,
     });
     setLoading(false);
@@ -126,28 +123,6 @@ export default function ManagerPage() {
     const { data } = await supabase.from('profiles').select('*').order('username');
     if (data) setPlayers(data);
     return data ?? [];
-  };
-
-  const fetchIncome = async (visibleGames) => {
-    const gameIds = (visibleGames || []).map(game => game.id);
-    if (gameIds.length === 0) { setIncome([]); return []; }
-    const { data } = await supabase
-      .from('game_players')
-      .select('game_id, amount_paid, payment_status')
-      .in('game_id', gameIds)
-      .eq('payment_status', 'paid');
-    const dateByGame = Object.fromEntries((visibleGames || []).map(game => [game.id, game.date]));
-    const totalsByDate = {};
-    (data || []).forEach(row => {
-      const date = dateByGame[row.game_id];
-      if (!date) return;
-      totalsByDate[date] = (totalsByDate[date] || 0) + Number(row.amount_paid || 0);
-    });
-    const result = Object.entries(totalsByDate)
-      .map(([date, amount]) => ({ date, amount }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-    setIncome(result);
-    return result;
   };
 
   const fetchFeedback = async () => {
@@ -361,10 +336,6 @@ export default function ManagerPage() {
                   <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <IncomeChart data={income} />
             </div>
 
             {/* Recent games */}
