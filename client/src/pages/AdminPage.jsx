@@ -412,7 +412,7 @@ export default function AdminPage() {
     const ext = file.name.split('.').pop();
     const filename = `${Date.now()}.${ext}`;
     const uploadBody = file.type === 'image/gif' ? file : await resizeImageFile(file).catch(() => file);
-    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, uploadBody, { contentType: file.type });
+    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingAvatarPreset(false); return; }
     const { data } = supabase.storage.from('avatar-presets').getPublicUrl(filename);
     const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: data.publicUrl });
@@ -453,8 +453,8 @@ export default function AdminPage() {
     const key = `${slugify(borderForm.label)}-${Date.now().toString(36).slice(-4)}`;
     const ext = file.name.split('.').pop();
     const filename = `${key}.${ext}`;
-    const uploadBody = await resizeImageFile(file).catch(() => file);
-    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type });
+    const uploadBody = await resizeImageFile(file, 1000).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingBorder(false); return; }
     const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
     const { error: insertErr } = await supabase.from('card_border_catalog').insert({
@@ -487,8 +487,8 @@ export default function AdminPage() {
     const variantKey = `${row.id}:${field}`;
     setUploadingVariant(variantKey);
     const filename = `${row.key}-${field}-${Date.now()}.${file.name.split('.').pop()}`;
-    const uploadBody = await resizeImageFile(file).catch(() => file);
-    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type });
+    const uploadBody = await resizeImageFile(file, 1000).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingVariant(null); return; }
     const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
     const { error: updateErr } = await supabase.from('card_border_catalog').update({ [field]: data.publicUrl }).eq('id', row.id);
@@ -539,7 +539,8 @@ export default function AdminPage() {
     for (const file of files) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, file);
+      const uploadBody = await resizeImageFile(file, 1600).catch(() => file);
+      const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, uploadBody, { contentType: file.type, cacheControl: '31536000' });
       if (uploadError) { showError('Upload failed: ' + uploadError.message); continue; }
       const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
       uploadedUrls.push(data.publicUrl);
@@ -611,7 +612,8 @@ export default function AdminPage() {
     setUploadingBg(true); setError(''); setSuccess('');
     const ext = file.name.split('.').pop();
     const filename = `${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage.from('card-backgrounds').upload(filename, file);
+    const uploadBody = await resizeImageFile(file, 1200).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('card-backgrounds').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { setError('Upload failed: ' + uploadErr.message); }
     else { setSuccess('Background uploaded.'); await fetchCardBgs(); }
     setUploadingBg(false);
@@ -667,7 +669,8 @@ export default function AdminPage() {
     setUploadingBannerImg(true);
     const ext = file.name.split('.').pop();
     const fileName = `banner-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, file);
+    const uploadBody = await resizeImageFile(file, 1600).catch(() => file);
+    const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadError) { showError('Upload failed: ' + uploadError.message); setUploadingBannerImg(false); return; }
     const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
     setBannerForm(prev => ({ ...prev, image_url: data.publicUrl }));
