@@ -64,6 +64,7 @@ function TrendChart({ data }) {
 }
 
 function ManagerBreakdown({ data, selectedMonth, onSelectMonth, months }) {
+  const [expandedId, setExpandedId] = useState(null);
   const rows = data.filter(row => row.month === selectedMonth).sort((a, b) => b.amount - a.amount);
   const maxAmount = Math.max(...rows.map(row => row.amount), 1);
   return <>
@@ -76,17 +77,30 @@ function ManagerBreakdown({ data, selectedMonth, onSelectMonth, months }) {
     {rows.length === 0
       ? <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>No payouts for this month.</p>
       : <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {rows.map(row => (
-          <div key={row.managerId}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>
-              <span>{row.managerName}</span>
-              <span style={{ fontFamily: "'Space Mono'", fontWeight: 700 }}>{formatAmount(row.amount)}</span>
-            </div>
-            <div style={{ height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: `${(row.amount / maxAmount) * 100}%`, height: '100%', background: 'var(--accent)', borderRadius: 4 }} />
-            </div>
-          </div>
-        ))}
+        {rows.map(row => {
+          const isOpen = expandedId === row.managerId;
+          return <div key={row.managerId}>
+            <button
+              onClick={() => setExpandedId(isOpen ? null : row.managerId)}
+              style={{ all: 'unset', display: 'block', width: '100%', cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>
+                <span>{isOpen ? '▾' : '▸'} {row.managerName} <span style={{ color: 'var(--muted)' }}>({row.sessions.length})</span></span>
+                <span style={{ fontFamily: "'Space Mono'", fontWeight: 700 }}>{formatAmount(row.amount)}</span>
+              </div>
+              <div style={{ height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ width: `${(row.amount / maxAmount) * 100}%`, height: '100%', background: 'var(--accent)', borderRadius: 4 }} />
+              </div>
+            </button>
+            {isOpen && <div style={{ marginTop: 8, paddingLeft: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {row.sessions.map(session => (
+                <div key={session.id} style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  {session.label}{session.fieldName ? ` · ${session.fieldName}` : ''}
+                </div>
+              ))}
+            </div>}
+          </div>;
+        })}
       </div>}
   </>;
 }

@@ -144,22 +144,31 @@ export default function ManagerPage() {
     };
     const heldGames = visibleGames.filter(hasStarted);
 
-    // Bolahh Admin sees what's owed to each manager, grouped by month,
-    // instead of a single combined trend line.
+    // Bolahh Admin sees what's owed to each manager, grouped by month, with
+    // the specific games behind that total, instead of a single combined
+    // trend line.
     if (isSuperAdmin) {
       const nameByManager = Object.fromEntries((visiblePlayers || []).map(player => [player.id, player.name]));
-      const countsByKey = {};
+      const groups = {};
       heldGames.forEach(game => {
         const managerId = game.assigned_manager_id;
         const month = (game.date || '').slice(0, 7);
         if (!managerId || !month) return;
         const key = `${managerId}|${month}`;
-        countsByKey[key] = (countsByKey[key] || 0) + 1;
+        if (!groups[key]) groups[key] = { managerId, managerName: nameByManager[managerId] || 'Unknown', month, sessions: [] };
+        groups[key].sessions.push({
+          id: game.id,
+          date: game.date,
+          time: game.time,
+          label: formatGameLabel(game.date, game.time),
+          fieldName: game.fields?.name || null,
+        });
       });
-      const result = Object.entries(countsByKey).map(([key, count]) => {
-        const [managerId, month] = key.split('|');
-        return { managerId, managerName: nameByManager[managerId] || 'Unknown', month, amount: count * MANAGER_RATE_PER_SESSION };
-      });
+      const result = Object.values(groups).map(group => ({
+        ...group,
+        amount: group.sessions.length * MANAGER_RATE_PER_SESSION,
+        sessions: group.sessions.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '')),
+      }));
       setIncome(result);
       return result;
     }
