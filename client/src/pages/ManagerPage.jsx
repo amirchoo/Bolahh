@@ -128,47 +128,49 @@ export default function ManagerPage() {
     return data ?? [];
   };
 
-  const fetchIncome = async (visibleGames, visiblePlayers) => {
-    const gameIds = (visibleGames || []).map(game => game.id);
-    if (gameIds.length === 0) { setIncome([]); return []; }
-    const { data } = await supabase
-      .from('game_players')
-      .select('game_id, amount_paid, payment_status')
-      .in('game_id', gameIds)
-      .eq('payment_status', 'paid');
+  const MANAGER_RATE_PER_SESSION = 22;
 
-    // Bolahh Admin sees what's owed to each manager instead of a single
-    // combined trend line, since they aren't paid for their own games.
-    // Grouped by manager + month so the chart can filter to one month at a time.
+  const fetchIncome = async (visibleGames, visiblePlayers) => {
+    if (!visibleGames || visibleGames.length === 0) { setIncome([]); return []; }
+
+    // Managers are paid a flat RM22 per session they've actually held —
+    // games still upcoming don't count yet.
+    const now = new Date();
+    const hasStarted = (game) => {
+      const [year, month, day] = game.date.split('-').map(Number);
+      const [hour, minute] = (game.time || '00:00').split(':').map(Number);
+      const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+      return now >= gameStart;
+    };
+    const heldGames = visibleGames.filter(hasStarted);
+
+    // Bolahh Admin sees what's owed to each manager, grouped by month,
+    // instead of a single combined trend line.
     if (isSuperAdmin) {
-      const managerByGame = Object.fromEntries((visibleGames || []).map(game => [game.id, game.assigned_manager_id]));
-      const monthByGame = Object.fromEntries((visibleGames || []).map(game => [game.id, (game.date || '').slice(0, 7)]));
       const nameByManager = Object.fromEntries((visiblePlayers || []).map(player => [player.id, player.name]));
-      const totalsByKey = {};
-      (data || []).forEach(row => {
-        const managerId = managerByGame[row.game_id];
-        const month = monthByGame[row.game_id];
+      const countsByKey = {};
+      heldGames.forEach(game => {
+        const managerId = game.assigned_manager_id;
+        const month = (game.date || '').slice(0, 7);
         if (!managerId || !month) return;
         const key = `${managerId}|${month}`;
-        totalsByKey[key] = (totalsByKey[key] || 0) + Number(row.amount_paid || 0);
+        countsByKey[key] = (countsByKey[key] || 0) + 1;
       });
-      const result = Object.entries(totalsByKey).map(([key, amount]) => {
+      const result = Object.entries(countsByKey).map(([key, count]) => {
         const [managerId, month] = key.split('|');
-        return { managerId, managerName: nameByManager[managerId] || 'Unknown', month, amount };
+        return { managerId, managerName: nameByManager[managerId] || 'Unknown', month, amount: count * MANAGER_RATE_PER_SESSION };
       });
       setIncome(result);
       return result;
     }
 
-    const dateByGame = Object.fromEntries((visibleGames || []).map(game => [game.id, game.date]));
-    const totalsByDate = {};
-    (data || []).forEach(row => {
-      const date = dateByGame[row.game_id];
-      if (!date) return;
-      totalsByDate[date] = (totalsByDate[date] || 0) + Number(row.amount_paid || 0);
+    const countsByDate = {};
+    heldGames.forEach(game => {
+      if (!game.date) return;
+      countsByDate[game.date] = (countsByDate[game.date] || 0) + 1;
     });
-    const result = Object.entries(totalsByDate)
-      .map(([date, amount]) => ({ date, amount }))
+    const result = Object.entries(countsByDate)
+      .map(([date, count]) => ({ date, amount: count * MANAGER_RATE_PER_SESSION }))
       .sort((a, b) => a.date.localeCompare(b.date));
     setIncome(result);
     return result;

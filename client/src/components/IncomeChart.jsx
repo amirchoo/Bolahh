@@ -103,7 +103,7 @@ export default function IncomeChart({ data, mode = 'trend' }) {
   if (!data || data.length === 0) {
     return <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: '28px 20px', textAlign: 'center' }}>
       <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>PAY</div>
-      <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>{isManagerMode ? 'No manager payouts recorded yet.' : 'No paid income recorded yet.'}</p>
+      <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0 }}>{isManagerMode ? 'No manager payouts recorded yet.' : 'No sessions held yet.'}</p>
     </div>;
   }
 
@@ -119,7 +119,7 @@ export default function IncomeChart({ data, mode = 'trend' }) {
     {isManagerMode
       ? <ManagerBreakdown data={data} selectedMonth={activeMonth} onSelectMonth={setSelectedMonth} months={months} />
       : <>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Collected from paid player bookings</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>RM22 per session held</div>
         <TrendChart data={data} />
       </>}
   </div>;
