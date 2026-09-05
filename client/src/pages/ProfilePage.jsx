@@ -218,7 +218,7 @@ export default function ProfilePage() {
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
     // GIFs skip resizing — canvas would flatten the animation to a single frame
     const uploadBody = file.type === 'image/gif' ? file : await resizeImageFile(file).catch(() => file);
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, uploadBody, { upsert: true, contentType: file.type });
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, uploadBody, { upsert: true, contentType: file.type, cacheControl: '31536000' });
     if (uploadError) { setSaveMsg(t('profile.errors.uploadFailed')); setUploadingAvatar(false); return; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id);
