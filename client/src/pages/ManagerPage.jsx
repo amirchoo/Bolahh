@@ -123,7 +123,7 @@ export default function ManagerPage() {
   };
 
   const fetchPlayers = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('username');
+    const { data } = await supabase.from('profiles').select('*').order('name');
     if (data) setPlayers(data);
     return data ?? [];
   };
@@ -139,18 +139,23 @@ export default function ManagerPage() {
 
     // Bolahh Admin sees what's owed to each manager instead of a single
     // combined trend line, since they aren't paid for their own games.
+    // Grouped by manager + month so the chart can filter to one month at a time.
     if (isSuperAdmin) {
       const managerByGame = Object.fromEntries((visibleGames || []).map(game => [game.id, game.assigned_manager_id]));
+      const monthByGame = Object.fromEntries((visibleGames || []).map(game => [game.id, (game.date || '').slice(0, 7)]));
       const nameByManager = Object.fromEntries((visiblePlayers || []).map(player => [player.id, player.name]));
-      const totalsByManager = {};
+      const totalsByKey = {};
       (data || []).forEach(row => {
         const managerId = managerByGame[row.game_id];
-        if (!managerId) return;
-        totalsByManager[managerId] = (totalsByManager[managerId] || 0) + Number(row.amount_paid || 0);
+        const month = monthByGame[row.game_id];
+        if (!managerId || !month) return;
+        const key = `${managerId}|${month}`;
+        totalsByKey[key] = (totalsByKey[key] || 0) + Number(row.amount_paid || 0);
       });
-      const result = Object.entries(totalsByManager)
-        .map(([managerId, amount]) => ({ managerId, managerName: nameByManager[managerId] || 'Unknown', amount }))
-        .sort((a, b) => b.amount - a.amount);
+      const result = Object.entries(totalsByKey).map(([key, amount]) => {
+        const [managerId, month] = key.split('|');
+        return { managerId, managerName: nameByManager[managerId] || 'Unknown', month, amount };
+      });
       setIncome(result);
       return result;
     }
