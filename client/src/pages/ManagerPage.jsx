@@ -96,7 +96,7 @@ export default function ManagerPage() {
   const fetchAll = async (silent = false) => {
     if (!silent) setLoading(true);
     const [fieldsData, gamesData, playersData] = await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
-    const incomeData = await fetchIncome(gamesData);
+    const incomeData = await fetchIncome(gamesData, playersData);
     const { feedback: feedbackData, sportsmanship: sportsmanshipData } = await fetchFeedback();
     setCached('manager_data', {
       fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [], income: incomeData,
@@ -128,7 +128,7 @@ export default function ManagerPage() {
     return data ?? [];
   };
 
-  const fetchIncome = async (visibleGames) => {
+  const fetchIncome = async (visibleGames, visiblePlayers) => {
     const gameIds = (visibleGames || []).map(game => game.id);
     if (gameIds.length === 0) { setIncome([]); return []; }
     const { data } = await supabase
@@ -136,6 +136,25 @@ export default function ManagerPage() {
       .select('game_id, amount_paid, payment_status')
       .in('game_id', gameIds)
       .eq('payment_status', 'paid');
+
+    // Bolahh Admin sees what's owed to each manager instead of a single
+    // combined trend line, since they aren't paid for their own games.
+    if (isSuperAdmin) {
+      const managerByGame = Object.fromEntries((visibleGames || []).map(game => [game.id, game.assigned_manager_id]));
+      const nameByManager = Object.fromEntries((visiblePlayers || []).map(player => [player.id, player.name]));
+      const totalsByManager = {};
+      (data || []).forEach(row => {
+        const managerId = managerByGame[row.game_id];
+        if (!managerId) return;
+        totalsByManager[managerId] = (totalsByManager[managerId] || 0) + Number(row.amount_paid || 0);
+      });
+      const result = Object.entries(totalsByManager)
+        .map(([managerId, amount]) => ({ managerId, managerName: nameByManager[managerId] || 'Unknown', amount }))
+        .sort((a, b) => b.amount - a.amount);
+      setIncome(result);
+      return result;
+    }
+
     const dateByGame = Object.fromEntries((visibleGames || []).map(game => [game.id, game.date]));
     const totalsByDate = {};
     (data || []).forEach(row => {
@@ -364,7 +383,7 @@ export default function ManagerPage() {
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <IncomeChart data={income} />
+              <IncomeChart data={income} mode={isSuperAdmin ? 'manager' : 'trend'} />
             </div>
 
             {/* Recent games */}
