@@ -65,7 +65,8 @@ export default function ManagerPage() {
   const setActiveTab = isPreview ? setPreviewTab : setPersistedTab;
   const [fields, setFields] = useState([]);
   const [games, setGames] = useState([]);
-  const [players, setPlayers] = useState([]);
+  const [_players, setPlayers] = useState([]);
+  const [managedPlayerCount, setManagedPlayerCount] = useState(0);
   const [income, setIncome] = useState([]);
   const [feedback, setFeedback] = useState([]);
   const [sportsmanship, setSportsmanship] = useState({});
@@ -87,6 +88,7 @@ export default function ManagerPage() {
     const cached = getCached('manager_data');
     if (cached) {
       setFields(cached.fields); setGames(cached.games); setPlayers(cached.players); setIncome(cached.income || []);
+      setManagedPlayerCount(cached.managedPlayerCount || 0);
       setFeedback(cached.feedback || []); setSportsmanship(cached.sportsmanship || {});
       setLoading(false);
     }
@@ -97,10 +99,11 @@ export default function ManagerPage() {
     if (!silent) setLoading(true);
     const [fieldsData, gamesData, playersData] = await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
     const incomeData = await fetchIncome(gamesData, playersData);
+    const managedPlayerCountData = await fetchManagedPlayerCount(gamesData);
     const { feedback: feedbackData, sportsmanship: sportsmanshipData } = await fetchFeedback();
     setCached('manager_data', {
       fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [], income: incomeData,
-      feedback: feedbackData, sportsmanship: sportsmanshipData,
+      managedPlayerCount: managedPlayerCountData, feedback: feedbackData, sportsmanship: sportsmanshipData,
     });
     setLoading(false);
   };
@@ -126,6 +129,15 @@ export default function ManagerPage() {
     const { data } = await supabase.from('profiles').select('*').order('name');
     if (data) setPlayers(data);
     return data ?? [];
+  };
+
+  const fetchManagedPlayerCount = async (visibleGames) => {
+    const gameIds = (visibleGames || []).map(game => game.id);
+    if (gameIds.length === 0) { setManagedPlayerCount(0); return 0; }
+    const { data } = await supabase.from('game_players').select('user_id').in('game_id', gameIds);
+    const count = new Set((data || []).map(row => row.user_id)).size;
+    setManagedPlayerCount(count);
+    return count;
   };
 
   const MANAGER_RATE_PER_SESSION = 22;
@@ -178,9 +190,15 @@ export default function ManagerPage() {
       if (!game.date) return;
       countsByDate[game.date] = (countsByDate[game.date] || 0) + 1;
     });
+    // Cumulative running total, so the trend actually climbs instead of
+    // sitting flat at RM22 every time a single session is held.
+    let running = 0;
     const result = Object.entries(countsByDate)
-      .map(([date, count]) => ({ date, amount: count * MANAGER_RATE_PER_SESSION }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, count]) => {
+        running += count * MANAGER_RATE_PER_SESSION;
+        return { date, amount: running };
+      });
     setIncome(result);
     return result;
   };
@@ -388,7 +406,7 @@ export default function ManagerPage() {
                 { label: 'Total Fields',    val: fields.length,         icon: <MdOutlineStadium/> },
                 { label: 'Total Games',     val: games.length,          icon: <GiSoccerBall/> },
                 { label: 'Upcoming Games',  val: upcomingGames.length,  icon: <MdOutlineCalendarMonth/> },
-                { label: 'Total Players',   val: players.length,        icon: <FaPeopleGroup/> },
+                { label: 'Total Players',   val: managedPlayerCount,    icon: <FaPeopleGroup/> },
               ].map(s => (
                 <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
