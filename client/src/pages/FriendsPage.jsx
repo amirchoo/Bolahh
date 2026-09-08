@@ -8,7 +8,11 @@ import { usePersistedState } from '../lib/usePersistedState';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoSearch, IoPeople, IoMailOpen, IoCheckmark } from 'react-icons/io5';
+import { FaLocationDot } from 'react-icons/fa6';
+import { PLAYER_AREAS } from '../lib/areas';
 
+const AREA_OPTIONS = ['All Areas', ...PLAYER_AREAS];
+const PROFILE_FIELDS = 'id, name, area, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border';
 
 const POSITION_ABBR = { 'Attacker': 'AT', 'Midfielder': 'MF', 'Defender': 'DF', 'Goalkeeper': 'GK' };
 const STATS = [
@@ -81,6 +85,9 @@ export default function FriendsPage() {
   const [viewingPlayer, setViewingPlayer] = useState(null); // { profile, cardStats }
   const [playedWith, setPlayedWith] = useState([]);
   const [loadingPlayedWith, setLoadingPlayedWith] = useState(true);
+  const [areaFilter, setAreaFilter] = usePersistedState('friends_area', 'All Areas');
+  const [areaBrowse, setAreaBrowse] = useState([]);
+  const [loadingAreaBrowse, setLoadingAreaBrowse] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -118,7 +125,7 @@ export default function FriendsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border')
+      .select(PROFILE_FIELDS)
       .in('id', ids);
 
     const withCounts = (profiles || [])
@@ -145,7 +152,7 @@ export default function FriendsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border')
+      .select(PROFILE_FIELDS)
       .in('id', friendIds);
 
     setFriends(profiles || []);
@@ -165,7 +172,7 @@ export default function FriendsPage() {
     const senderIds = data.map(f => f.sender_id);
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border')
+      .select(PROFILE_FIELDS)
       .in('id', senderIds);
 
     setPending(profiles || []);
@@ -186,21 +193,46 @@ export default function FriendsPage() {
     return sentIds;
   };
 
-  const handleSearch = async (q) => {
-    setSearchQuery(q);
-    if (!q.trim()) { setSearchResults([]); return; }
+  const runSearch = async (q, area) => {
     setSearching(true);
-
-    const { data } = await supabase
+    let query = supabase
       .from('profiles')
-      .select('id, name, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border')
+      .select(PROFILE_FIELDS)
       .ilike('name', `%${q}%`)
       .neq('id', user.id)
       .limit(10);
+    if (area !== 'All Areas') query = query.eq('area', area);
 
+    const { data } = await query;
     setSearchResults(data || []);
     setSearching(false);
   };
+
+  const handleSearch = (q) => {
+    setSearchQuery(q);
+    if (!q.trim()) { setSearchResults([]); return; }
+    runSearch(q, areaFilter);
+  };
+
+  const fetchByArea = async (area) => {
+    if (area === 'All Areas') { setAreaBrowse([]); return; }
+    setLoadingAreaBrowse(true);
+    const { data } = await supabase
+      .from('profiles')
+      .select(PROFILE_FIELDS)
+      .eq('area', area)
+      .neq('id', user.id)
+      .order('total_points', { ascending: false })
+      .limit(20);
+    setAreaBrowse(data || []);
+    setLoadingAreaBrowse(false);
+  };
+
+  // Re-run whichever view is active (typed search or area browse) when the area filter changes.
+  useEffect(() => {
+    if (searchQuery.trim()) runSearch(searchQuery, areaFilter);
+    else fetchByArea(areaFilter);
+  }, [areaFilter]);
 
   const sendRequest = async (receiverId) => {
     await supabase.from('friendships').insert({
@@ -297,6 +329,11 @@ export default function FriendsPage() {
             <span style={{ fontSize: 11, color: 'var(--muted)' }}>
               · {playedTogether ? `Played ${playedTogether}x together` : `${profile.games_played || 0} games`}
             </span>
+            {profile.area && (
+              <span style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <FaLocationDot size={9} />{profile.area}
+              </span>
+            )}
           </div>
         </div>
 
@@ -403,9 +440,29 @@ export default function FriendsPage() {
               placeholder="Search by username..."
               value={searchQuery}
               onChange={e => handleSearch(e.target.value)}
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: 10 }}
               autoFocus
             />
+
+            {/* Area filter — browse/search players by area */}
+            <div style={{ position: 'relative', marginBottom: 16 }}>
+              <select
+                value={areaFilter}
+                onChange={e => setAreaFilter(e.target.value)}
+                style={{
+                  width: '100%', appearance: 'none', colorScheme: 'dark',
+                  background: 'var(--card)',
+                  border: `1.5px solid ${areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--border)'}`,
+                  color: areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--text)',
+                  borderRadius: 10, padding: '10px 36px 10px 14px',
+                  fontSize: 13, fontFamily: "'DM Sans'", fontWeight: 600,
+                  cursor: 'pointer', outline: 'none',
+                }}
+              >
+                {AREA_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--muted)', fontSize: 12 }}>▾</div>
+            </div>
 
             {searching && (
               <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)', fontSize: 13 }}>Searching...</div>
@@ -418,7 +475,38 @@ export default function FriendsPage() {
               </div>
             )}
 
-            {!searching && !searchQuery && (
+            {!searching && !searchQuery && areaFilter !== 'All Areas' && (
+              loadingAreaBrowse ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)' }}><IconLoading size={32} /></div>
+              ) : (() => {
+                const candidates = areaBrowse.filter(p => getFriendshipStatus(p.id) === 'none');
+                if (candidates.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><FaLocationDot size={30} color="var(--muted)" /></div>
+                      <p style={{ color: 'var(--muted)', fontSize: 14 }}>No players found in {areaFilter}</p>
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 12, fontWeight: 600 }}>
+                      PLAYERS IN {areaFilter.toUpperCase()}
+                    </div>
+                    {candidates.map(profile => (
+                      <PlayerCard key={profile.id} profile={profile} actions={
+                        <button type="button" onClick={e => { e.stopPropagation(); sendRequest(profile.id); }} style={{
+                          ...btnBase, background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                          border: '1px solid rgba(240,157,81,0.3)'
+                        }}>+ Add</button>
+                      } />
+                    ))}
+                  </>
+                );
+              })()
+            )}
+
+            {!searching && !searchQuery && areaFilter === 'All Areas' && (
               loadingPlayedWith ? (
                 <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)' }}><IconLoading size={32} /></div>
               ) : (() => {
@@ -427,7 +515,7 @@ export default function FriendsPage() {
                   return (
                     <div style={{ textAlign: 'center', padding: '40px 0' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><IoSearch size={36} color="var(--muted)" /></div>
-                      <p style={{ color: 'var(--muted)', fontSize: 14 }}>Type a username to search for players</p>
+                      <p style={{ color: 'var(--muted)', fontSize: 14 }}>Type a username, or pick an area to find players</p>
                     </div>
                   );
                 }
