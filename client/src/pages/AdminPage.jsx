@@ -11,10 +11,9 @@ import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSe
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
 import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
-import EquippedBorderFrame from '../components/EquippedBorderFrame';
+import { BadgeSlotEditor, badgesToSlots, slotsToBadges } from '../components/BadgeSlotEditor';
 import { drawCardImage } from '../lib/cardCanvas';
 import { RANKS, getRank } from '../lib/rankUtils';
-import { RARITY_COLORS, resolveBorderRender } from '../lib/borderCatalog';
 import { AREAS } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
 import { refundGamePlayers } from '../lib/refundGamePlayers';
@@ -58,8 +57,12 @@ export default function AdminPage() {
     name: 'PLAYER ONE', position: 'Attacker', rank: 'Emas I',
     pac: 72, sho: 68, pas: 75, dri: 70, def: 60, phy: 65,
     games_played: 0,
-    border: null,
+    // Achievement badges: fixed set of 3 types, each toggled on/off with its
+    // own rarity — array ORDER is display order (top to bottom on the
+    // card), so reordering means swapping array positions, not relabeling.
+    badgeSlots: badgesToSlots([]),
   });
+  const activeBadges = slotsToBadges(cardForm.badgeSlots);
   const [cardAvatarPreview, setCardAvatarPreview] = useState(null);
   const [cardDownloading, setCardDownloading] = useState(false);
 
@@ -85,12 +88,6 @@ export default function AdminPage() {
   const [avatarPresets, setAvatarPresets] = useState([]);
   const [uploadingAvatarPreset, setUploadingAvatarPreset] = useState(false);
 
-  // ── Card border catalog state ──────────────────────────
-  const [borderCatalogAdmin, setBorderCatalogAdmin] = useState([]);
-  const [uploadingBorder, setUploadingBorder] = useState(false);
-  const [uploadingVariant, setUploadingVariant] = useState(null);
-  const [borderForm, setBorderForm] = useState({ label: '', rarity: 'common', unlockType: 'games_played', unlockValue: 10, unlockLabel: '' });
-
   // ── Field form state ──────────────────────────────────
   const [fieldForm, setFieldForm] = useState({
     name: '', area: '', address: '', field_rules: '', images: [],
@@ -110,6 +107,7 @@ export default function AdminPage() {
   const [statsSearching, setStatsSearching] = useState(false);
   const [selectedStatsPlayer, setSelectedStatsPlayer] = useState(null);
   const [statsForm, setStatsForm] = useState(null);
+  const [statsBadgeSlots, setStatsBadgeSlots] = useState(() => badgesToSlots([]));
   const [savingStats, setSavingStats] = useState(false);
   const [notifyOnStatsSave, setNotifyOnStatsSave] = useState(true);
   // Card as it stood before the player's most recently rated game — reconstructed by
@@ -133,7 +131,7 @@ export default function AdminPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchFields(), fetchCardBgs(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin(), fetchBorderCatalogAdmin(), fetchManagers(), fetchGames()]);
+    await Promise.all([fetchFields(), fetchCardBgs(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin(), fetchManagers(), fetchGames()]);
     setLoading(false);
   };
 
@@ -285,7 +283,7 @@ export default function AdminPage() {
     if (!q.trim()) { setStatsResults([]); return; }
     setStatsSearching(true);
     const { data } = await supabase
-      .from('profiles').select('id, name, avatar_url, position, card_stats, total_points, games_played')
+      .from('profiles').select('id, name, avatar_url, position, card_stats, total_points, games_played, achievement_badges')
       .ilike('name', `%${q}%`).limit(10);
     setStatsResults(data || []);
     setStatsSearching(false);
@@ -304,6 +302,7 @@ export default function AdminPage() {
       dri: cs.dri ?? 30, def: cs.def ?? 30, phy: cs.phy ?? 30,
     };
     setStatsForm(currentStats);
+    setStatsBadgeSlots(badgesToSlots(p.achievement_badges));
     setStatsQuery(''); setStatsResults([]);
 
     setPastCardStats(null);
@@ -336,9 +335,11 @@ export default function AdminPage() {
     };
     const oldOverall = selectedStatsPlayer.total_points ?? calcOverall(selectedStatsPlayer.card_stats || {});
     const newOverall = calcOverall(cardStats);
+    const achievementBadges = slotsToBadges(statsBadgeSlots);
     const { error, count } = await supabase.from('profiles').update({
       card_stats: cardStats,
       total_points: newOverall,
+      achievement_badges: achievementBadges,
     }, { count: 'exact' }).eq('id', selectedStatsPlayer.id);
     setSavingStats(false);
     if (error) { showError(error.message); return; }
@@ -349,7 +350,7 @@ export default function AdminPage() {
       }).catch(() => {});
     }
     showSuccess(`${selectedStatsPlayer.name}'s card updated!${notifyOnStatsSave && newOverall !== oldOverall ? ' They\'ll get an email about it.' : ''}`);
-    setSelectedStatsPlayer(prev => prev ? { ...prev, card_stats: cardStats, total_points: newOverall } : prev);
+    setSelectedStatsPlayer(prev => prev ? { ...prev, card_stats: cardStats, total_points: newOverall, achievement_badges: achievementBadges } : prev);
   };
 
   const fetchGameRequests = async () => {
@@ -431,72 +432,6 @@ export default function AdminPage() {
     if (error) { showError(error.message); return; }
     setAvatarPresets(prev => prev.filter(a => a.id !== preset.id));
     showSuccess('Avatar deleted.');
-  };
-
-  // ── Card border catalog handlers ───────────────────────
-  const fetchBorderCatalogAdmin = async () => {
-    const { data } = await supabase.from('card_border_catalog').select('*').order('created_at', { ascending: true });
-    if (data) setBorderCatalogAdmin(data);
-  };
-
-  const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-  const handleBorderUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (!borderForm.label.trim() || !borderForm.unlockLabel.trim() || !borderForm.unlockValue) {
-      showError('Fill in label, unlock value and unlock label first.');
-      e.target.value = '';
-      return;
-    }
-    setUploadingBorder(true);
-    const key = `${slugify(borderForm.label)}-${Date.now().toString(36).slice(-4)}`;
-    const ext = file.name.split('.').pop();
-    const filename = `${key}.${ext}`;
-    const uploadBody = await resizeImageFile(file, 1000).catch(() => file);
-    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
-    if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingBorder(false); return; }
-    const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
-    const { error: insertErr } = await supabase.from('card_border_catalog').insert({
-      key, label: borderForm.label.trim(), rarity: borderForm.rarity,
-      unlock_type: borderForm.unlockType, unlock_value: Number(borderForm.unlockValue),
-      unlock_label: borderForm.unlockLabel.trim(), card_image_url: data.publicUrl,
-    });
-    if (insertErr) { showError(insertErr.message); setUploadingBorder(false); return; }
-    showSuccess('Border added.');
-    await fetchBorderCatalogAdmin();
-    setBorderForm({ label: '', rarity: 'common', unlockType: 'games_played', unlockValue: 10, unlockLabel: '' });
-    setUploadingBorder(false);
-    e.target.value = '';
-  };
-
-  const handleDeleteBorderCatalog = async (row) => {
-    if (!confirm('Delete this border?')) return;
-    const paths = [row.card_image_url, row.leaderboard_image_url, row.roster_image_url]
-      .filter(Boolean).map(url => url.split('/card-borders/')[1]).filter(Boolean);
-    if (paths.length) await supabase.storage.from('card-borders').remove(paths);
-    const { error } = await supabase.from('card_border_catalog').delete().eq('id', row.id);
-    if (error) { showError(error.message); return; }
-    setBorderCatalogAdmin(prev => prev.filter(b => b.id !== row.id));
-    showSuccess('Border deleted.');
-  };
-
-  const handleBorderVariantUpload = async (e, row, field) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const variantKey = `${row.id}:${field}`;
-    setUploadingVariant(variantKey);
-    const filename = `${row.key}-${field}-${Date.now()}.${file.name.split('.').pop()}`;
-    const uploadBody = await resizeImageFile(file, 1000).catch(() => file);
-    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
-    if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingVariant(null); return; }
-    const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
-    const { error: updateErr } = await supabase.from('card_border_catalog').update({ [field]: data.publicUrl }).eq('id', row.id);
-    if (updateErr) { showError(updateErr.message); setUploadingVariant(null); return; }
-    showSuccess('Border art updated.');
-    await fetchBorderCatalogAdmin();
-    setUploadingVariant(null);
-    e.target.value = '';
   };
 
   const fetchFields = async () => {
@@ -650,7 +585,7 @@ export default function AdminPage() {
         profile,
         cardStats: stats,
         rank: cardForm.rank,
-        equippedBorder: cardForm.border || undefined,
+        achievementBadges: activeBadges,
       });
       const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
       const a = document.createElement('a');
@@ -722,7 +657,6 @@ export default function AdminPage() {
     { key: 'cardmaker',   label: 'Card Maker'  },
     { key: 'coupons',     label: 'Coupons'     },
     { key: 'avatars',     label: 'Avatars'     },
-    { key: 'borders',     label: 'Borders'     },
     { key: 'requests',    label: 'Game Requests' },
   ];
 
@@ -899,7 +833,6 @@ export default function AdminPage() {
             { label: 'Active Banners',       val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
             { label: 'Total Fields',       val: fields.length,    icon: <MdOutlineStadium /> },
             { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
-            { label: 'Card Borders',        val: borderCatalogAdmin.length, icon: <MdSave size={24} color="var(--accent)" /> },
             { label: 'Game Requests',       val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
             { label: 'Avatar Presets',      val: avatarPresets.length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
@@ -1077,7 +1010,7 @@ export default function AdminPage() {
                       <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)' }}>
                         EDITING: {selectedStatsPlayer.name?.toUpperCase()}
                       </h3>
-                      <button onClick={() => { setSelectedStatsPlayer(null); setStatsForm(null); setPastCardStats(null); }} style={{
+                      <button onClick={() => { setSelectedStatsPlayer(null); setStatsForm(null); setStatsBadgeSlots(badgesToSlots([])); setPastCardStats(null); }} style={{
                         background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
                         borderRadius: 8, padding: '5px 12px', fontSize: 12,
                       }}>Close</button>
@@ -1110,6 +1043,12 @@ export default function AdminPage() {
                     </div>
                   </div>
 
+                  <div style={sectionCard}>
+                    <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>ACHIEVEMENT BADGES</h3>
+                    <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>Stack order top to bottom matches the order below. Saved to this player's real profile on Save Card.</p>
+                    <BadgeSlotEditor slots={statsBadgeSlots} onChange={setStatsBadgeSlots} />
+                  </div>
+
                   <div onClick={() => setNotifyOnStatsSave(v => !v)} style={{ ...checkboxLabel, padding: '2px 2px 4px' }}>
                     <div style={{
                       width: 16, height: 16, borderRadius: 4, flexShrink: 0,
@@ -1131,7 +1070,7 @@ export default function AdminPage() {
                   >{savingStats ? 'Saving…' : <><MdSave size={15} />Save Card</>}</button>
                 </div>
 
-                <div className="player-stats-cards" style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'center', minWidth: 0 }}>
+                <div className="player-stats-cards" style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'stretch', justifyContent: 'center', minWidth: 0 }}>
                   {(() => {
                     const cs = pastCardStats || selectedStatsPlayer.card_stats || {};
                     const cardStatsBefore = { pac: cs.pac ?? 30, sho: cs.sho ?? 30, pas: cs.pas ?? 30, dri: cs.dri ?? 30, def: cs.def ?? 30, phy: cs.phy ?? 30 };
@@ -1146,7 +1085,7 @@ export default function AdminPage() {
 
                     return (
                       <>
-                        <div style={{ ...sectionCard, padding: 20, textAlign: 'center', marginBottom: 0, minWidth: 260, opacity: loadingPastCard ? 0.5 : 1 }}>
+                        <div style={{ ...sectionCard, display: 'flex', flexDirection: 'column', padding: 20, textAlign: 'center', marginBottom: 0, minWidth: 260, opacity: loadingPastCard ? 0.5 : 1 }}>
                           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>
                             PAST CARD {loadingPastCard && '· loading…'}
                           </div>
@@ -1161,9 +1100,15 @@ export default function AdminPage() {
                               }}
                               cardStats={cardStatsBefore}
                               rank={rankBefore}
+                              achievementBadges={selectedStatsPlayer.achievement_badges || []}
                             />
                           </div>
-                          <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
+                          {/* Different rank tiers render taller/shorter crowns, so this
+                              caption is pushed to the bottom of the (now equal-height,
+                              since the row siblings stretch) box rather than sitting
+                              right under the card — keeps it level with the other card's
+                              caption regardless of which one has the taller crown. */}
+                          <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 'auto', paddingTop: 12 }}>
                             OVR {overallBefore} · {rankBefore}
                           </div>
                           {!loadingPastCard && !pastCardHasHistory && (
@@ -1171,7 +1116,7 @@ export default function AdminPage() {
                           )}
                         </div>
 
-                        <div style={{ ...sectionCard, padding: 20, textAlign: 'center', marginBottom: 0, minWidth: 260, borderColor: overallDelta !== 0 ? 'var(--accent)' : 'var(--border)' }}>
+                        <div style={{ ...sectionCard, display: 'flex', flexDirection: 'column', padding: 20, textAlign: 'center', marginBottom: 0, minWidth: 260, borderColor: overallDelta !== 0 ? 'var(--accent)' : 'var(--border)' }}>
                           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2, color: 'var(--muted)', marginBottom: 14 }}>NEW CARD</div>
                           <div style={{ display: 'flex', justifyContent: 'center' }}>
                             <FifaCard
@@ -1184,9 +1129,10 @@ export default function AdminPage() {
                               }}
                               cardStats={cardStatsPreview}
                               rank={rankPreview}
+                              achievementBadges={slotsToBadges(statsBadgeSlots)}
                             />
                           </div>
-                          <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
+                          <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 'auto', paddingTop: 12 }}>
                             OVR {overallPreview} · {rankPreview}
                             {overallDelta !== 0 && (
                               <span style={{ color: overallDelta > 0 ? '#4ade80' : 'var(--red)', fontWeight: 700, marginLeft: 6 }}>
@@ -1714,42 +1660,13 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                   </div>
                 </div>
 
-                {/* Border */}
+                {/* Achievement badges — fixed set of 3 types; admin picks which show,
+                    their rarity, and their order (top to bottom on the card) via the
+                    up/down arrows, which just swap array positions. */}
                 <div style={sectionCard}>
-                  <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>BORDER</h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                    <div onClick={() => setCardForm(prev => ({ ...prev, border: null }))} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                      <div style={{ borderRadius: 10, boxShadow: !cardForm.border ? '0 0 0 2px var(--accent)' : 'none' }}>
-                        <FifaCard
-                          size="small"
-                          profile={{ name: cardForm.name || 'PLAYER', position: cardForm.position, avatar_url: cardAvatarPreview, games_played: cardForm.games_played }}
-                          cardStats={{ pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy }}
-                          rank={cardForm.rank}
-                        />
-                      </div>
-                      <div style={{ marginTop: 6, fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 0.5 }}>NONE</div>
-                    </div>
-                    {borderCatalogAdmin.map(b => {
-                      const active = cardForm.border === b.key;
-                      return (
-                        <div key={b.key} onClick={() => setCardForm(prev => ({ ...prev, border: b.key }))} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                          <div style={{ borderRadius: 10, boxShadow: active ? '0 0 0 2px var(--accent)' : 'none' }}>
-                            <FifaCard
-                              size="small"
-                              profile={{ name: cardForm.name || 'PLAYER', position: cardForm.position, avatar_url: cardAvatarPreview, games_played: cardForm.games_played }}
-                              cardStats={{ pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy }}
-                              rank={cardForm.rank}
-                              equippedBorder={b.key}
-                            />
-                          </div>
-                          <div style={{ marginTop: 6, fontSize: 11, color: RARITY_COLORS[b.rarity] || 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 0.5 }}>{b.label}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {borderCatalogAdmin.length === 0 && (
-                    <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 12 }}>No borders in the catalog yet — add some from the Borders tab.</p>
-                  )}
+                  <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>ACHIEVEMENT BADGES</h3>
+                  <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>Stack order top to bottom matches the order below.</p>
+                  <BadgeSlotEditor slots={cardForm.badgeSlots} onChange={slots => setCardForm(prev => ({ ...prev, badgeSlots: slots }))} />
                 </div>
 
               </div>
@@ -1769,7 +1686,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                       }}
                       cardStats={{ pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy }}
                       rank={cardForm.rank}
-                      equippedBorder={cardForm.border}
+                      achievementBadges={activeBadges}
                     />
                   </div>
                   <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
@@ -1783,8 +1700,6 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                 {(() => {
                   const theme = getCardTheme(cardForm.rank);
                   const posAbbr = POSITION_ABBR[cardForm.position] || cardForm.position;
-                  const catalogRow = borderCatalogAdmin.find(b => b.key === cardForm.border);
-                  const borderRender = resolveBorderRender(catalogRow, 'leaderboard');
                   return (
                     <div style={{ width: '100%', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
                       <div style={{ fontFamily: "'Bebas Neue'", fontSize: 11, letterSpacing: 2, color: 'var(--muted)', marginBottom: 10 }}>LEADERBOARD ROW</div>
@@ -1794,16 +1709,6 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                         display: 'flex', alignItems: 'center', gap: 12,
                         position: 'relative',
                       }}>
-                        {borderRender?.type === 'image' && (
-                          <div style={{
-                            position: 'absolute', inset: 0, borderRadius: 14,
-                            pointerEvents: 'none', zIndex: 2,
-                            borderStyle: 'solid', borderWidth: '11px 13px 11px 13px', borderColor: 'transparent',
-                            borderImageSource: `url(${borderRender.imageUrl})`,
-                            borderImageSlice: '32 16 16 16',
-                            borderImageRepeat: 'stretch',
-                          }} />
-                        )}
                         <div style={{ width: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <FaMedal size={22} color="#FFD700" />
                         </div>
@@ -1865,7 +1770,6 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                         position: 'relative',
                       }}>
                         <div style={{ position: 'absolute', inset: 0, borderRadius: 9, background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, transparent 55%)', pointerEvents: 'none' }} />
-                        <EquippedBorderFrame equippedBorder={cardForm.border} context="roster" borderRadius={9} />
                         <div style={{ position: 'relative', zIndex: 1 }}>
                           <PlayerAvatar
                             profile={{ name: cardForm.name || 'PLAYER', avatar_url: cardAvatarPreview }}
@@ -2065,93 +1969,6 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                       border: '2px solid var(--border)', background: 'var(--card)',
                     }} />
                     <button onClick={() => handleDeleteAvatarPreset(preset)} style={{
-                      background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
-                      border: '1px solid rgba(240,101,67,0.25)', borderRadius: 6,
-                      padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                    }}>Delete</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'borders' && (
-          <div>
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20, marginBottom: 20 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>CARD BORDERS</div>
-              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
-                Custom card border cosmetics, unlocked automatically once a player crosses the threshold. Fill in the details, then upload a transparent PNG (2:3 aspect ratio, e.g. 600×900px) to add it.
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-                <input placeholder="Label (e.g. Iron Wall)" value={borderForm.label} onChange={e => setBorderForm({ ...borderForm, label: e.target.value })} style={{ flex: '1 1 180px' }} />
-                <select value={borderForm.rarity} onChange={e => setBorderForm({ ...borderForm, rarity: e.target.value })} style={{ flex: '0 1 130px' }}>
-                  <option value="common">Common</option>
-                  <option value="rare">Rare</option>
-                  <option value="epic">Epic</option>
-                  <option value="legendary">Legendary</option>
-                </select>
-                <select value={borderForm.unlockType} onChange={e => setBorderForm({ ...borderForm, unlockType: e.target.value })} style={{ flex: '0 1 160px' }}>
-                  <option value="games_played">Games Played</option>
-                  <option value="mvp_count">MVP Count</option>
-                  <option value="podium_count">Podium Count</option>
-                </select>
-                <input type="number" min="1" placeholder="Threshold" value={borderForm.unlockValue} onChange={e => setBorderForm({ ...borderForm, unlockValue: e.target.value })} style={{ flex: '0 1 100px' }} />
-                <input placeholder="Unlock text (e.g. Play 25 games)" value={borderForm.unlockLabel} onChange={e => setBorderForm({ ...borderForm, unlockLabel: e.target.value })} style={{ flex: '1 1 200px' }} />
-              </div>
-              <label style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '10px 20px', borderRadius: 10,
-                background: uploadingBorder ? 'var(--card2)' : 'var(--accent)',
-                color: uploadingBorder ? 'var(--muted)' : '#fff',
-                fontWeight: 700, fontSize: 13, cursor: uploadingBorder ? 'default' : 'pointer',
-                opacity: uploadingBorder ? 0.6 : 1,
-              }}>
-                {uploadingBorder ? 'Uploading...' : '+ Upload Border Image'}
-                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBorderUpload} disabled={uploadingBorder} />
-              </label>
-            </div>
-
-            {borderCatalogAdmin.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 14 }}>
-                No borders yet.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 16 }}>
-                {borderCatalogAdmin.map(b => (
-                  <div key={b.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    {b.card_image_url ? (
-                      <img src={b.card_image_url} alt="" style={{ width: 60, height: 90, objectFit: 'contain' }} />
-                    ) : (
-                      <div style={{ width: 60, height: 90, borderRadius: 6, background: 'var(--card2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--muted)', textAlign: 'center' }}>
-                        Built-in
-                      </div>
-                    )}
-                    <div style={{ fontSize: 12, fontWeight: 700, color: RARITY_COLORS[b.rarity] || 'var(--text)', textAlign: 'center' }}>{b.label}</div>
-                    <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'center' }}>{b.unlock_label}</div>
-
-                    {/* Compact-context art — uploaded per row, separate from the card image above */}
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {[['leaderboard_image_url', 'LB'], ['roster_image_url', 'Roster']].map(([field, short]) => {
-                        const has = !!b[field];
-                        const busy = uploadingVariant === `${b.id}:${field}`;
-                        return (
-                          <label key={field} title={has ? `${short} art uploaded` : `Upload ${short} art`} style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 4,
-                            padding: '3px 8px', borderRadius: 6, cursor: busy ? 'default' : 'pointer',
-                            background: has ? 'rgba(74,222,128,0.1)' : 'var(--card2)',
-                            border: `1px solid ${has ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
-                            color: has ? '#4ade80' : 'var(--muted)',
-                            fontSize: 10, fontWeight: 700, opacity: busy ? 0.6 : 1,
-                          }}>
-                            {busy ? '...' : `${has ? '✓ ' : '+ '}${short}`}
-                            <input type="file" accept="image/*" style={{ display: 'none' }} disabled={busy} onChange={e => handleBorderVariantUpload(e, b, field)} />
-                          </label>
-                        );
-                      })}
-                    </div>
-
-                    <button onClick={() => handleDeleteBorderCatalog(b)} style={{
                       background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
                       border: '1px solid rgba(240,101,67,0.25)', borderRadius: 6,
                       padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',

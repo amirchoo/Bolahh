@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankTier } from '../lib/rankUtils';
 import { getCardTheme, STATS, POSITION_ABBR } from '../components/FifaCard';
-import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot, FaMedal } from 'react-icons/fa6';
@@ -61,7 +60,7 @@ export default function LeaderboardPage() {
     // total_points is the authoritative OVR — synced every time a user visits their profile
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats, equipped_border')
+      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats')
       .gt('total_points', 0)
       .order('total_points', { ascending: false });
 
@@ -110,8 +109,6 @@ export default function LeaderboardPage() {
           position: 'relative',
         }}
       >
-        <EquippedBorderFrame equippedBorder={player.equipped_border} context="leaderboard" borderRadius={14} />
-
         {/* Rank number */}
         <div style={{
           width: 28, flexShrink: 0,

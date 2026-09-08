@@ -3,8 +3,11 @@
 //  to an off-screen canvas via Canvas 2D API.
 //  No html2canvas: avoids CORS/border-radius bugs.
 // ─────────────────────────────────────────────
-import { STICKER_ICONS, getStickerPos, CROWN_PATH } from '../components/FifaCard';
-import { fetchBorderCatalog, resolveBorderRender } from './borderCatalog';
+import {
+  STICKER_ICONS, getStickerPos,
+  CARD_SHAPES, CARD_RECT_WIDTH, STAR_SETS, STAR_SET_FOR_RANK, STAR_PLACEMENT,
+  ACHIEVEMENT_BADGE_LAYOUT, BADGE_TYPES, BADGE_TYPE_LIST, getCardColorKey, getCardSubTier, getBadgeColors,
+} from '../components/FifaCard';
 
 const CW = 520;   // output canvas width
 const CH = 720;   // output canvas height
@@ -159,89 +162,6 @@ function drawElements(ctx, ct, cx, cy, cw, ch) {
   ctx.restore();
 }
 
-// Canvas2D counterpart to renderCardBorder() in FifaCard.jsx — draws the
-// same procedural border descriptor primitives so the exported PNG matches the
-// live card. The animated shimmer is a live-card-only flourish (CSS
-// animation has no meaning on a static snapshot), so it's skipped here.
-function drawBorder(ctx, border, cx, cy, cw, ch) {
-  const pad = 11, arm = 16, sw = 2, rx = 13, innerGap = 5;
-  const c  = border.color;
-  const ac = border.accentColor || border.color;
-
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = c; ctx.lineWidth = sw;
-  if (border.frameDash) ctx.setLineDash([3, 4]);
-  rrect(ctx, cx + pad, cy + pad, cw - pad * 2, ch - pad * 2, rx);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  if (border.frame === 'double') {
-    ctx.strokeStyle = ac; ctx.lineWidth = sw * 0.7;
-    rrect(ctx, cx + pad + innerGap, cy + pad + innerGap, cw - (pad + innerGap) * 2, ch - (pad + innerGap) * 2, Math.max(rx - innerGap, 2));
-    ctx.stroke();
-  }
-
-  if (border.corners) {
-    ctx.strokeStyle = c; ctx.lineWidth = sw;
-    const corners = [
-      [[cx + pad + arm, cy + pad], [cx + pad, cy + pad], [cx + pad, cy + pad + arm]],
-      [[cx + cw - pad - arm, cy + pad], [cx + cw - pad, cy + pad], [cx + cw - pad, cy + pad + arm]],
-      [[cx + pad + arm, cy + ch - pad], [cx + pad, cy + ch - pad], [cx + pad, cy + ch - pad - arm]],
-      [[cx + cw - pad - arm, cy + ch - pad], [cx + cw - pad, cy + ch - pad], [cx + cw - pad, cy + ch - pad - arm]],
-    ];
-    for (const pts of corners) {
-      ctx.beginPath();
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      ctx.lineTo(pts[1][0], pts[1][1]);
-      ctx.lineTo(pts[2][0], pts[2][1]);
-      ctx.stroke();
-    }
-  }
-
-  if (border.ticks) {
-    ctx.strokeStyle = c; ctx.lineWidth = sw;
-    for (let i = 1; i <= border.ticks; i++) {
-      const x = cx + pad + ((cw - pad * 2) / (border.ticks + 1)) * i;
-      ctx.beginPath();
-      ctx.moveTo(x, cy + ch - pad);
-      ctx.lineTo(x, cy + ch - pad - 8);
-      ctx.stroke();
-    }
-  }
-
-  if (border.badgeIcon === 'crown') {
-    const size = 20;
-    ctx.save();
-    ctx.translate(cx + cw / 2 - size / 2, cy + pad - size * 0.55);
-    ctx.scale(size / 24, size / 24);
-    ctx.fillStyle = ac;
-    ctx.fill(new Path2D(CROWN_PATH));
-    ctx.restore();
-  }
-
-  if (border.laurel) {
-    ctx.fillStyle = ac;
-    ctx.globalAlpha = 0.85;
-    const ly = cy + ch - pad - 16;
-    [[cx + pad + 6, false], [cx + cw - pad - 6, true]].forEach(([lx, flip]) => {
-      const s = flip ? -1 : 1;
-      for (let i = 0; i < 3; i++) {
-        ctx.save();
-        ctx.translate(lx + s * (6 + i * 5), ly - i * 2);
-        ctx.rotate((s * (18 + i * 9)) * Math.PI / 180);
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-    });
-    ctx.globalAlpha = 1;
-  }
-
-  ctx.restore();
-}
-
 function rrect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   if (ctx.roundRect) {
@@ -256,7 +176,134 @@ function rrect(ctx, x, y, w, h, r) {
   }
 }
 
-export async function drawCardImage({ profile, cardStats, rank, bgUrl, customTheme, equippedBorder }) {
+// objectBoundingBox-style gradient/shine, matching the live card's SVG
+// gradients (which default to percentages of the path's own bounding box)
+// rather than the canvas's outer cx/cy/cw/ch — needed because this is built
+// while a shape-local transform is active (see drawCardShape below).
+function shapeGradient(ctx, viewBoxW, viewBoxH, stops) {
+  const g = ctx.createLinearGradient(viewBoxW * 0.15, 0, viewBoxW * 0.85, viewBoxH);
+  stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
+  return g;
+}
+function shapeShine(ctx, viewBoxW, viewBoxH) {
+  const g = ctx.createLinearGradient(viewBoxW * 0.1, 0, viewBoxW * 0.6, viewBoxH * 0.6);
+  g.addColorStop(0, 'rgba(255,255,255,0.16)');
+  g.addColorStop(0.55, 'rgba(255,255,255,0)');
+  return g;
+}
+
+// Card2D counterpart to FifaCard.jsx's shaped card (crown silhouette +
+// sub-tier stars). Novis/Gangsa/Perak/Emas keep their true, unstretched
+// proportions live (fixed width, body height varies a little per color —
+// see CARD_SHAPES' own comment) but this canvas has a fixed cx/cy/cw/ch
+// content box tuned for one fixed size, so here the shape is instead scaled
+// non-uniformly (scaleX from the fixed width, scaleY from the fixed body
+// height) to fit that box exactly. The stretch this introduces on the crown
+// (a few percent, since the shapes' real proportions are all close) is
+// invisible at the size this renders at — a much smaller risk than
+// reflowing every hand-tuned content position to match a bottom-anchored,
+// variable-height body the way the live card does.
+function drawCardShape(ctx, colorKey, subTier, cx, cy, cw, ch, stops, borderColor) {
+  const shapeDef = CARD_SHAPES[colorKey];
+  const scaleX = cw / CARD_RECT_WIDTH;
+  const scaleY = ch / (shapeDef.viewBoxH - shapeDef.topEdgeY);
+  const crownH = shapeDef.topEdgeY * scaleY;
+  const originX = cx - shapeDef.rectLeftX * scaleX;
+  const originY = cy - crownH;
+
+  ctx.save();
+  ctx.translate(originX, originY);
+  ctx.scale(scaleX, scaleY);
+  const shapePath = new Path2D(shapeDef.path);
+
+  // Drop shadow: fill once (any opaque color) with the shadow set, then
+  // fill again for real with no shadow — the standard canvas trick, since
+  // shadowBlur/Offset would otherwise double up with the gradient fill.
+  // Divided by scaleY so the shadow reads as the same physical size
+  // regardless of a color's slightly different body-height stretch.
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowBlur = 16 / scaleY;
+  ctx.shadowOffsetY = 8 / scaleY;
+  ctx.fillStyle = '#000';
+  ctx.fill(shapePath);
+  ctx.restore();
+
+  ctx.fillStyle = shapeGradient(ctx, shapeDef.viewBoxW, shapeDef.viewBoxH, stops);
+  ctx.fill(shapePath);
+  ctx.fillStyle = shapeShine(ctx, shapeDef.viewBoxW, shapeDef.viewBoxH);
+  ctx.fill(shapePath);
+
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 3 / scaleX;
+  ctx.stroke(shapePath);
+
+  // ── Sub-tier star(s) ──────────────────────────────────
+  const starSetKey = subTier ? STAR_SET_FOR_RANK[colorKey]?.[subTier] : null;
+  const starSet = starSetKey ? STAR_SETS[starSetKey] : null;
+  const starPlacement = subTier ? STAR_PLACEMENT[`${colorKey}-${subTier}`] : null;
+  if (starSet && starPlacement) {
+    ctx.save();
+    ctx.translate(starPlacement.left, starPlacement.top);
+    ctx.scale(starPlacement.width / starSet.viewBoxW, starPlacement.height / starSet.viewBoxH);
+    ctx.fillStyle = shapeGradient(ctx, starSet.viewBoxW, starSet.viewBoxH, stops);
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1.7 * starSet.viewBoxW / (starPlacement.width * scaleX);
+    starSet.paths.forEach(d => {
+      const p = new Path2D(d);
+      ctx.fill(p);
+      ctx.stroke(p);
+    });
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// Parses the handful of SVG transform-list functions BADGE_TYPES actually
+// uses (translate/matrix, chained left-to-right) and applies them as
+// canvas transforms in the same order — canvas and SVG compose transforms
+// the same way, so this reproduces `<g transform="...">` exactly without
+// duplicating BADGE_TYPES' path data into a second, pre-flattened copy.
+function applySvgTransform(ctx, str) {
+  const re = /(translate|matrix)\(([^)]+)\)/g;
+  let m;
+  while ((m = re.exec(str))) {
+    const n = m[2].split(/[\s,]+/).map(Number);
+    if (m[1] === 'translate') ctx.translate(n[0], n[1] ?? 0);
+    else ctx.transform(n[0], n[1], n[2], n[3], n[4], n[5]);
+  }
+}
+
+// Static counterpart to AchievementBadgeIcon in FifaCard.jsx — same fill/
+// outline/icon per rarity, minus the animated shine sweep (a live-only
+// flourish, same reasoning as the border shimmer skipped above).
+function drawAchievementBadge(ctx, type, rarity, x, y, size) {
+  const cfg = BADGE_TYPES[type];
+  if (!cfg) return;
+  const colors = getBadgeColors(rarity);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size / 30, size / 30); // AchievementBadgeIcon's own viewBox is 0 0 30 30
+
+  ctx.save();
+  applySvgTransform(ctx, cfg.diamondTransform);
+  ctx.fillStyle = colors.fill;
+  ctx.fill(new Path2D(cfg.path1));
+  ctx.fillStyle = colors.outline;
+  ctx.fill(new Path2D(cfg.path2), 'evenodd');
+  ctx.restore();
+
+  ctx.save();
+  applySvgTransform(ctx, cfg.iconTransform);
+  ctx.fillStyle = colors.icon;
+  ctx.fill(new Path2D(cfg.iconPath));
+  ctx.restore();
+
+  ctx.restore();
+}
+
+export async function drawCardImage({ profile, cardStats, rank, bgUrl, customTheme, achievementBadges }) {
   await document.fonts.ready;
 
   const DPR = Math.min(window.devicePixelRatio || 1, 3);
@@ -275,6 +322,9 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl, customThe
       }
     : getTheme(rank);
   const cx  = CARD_X, cy = CARD_Y, cw = CARD_W, ch = CARD_H;
+  const colorKey = getCardColorKey(rank);
+  const subTier = getCardSubTier(rank);
+  const useShapedCard = !customTheme && !!colorKey;
 
   // ── Canvas background ─────────────────────────────────
   ctx.fillStyle = '#111213';
@@ -305,41 +355,46 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl, customThe
     ctx.restore();
   }
 
-  // ── Card background + shine ───────────────────────────
-  ctx.save();
-  rrect(ctx, cx, cy, cw, ch, 20); ctx.clip();
-  ctx.fillStyle = grad145(ctx, cx, cy, cw, ch, t.stops);
-  ctx.fillRect(cx, cy, cw, ch);
-  const shine = ctx.createLinearGradient(cx, cy, cx + cw * 0.7, cy + ch * 0.7);
-  shine.addColorStop(0, 'rgba(255,255,255,0.13)');
-  shine.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = shine;
-  ctx.fillRect(cx, cy, cw, ch);
-
-  // Foil rainbow overlay
-  if (customTheme?.foilEnabled) {
-    const foil = ctx.createLinearGradient(cx, cy, cx + cw, cy + ch);
-    foil.addColorStop(0,    'rgba(255,0,0,0.09)');
-    foil.addColorStop(0.17, 'rgba(255,165,0,0.09)');
-    foil.addColorStop(0.33, 'rgba(255,255,0,0.09)');
-    foil.addColorStop(0.5,  'rgba(0,255,100,0.09)');
-    foil.addColorStop(0.67, 'rgba(0,150,255,0.09)');
-    foil.addColorStop(0.83, 'rgba(150,0,255,0.09)');
-    foil.addColorStop(1,    'rgba(255,0,150,0.09)');
-    ctx.fillStyle = foil;
+  if (useShapedCard) {
+    // ── Card shape (crown silhouette + stars) + border ───
+    drawCardShape(ctx, colorKey, subTier, cx, cy, cw, ch, t.stops, t.border);
+  } else {
+    // ── Card background + shine ───────────────────────────
+    ctx.save();
+    rrect(ctx, cx, cy, cw, ch, 20); ctx.clip();
+    ctx.fillStyle = grad145(ctx, cx, cy, cw, ch, t.stops);
     ctx.fillRect(cx, cy, cw, ch);
+    const shine = ctx.createLinearGradient(cx, cy, cx + cw * 0.7, cy + ch * 0.7);
+    shine.addColorStop(0, 'rgba(255,255,255,0.13)');
+    shine.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = shine;
+    ctx.fillRect(cx, cy, cw, ch);
+
+    // Foil rainbow overlay
+    if (customTheme?.foilEnabled) {
+      const foil = ctx.createLinearGradient(cx, cy, cx + cw, cy + ch);
+      foil.addColorStop(0,    'rgba(255,0,0,0.09)');
+      foil.addColorStop(0.17, 'rgba(255,165,0,0.09)');
+      foil.addColorStop(0.33, 'rgba(255,255,0,0.09)');
+      foil.addColorStop(0.5,  'rgba(0,255,100,0.09)');
+      foil.addColorStop(0.67, 'rgba(0,150,255,0.09)');
+      foil.addColorStop(0.83, 'rgba(150,0,255,0.09)');
+      foil.addColorStop(1,    'rgba(255,0,150,0.09)');
+      ctx.fillStyle = foil;
+      ctx.fillRect(cx, cy, cw, ch);
+    }
+    ctx.restore();
+
+    // ── Pattern overlay ───────────────────────────────────
+    if (customTheme?.pattern && customTheme.pattern !== 'none')
+      drawPattern(ctx, customTheme.pattern, customTheme.patternColor, customTheme.patternOpacity, cx, cy, cw, ch);
+
+    // Card border
+    ctx.save();
+    rrect(ctx, cx, cy, cw, ch, 20);
+    ctx.strokeStyle = t.border; ctx.lineWidth = 3; ctx.stroke();
+    ctx.restore();
   }
-  ctx.restore();
-
-  // ── Pattern overlay ───────────────────────────────────
-  if (customTheme?.pattern && customTheme.pattern !== 'none')
-    drawPattern(ctx, customTheme.pattern, customTheme.patternColor, customTheme.patternOpacity, cx, cy, cw, ch);
-
-  // Card border
-  ctx.save();
-  rrect(ctx, cx, cy, cw, ch, 20);
-  ctx.strokeStyle = t.border; ctx.lineWidth = 3; ctx.stroke();
-  ctx.restore();
 
   // ── Overall (top-left) ────────────────────────────────
   const overall = Math.round(STAT_KEYS.reduce((s, k) => s + (cardStats[k] || 0), 0) / 6);
@@ -509,26 +564,6 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl, customThe
   // ── Decorative elements (topmost layer) ──────────────
   if (customTheme) drawElements(ctx, customTheme, cx, cy, cw, ch);
 
-  // ── Equipped cosmetic border ──────────────────────────
-  if (equippedBorder) {
-    const rows = await fetchBorderCatalog();
-    const render = resolveBorderRender(rows.find(r => r.key === equippedBorder), 'card');
-    if (render?.type === 'procedural') {
-      drawBorder(ctx, render, cx, cy, cw, ch);
-    } else if (render?.type === 'image') {
-      const img = await loadImg(render.imageUrl);
-      if (img) {
-        // Unclipped, same 4% overscale as the live card (FifaCard.jsx) — the
-        // border renders its full shape on top rather than being cropped to
-        // the card's rounded rect.
-        const bleed = 1.04;
-        const bw = cw * bleed, bh = ch * bleed;
-        const bx = cx - (bw - cw) / 2, by = cy - (bh - ch) / 2;
-        ctx.drawImage(img, bx, by, bw, bh);
-      }
-    }
-  }
-
   // ── Icon sticker ──────────────────────────────────────
   if (customTheme?.stickerIcon && customTheme.stickerIcon !== 'none') {
     const icon = STICKER_ICONS.find(i => i.key === customTheme.stickerIcon);
@@ -549,6 +584,21 @@ export async function drawCardImage({ profile, cardStats, rank, bgUrl, customThe
         ctx.restore();
       }
     }
+  }
+
+  // ── Achievement badges (right-edge diamond stack) ─────
+  if (achievementBadges?.length) {
+    const badgeSize = cw * ACHIEVEMENT_BADGE_LAYOUT.badgeSizeFrac;
+    const gap = cw * ACHIEVEMENT_BADGE_LAYOUT.gapFrac;
+    // Fixed 3-slot stack, filled from the top slot down — see the matching
+    // comment in FifaCard.jsx for why this uses BADGE_TYPE_LIST.length
+    // rather than achievementBadges.length.
+    const lastBadgeTop = (cy + ch) - cw * ACHIEVEMENT_BADGE_LAYOUT.bottomFrac - badgeSize;
+    const topStart = lastBadgeTop - (BADGE_TYPE_LIST.length - 1) * (badgeSize + gap);
+    const badgeX = (cx + cw + badgeSize * ACHIEVEMENT_BADGE_LAYOUT.overflowFrac) - badgeSize;
+    achievementBadges.forEach((b, i) => {
+      drawAchievementBadge(ctx, b.type, b.rarity, badgeX, topStart + i * (badgeSize + gap), badgeSize);
+    });
   }
 
   return canvas;

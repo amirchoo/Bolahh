@@ -5,7 +5,6 @@ import { getCached, setCached } from '../lib/dataCache';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import PlayerAvatar from '../components/PlayerAvatar';
-import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import StatChips from '../components/StatChips';
 import { IconLoading } from '../components/Icons';
 import { FaRankingStar } from "react-icons/fa6";
@@ -148,7 +147,6 @@ function AwardPopup({ profile, points, rating, onClose }) {
           borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'left',
           position: 'relative',
         }}>
-          <EquippedBorderFrame equippedBorder={profile?.equipped_border} context="roster" borderRadius={12} />
           <PlayerAvatar profile={profile} size={44} borderColor={meta.color} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: meta.color, marginBottom: 2 }}>{name}</div>
@@ -296,7 +294,7 @@ export default function GameDetailPage() {
     const managerUserId = gameData.assigned_manager_id || gameData.created_by;
     const { data: managerProfileData } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, position, total_points, games_played, card_stats, is_subscribed, subscription_expires_at, equipped_border')
+      .select('id, name, avatar_url, position, total_points, games_played, card_stats, is_subscribed, subscription_expires_at')
       .eq('id', managerUserId)
       .maybeSingle();
     setManagerName(managerProfileData?.name || null);
@@ -327,7 +325,7 @@ export default function GameDetailPage() {
     if (gamePlayers?.length) {
       const realUserIds = gamePlayers.filter(p => !p.is_guest).map(p => p.user_id);
       const { data: profilesData } = await supabase
-        .from('profiles').select('id, name, avatar_url, position, total_points, is_subscribed, subscription_expires_at, equipped_border')
+        .from('profiles').select('id, name, avatar_url, position, total_points, is_subscribed, subscription_expires_at')
         .in('id', realUserIds);
       const profileMap = {};
       (profilesData || []).forEach(p => { profileMap[p.id] = p; });
@@ -358,7 +356,7 @@ export default function GameDetailPage() {
       const sorted = [...explicitWinners, ...others];
       setSortedRatings(sorted);
       const uids = sorted.map(r => r.user_id);
-      const { data: rProfiles } = await supabase.from('profiles').select('id, name, avatar_url, total_points, position, equipped_border').in('id', uids);
+      const { data: rProfiles } = await supabase.from('profiles').select('id, name, avatar_url, total_points, position').in('id', uids);
       const pm = {};
       rProfiles?.forEach(p => { pm[p.id] = p; });
       setRatingProfiles(pm);
@@ -516,7 +514,6 @@ export default function GameDetailPage() {
                 profile={managerProfile}
                 cardStats={cardStats}
                 rank={getRank(managerProfile.total_points || 0)}
-                equippedBorder={managerProfile.equipped_border}
               />
               <button onClick={() => setShowManagerCard(false)} style={{
                 background: 'rgba(255,255,255,0.08)', color: '#fff',
@@ -936,7 +933,6 @@ export default function GameDetailPage() {
                             boxShadow: isMe ? '0 0 16px rgba(240,157,81,0.18)' : 'none',
                             position: 'relative',
                           }}>
-                            <EquippedBorderFrame equippedBorder={p?.equipped_border} context="roster" borderRadius={12} />
                             {hasUp && <FaArrowTrendUp size={24} color="#4ade80" style={{ position: 'absolute', top: 8, right: 8 }} />}
                             {hasDown && <FaArrowTrendDown size={24} color="#f87171" style={{ position: 'absolute', top: 8, right: 8 }} />}
                             <PlayerAvatar profile={p} size={44} borderColor={rankColor} />
@@ -980,7 +976,6 @@ export default function GameDetailPage() {
                         borderRadius: 9, marginBottom: 6,
                         position: 'relative',
                       }}>
-                        <EquippedBorderFrame equippedBorder={p?.equipped_border} context="roster" borderRadius={9} />
                         <PlayerAvatar profile={p} size={34} borderColor={rankColor} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
@@ -1101,7 +1096,6 @@ export default function GameDetailPage() {
                     transform: 'translateZ(0)',
                   }}>
                     <div style={{ position: 'absolute', inset: 0, borderRadius: 9, background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, transparent 55%)', pointerEvents: 'none' }} />
-                    <EquippedBorderFrame equippedBorder={p.equipped_border} context="roster" borderRadius={9} />
                     <div style={{ position: 'relative', zIndex: 1 }}>
                       <PlayerAvatar profile={p} size={42} borderColor={theme.border} background={theme.statBg} />
                     </div>

@@ -6,11 +6,12 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
+import { ACHIEVEMENT_REQUIREMENTS, computeTop3Tiers } from '../lib/achievements';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
-import { RiTeamLine } from 'react-icons/ri';
-import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward } from 'react-icons/io5';
+import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
-import FifaCard, { calcOverall } from '../components/FifaCard';
+import FifaCard, { calcOverall, AchievementBadgeIcon, BADGE_TYPE_LIST, BADGE_RARITY_COLORS, BADGE_RARITY_LABELS } from '../components/FifaCard';
+import BadgeReorderList from '../components/BadgeReorderList';
 import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
 import { AREAS } from '../lib/areas';
@@ -18,6 +19,7 @@ import { resizeImageFile } from '../lib/imageResize';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
 const GENDERS = ['Male', 'Female', 'Rather not say'];
+const CARD_DESIGNS = ['Novis', 'Gangsa III', 'Gangsa II', 'Gangsa I', 'Perak III', 'Perak II', 'Perak I', 'Emas III', 'Emas II', 'Emas I'];
 
 export default function ProfilePage() {
   const { user, isAdmin } = useAuth();
@@ -44,7 +46,24 @@ export default function ProfilePage() {
   const [premiumBgs, setPremiumBgs] = useState([]);
   const [selectedBg, setSelectedBg] = useState(DEFAULT_BG);
   const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
-  const [showBordersModal, setShowBordersModal] = useState(false);
+  const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+  const [achievementTop3, setAchievementTop3] = useState({ gangsa: false, perak: false, emas: false });
+  const [openTooltip, setOpenTooltip] = useState(null);
+  const [selectedBadges, setSelectedBadges] = useState([]);
+  const [committedBadgesKey, setCommittedBadgesKey] = useState('[]');
+  const [showMaxBadgesPopup, setShowMaxBadgesPopup] = useState(false);
+  const [badgesError, setBadgesError] = useState('');
+  const [savingBadges, setSavingBadges] = useState(false);
+
+  // Standings are computed live off everyone's current total_points (see
+  // computeTop3Tiers), so fetch fresh each time the gallery opens rather
+  // than keeping it around stale between visits.
+  useEffect(() => {
+    if (!showAchievementsModal || !profile) return;
+    setOpenTooltip(null);
+    supabase.from('profiles').select('id, total_points').gt('total_points', 0)
+      .then(({ data }) => setAchievementTop3(computeTop3Tiers(profile, data || [])));
+  }, [showAchievementsModal, profile]);
 
   useEffect(() => {
     if (!user) return;
@@ -97,9 +116,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!showCardModal || !profile) return;
-    drawCardImage({ profile, cardStats, rank: getRank(calcOverall(cardStats)), bgUrl: selectedBg.src, equippedBorder: profile.equipped_border })
+    const previewRank = (isAdmin && profile.card_design_override) || getRank(calcOverall(cardStats));
+    drawCardImage({ profile, cardStats, rank: previewRank, bgUrl: selectedBg.src, achievementBadges: profile.achievement_badges })
       .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
-  }, [showCardModal, selectedBg, cardStats, profile?.equipped_border]);
+  }, [showCardModal, selectedBg, cardStats, profile?.card_design_override, profile?.achievement_badges, isAdmin]);
 
   const fetchProfile = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -234,6 +254,25 @@ export default function ProfilePage() {
     if (!error) setProfile(prev => ({ ...prev, avatar_url: url }));
   };
 
+  const handleCardDesignChange = async (value) => {
+    const override = value || null;
+    setProfile(prev => ({ ...prev, card_design_override: override }));
+    await supabase.from('profiles').update({ card_design_override: override }).eq('id', user.id);
+  };
+
+  const handleBadgesChange = async (badges) => {
+    setSavingBadges(true);
+    setBadgesError('');
+    const { error } = await supabase.from('profiles').update({ achievement_badges: badges }).eq('id', user.id);
+    setSavingBadges(false);
+    if (error) {
+      setBadgesError('Could not save your badges. Please try again.');
+      return false;
+    }
+    setProfile(prev => ({ ...prev, achievement_badges: badges }));
+    return true;
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { setSaveMsg(t('profile.errors.emptyUsername')); return; }
     const age = form.age ? parseInt(form.age) : null;
@@ -265,7 +304,7 @@ export default function ProfilePage() {
   };
 
   const getCardCanvas = () =>
-    drawCardImage({ profile, cardStats, rank, bgUrl: selectedBg.src, equippedBorder: profile?.equipped_border });
+    drawCardImage({ profile, cardStats, rank: displayRank, bgUrl: selectedBg.src, achievementBadges: profile?.achievement_badges });
 
   const handleShareCard = async () => {
     setSharing(true);
@@ -278,7 +317,7 @@ export default function ProfilePage() {
           if (navigator.canShare?.({ files: [file] })) {
             await navigator.share({
               title: `${profile?.name}'s Bolahh Card`,
-              text: `${rank} · ${profile?.total_points || 30} OVR · bolahh.com`,
+              text: `${displayRank} · ${profile?.total_points || 30} OVR · bolahh.com`,
               files: [file],
             });
           } else {
@@ -329,7 +368,11 @@ export default function ProfilePage() {
   }
 
   const rank = getRank(calcOverall(cardStats));
-  const rankColor = getRankColor(rank);
+  // Admin-only cosmetic override — picks any available design for their own
+  // card regardless of real stats (see CARD_DESIGNS picker below). Null for
+  // everyone else, and null resets an admin back to their real rank too.
+  const displayRank = (isAdmin && profile?.card_design_override) || rank;
+  const rankColor = getRankColor(displayRank);
   const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
 
   return (
@@ -462,37 +505,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Borders Modal */}
-      {showBordersModal && (
-        <div
-          onClick={() => setShowBordersModal(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.97)', backdropFilter: 'blur(10px)',
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            gap: 16, padding: '24px 16px', overflowY: 'auto',
-          }}
-        >
-          <button onClick={() => setShowBordersModal(false)} style={{
-            position: 'absolute', top: 16, right: 16,
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-            color: '#fff', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}><IoClose size={20} /></button>
-
-          <div onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: '#fff', marginBottom: 10 }}>
-              CARD BORDERS
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 0.5 }}>
-              Coming Soon
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
         <h2 className="fade-up" style={{
@@ -509,7 +521,7 @@ export default function ProfilePage() {
             marginBottom: 20, cursor: 'pointer', position: 'relative',
           }}
         >
-          <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" equippedBorder={profile?.equipped_border} onAvatarClick={() => setShowAvatarModal(true)} />
+          <FifaCard profile={profile} cardStats={cardStats} rank={displayRank} size="normal" achievementBadges={profile?.achievement_badges} onAvatarClick={() => setShowAvatarModal(true)} interactive />
           <div className="card-tap-hint" style={{
             marginTop: 8, fontSize: 11, color: 'var(--muted)',
             fontFamily: "'Space Mono'", letterSpacing: 1,
@@ -518,15 +530,6 @@ export default function ProfilePage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 10 }}>
             <button
-              onClick={(e) => { e.stopPropagation(); setShowBordersModal(true); }}
-              style={{
-                background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.3)',
-                borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
-                color: 'var(--accent)', fontSize: 12, fontWeight: 700,
-                fontFamily: "'Space Mono'", letterSpacing: 1,
-              }}
-            >BORDERS</button>
-            <button
               onClick={(e) => { e.stopPropagation(); navigate('/guide#ranks'); }}
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
@@ -534,6 +537,24 @@ export default function ProfilePage() {
               }}
             >How does the rank system work?</button>
           </div>
+
+          {isAdmin && (
+            <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+              <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>ADMIN · CARD DESIGN</span>
+              <select
+                value={profile?.card_design_override || ''}
+                onChange={e => handleCardDesignChange(e.target.value)}
+                style={{
+                  background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, cursor: 'pointer',
+                }}
+              >
+                <option value="">Auto (based on stats)</option>
+                {CARD_DESIGNS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          )}
+
         </div>
 
         <button
@@ -557,21 +578,215 @@ export default function ProfilePage() {
         </button>
 
         {/* Action row */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, justifyContent: 'center' }}>
-          <button onClick={() => setEditing(!editing)} disabled={saving} style={{
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+          <button onClick={() => { setEditing(v => !v); setShowAchievementsModal(false); }} disabled={saving} style={{
+            flex: 1,
             background: editing ? 'var(--accent)' : 'transparent',
             color: editing ? '#fff' : 'var(--accent)',
             border: '1.5px solid var(--accent)', borderRadius: 10, padding: '8px 24px',
             fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
           }}>{saving ? t('profile.form.saving') : editing ? t('profile.cancelEdit') : t('profile.editProfile')}</button>
-          <button onClick={() => navigate('/friends')} style={{
-            background: 'transparent', color: 'var(--accent)',
+          <button onClick={() => { setShowAchievementsModal(v => !v); setEditing(false); }} style={{
+            flex: 1,
+            background: showAchievementsModal ? 'var(--accent)' : 'transparent',
+            color: showAchievementsModal ? '#fff' : 'var(--accent)',
             border: '1.5px solid var(--accent)', borderRadius: 10,
             padding: '8px 24px', fontSize: 13, fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: 6
-          }}><RiTeamLine size={14} /> {t('profile.friends')}</button>
+          }}>{showAchievementsModal ? 'Close Badges' : 'Edit Badges'}</button>
         </div>
         <input ref={fileInputRef} type="file" accept={isSubscribed ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png'} style={{ display: 'none' }} onChange={handleAvatarUpload} />
+
+        {/* Achievements panel — a trophy case (what's unlocked and why),
+            where clicking any unlocked tile IS the selection mechanism: it
+            adds that (type, rarity) to selectedBadges, clicking a different
+            tier of an already-picked type re-tiers it in place, and
+            clicking its active tile again removes it. The reorder list
+            below only reorders whatever's already been picked this way —
+            see BadgeReorderList. Admin has every tile unlocked, so admin can
+            pick and reorder freely too, same mechanism. */}
+        {showAchievementsModal && profile && (() => {
+          // Adjusting state during render (React's documented pattern) so
+          // the draft resets exactly when the caller's real badges change
+          // (profile switch, a fresh load) but not on every render of an
+          // unrelated state update.
+          const badgesKey = JSON.stringify(profile.achievement_badges || []);
+          if (badgesKey !== committedBadgesKey) {
+            setCommittedBadgesKey(badgesKey);
+            setSelectedBadges(profile.achievement_badges || []);
+          }
+          const badgesDirty = JSON.stringify(selectedBadges) !== badgesKey;
+
+          const handleTileClick = (typeKey, rarity, unlocked) => {
+            if (!unlocked) return;
+            setSelectedBadges(prev => {
+              const idx = prev.findIndex(b => b.type === typeKey);
+              if (idx === -1) {
+                if (prev.length >= BADGE_TYPE_LIST.length) {
+                  setShowMaxBadgesPopup(true);
+                  return prev;
+                }
+                return [...prev, { type: typeKey, rarity }];
+              }
+              if (prev[idx].rarity === rarity) return prev.filter((_, i) => i !== idx);
+              return prev.map((b, i) => (i === idx ? { ...b, rarity } : b));
+            });
+          };
+
+          return (
+            <div className="fade-up-2" style={{
+              background: 'var(--card)', border: '1px solid var(--border)',
+              borderRadius: 16, padding: '20px', marginBottom: 16,
+            }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 4 }}>
+                BADGES
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
+                {isAdmin && 'Admin view — every tier unlocked. '}Display your feats on your player card! (Select up to 3)
+              </div>
+
+              {BADGE_TYPE_LIST.map(typeInfo => (
+                <div key={typeInfo.key} style={{ marginBottom: 24 }}>
+                  <div style={{
+                    fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700,
+                    letterSpacing: 1, color: 'var(--accent)', marginBottom: 10,
+                  }}>{typeInfo.label.toUpperCase()}</div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {Object.keys(BADGE_RARITY_COLORS).map(rarity => {
+                      const req = ACHIEVEMENT_REQUIREMENTS[typeInfo.key][rarity];
+                      const unlocked = isAdmin || req.met(profile, achievementTop3);
+                      const selected = selectedBadges.some(b => b.type === typeInfo.key && b.rarity === rarity);
+                      const tooltipKey = `${typeInfo.key}-${rarity}`;
+                      const tooltipOpen = openTooltip === tooltipKey;
+                      return (
+                        <div key={rarity} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                          <div
+                            onMouseEnter={() => setOpenTooltip(tooltipKey)}
+                            onMouseLeave={() => setOpenTooltip(k => (k === tooltipKey ? null : k))}
+                            onClick={() => { setOpenTooltip(k => (k === tooltipKey ? null : tooltipKey)); handleTileClick(typeInfo.key, rarity, unlocked); }}
+                            style={{
+                              position: 'relative', width: 56, height: 56,
+                              // Selected reads through both a warm dim-accent
+                              // fill and a thin accent stroke — the fill
+                              // alone read a little too quiet next to the
+                              // unlocked tiles' own vivid rarity color.
+                              background: selected ? 'color-mix(in srgb, var(--accent-dim) 35%, var(--card2))' : 'var(--card2)',
+                              border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
+                              borderRadius: 12, padding: 11, cursor: unlocked ? 'pointer' : 'default',
+                            }}
+                          >
+                            <AchievementBadgeIcon type={typeInfo.key} rarity={rarity} />
+                            {!unlocked && (
+                              <div style={{
+                                position: 'absolute', inset: 0, borderRadius: 'inherit',
+                                background: 'rgba(0,0,0,0.72)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                <IoLockClosed size={15} color="rgba(255,255,255,0.75)" style={{ transform: 'translateY(-2px)' }} />
+                              </div>
+                            )}
+                            {tooltipOpen && (
+                              <div style={{
+                                position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+                                marginBottom: 8, background: '#000', border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: 8, padding: '6px 10px', width: 150,
+                                fontSize: 11, lineHeight: 1.4, zIndex: 1,
+                                pointerEvents: 'none',
+                              }}>
+                                <div style={{ fontWeight: 700, color: unlocked ? '#4ade80' : 'var(--muted)', marginBottom: 2 }}>
+                                  {unlocked ? 'Unlocked' : 'Locked'}
+                                </div>
+                                <div style={{ color: '#fff' }}>{req.text}</div>
+                              </div>
+                            )}
+                          </div>
+                          <span style={{
+                            display: 'inline-block',
+                            background: unlocked ? `${BADGE_RARITY_COLORS[rarity]}30` : 'var(--card2)',
+                            color: unlocked ? BADGE_RARITY_COLORS[rarity] : 'var(--muted)',
+                            border: `1px solid ${unlocked ? `${BADGE_RARITY_COLORS[rarity]}70` : 'var(--border)'}`,
+                            borderRadius: 999, padding: '2px 8px',
+                            fontSize: 9, fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase',
+                          }}>{BADGE_RARITY_LABELS[rarity]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 18px' }} />
+
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+                Drag to reorder
+              </div>
+              <BadgeReorderList badges={selectedBadges} onChange={setSelectedBadges} />
+              {badgesError && (
+                <div style={{ fontSize: 12, color: '#ff6b6b', marginTop: 10 }}>{badgesError}</div>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button
+                  onClick={async () => {
+                    const ok = await handleBadgesChange(selectedBadges);
+                    if (ok) setShowAchievementsModal(false);
+                  }}
+                  disabled={!badgesDirty || savingBadges}
+                  style={{
+                    flex: 1,
+                    background: badgesDirty ? 'var(--accent)' : 'var(--card2)',
+                    color: badgesDirty ? '#fff' : 'var(--muted)',
+                    border: `1px solid ${badgesDirty ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 8, padding: '8px 10px',
+                    fontSize: 13, fontWeight: 700,
+                    opacity: savingBadges ? 0.6 : 1,
+                    cursor: badgesDirty && !savingBadges ? 'pointer' : 'default',
+                  }}
+                >
+                  {savingBadges ? 'Saving...' : 'Apply changes'}
+                </button>
+                <button
+                  onClick={() => { setSelectedBadges(profile.achievement_badges || []); setBadgesError(''); setShowAchievementsModal(false); }}
+                  style={{
+                    flex: 1, padding: '8px 10px',
+                    background: 'transparent', color: 'var(--text)',
+                    border: '1px solid var(--border)', borderRadius: 8,
+                    fontSize: 13, fontWeight: 700,
+                  }}
+                >
+                  {t('profile.form.cancel')}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Max-3 popup */}
+        {showMaxBadgesPopup && (
+          <div
+            onClick={() => setShowMaxBadgesPopup(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1100,
+              background: 'rgba(0,0,0,0.6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 16,
+            }}
+          >
+            <div onClick={e => e.stopPropagation()} style={{
+              background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16,
+              padding: 24, maxWidth: 300, textAlign: 'center',
+            }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 8 }}>
+                ONLY 3 BADGES
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+                You can only select 3 badges. Remove one before picking another.
+              </p>
+              <button onClick={() => setShowMaxBadgesPopup(false)} style={{
+                width: '100%', background: 'var(--accent)', color: '#fff', border: 'none',
+                borderRadius: 8, padding: '8px 10px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}>Got it</button>
+            </div>
+          </div>
+        )}
 
         {/* Nudge banner */}
         {!editing && profile && (!profile.gender || !profile.age || !profile.area || !savedPhone) && (
