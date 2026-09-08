@@ -7,7 +7,7 @@ import { GiRunningShoe, GiSoccerBall } from 'react-icons/gi';
 import { FaSquareParking, FaLocationDot, FaMedal } from 'react-icons/fa6';
 import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
-import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch } from 'react-icons/io5';
+import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoLayers, IoMegaphone, IoMailUnread, IoMenu } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
 import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -38,6 +38,7 @@ const EMPTY_GAME_FORM = {
 export default function AdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = usePersistedState('admin_tab', 'fields');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState('');
@@ -412,7 +413,7 @@ export default function AdminPage() {
     const ext = file.name.split('.').pop();
     const filename = `${Date.now()}.${ext}`;
     const uploadBody = file.type === 'image/gif' ? file : await resizeImageFile(file).catch(() => file);
-    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, uploadBody, { contentType: file.type });
+    const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingAvatarPreset(false); return; }
     const { data } = supabase.storage.from('avatar-presets').getPublicUrl(filename);
     const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: data.publicUrl });
@@ -453,8 +454,8 @@ export default function AdminPage() {
     const key = `${slugify(borderForm.label)}-${Date.now().toString(36).slice(-4)}`;
     const ext = file.name.split('.').pop();
     const filename = `${key}.${ext}`;
-    const uploadBody = await resizeImageFile(file).catch(() => file);
-    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type });
+    const uploadBody = await resizeImageFile(file, 1000).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingBorder(false); return; }
     const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
     const { error: insertErr } = await supabase.from('card_border_catalog').insert({
@@ -487,8 +488,8 @@ export default function AdminPage() {
     const variantKey = `${row.id}:${field}`;
     setUploadingVariant(variantKey);
     const filename = `${row.key}-${field}-${Date.now()}.${file.name.split('.').pop()}`;
-    const uploadBody = await resizeImageFile(file).catch(() => file);
-    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type });
+    const uploadBody = await resizeImageFile(file, 1000).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingVariant(null); return; }
     const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
     const { error: updateErr } = await supabase.from('card_border_catalog').update({ [field]: data.publicUrl }).eq('id', row.id);
@@ -539,7 +540,8 @@ export default function AdminPage() {
     for (const file of files) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, file);
+      const uploadBody = await resizeImageFile(file, 1600).catch(() => file);
+      const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, uploadBody, { contentType: file.type, cacheControl: '31536000' });
       if (uploadError) { showError('Upload failed: ' + uploadError.message); continue; }
       const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
       uploadedUrls.push(data.publicUrl);
@@ -611,7 +613,8 @@ export default function AdminPage() {
     setUploadingBg(true); setError(''); setSuccess('');
     const ext = file.name.split('.').pop();
     const filename = `${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage.from('card-backgrounds').upload(filename, file);
+    const uploadBody = await resizeImageFile(file, 1200).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('card-backgrounds').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { setError('Upload failed: ' + uploadErr.message); }
     else { setSuccess('Background uploaded.'); await fetchCardBgs(); }
     setUploadingBg(false);
@@ -667,7 +670,8 @@ export default function AdminPage() {
     setUploadingBannerImg(true);
     const ext = file.name.split('.').pop();
     const fileName = `banner-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, file);
+    const uploadBody = await resizeImageFile(file, 1600).catch(() => file);
+    const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadError) { showError('Upload failed: ' + uploadError.message); setUploadingBannerImg(false); return; }
     const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
     setBannerForm(prev => ({ ...prev, image_url: data.publicUrl }));
@@ -709,19 +713,67 @@ export default function AdminPage() {
   const checkboxLabel = { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--text)', cursor: 'pointer' };
   const sectionCard = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 20 };
 
-  const TABS = [
-    { key: 'managers',    label: 'Managers'    },
-    { key: 'playerstats', label: 'Player Stats' },
-    { key: 'games',       label: 'Games'       },
-    { key: 'banners',     label: 'Banners'     },
-    { key: 'fields',      label: 'Fields'      },
-    { key: 'backgrounds', label: 'Card BG'     },
-    { key: 'cardmaker',   label: 'Card Maker'  },
-    { key: 'coupons',     label: 'Coupons'     },
-    { key: 'avatars',     label: 'Avatars'     },
-    { key: 'borders',     label: 'Borders'     },
-    { key: 'requests',    label: 'Game Requests' },
+  const TAB_GROUPS = [
+    {
+      label: 'Operations',
+      tabs: [
+        { key: 'games',    label: 'Games',    icon: GiSoccerBall },
+        { key: 'managers', label: 'Managers', icon: IoPeople },
+        { key: 'fields',   label: 'Fields',   icon: MdOutlineStadium },
+        { key: 'requests', label: 'Game Requests', icon: IoMailUnread, badge: gameRequests.length },
+      ],
+    },
+    {
+      label: 'Player Cards',
+      tabs: [
+        { key: 'playerstats', label: 'Player Stats',     icon: IoStatsChart },
+        { key: 'cardmaker',   label: 'Card Maker',       icon: IoCard },
+        { key: 'backgrounds', label: 'Card Backgrounds', icon: IoImages },
+        { key: 'avatars',     label: 'Avatars',          icon: IoPersonCircle },
+        { key: 'borders',     label: 'Borders',          icon: IoLayers },
+      ],
+    },
+    {
+      label: 'Marketing',
+      tabs: [
+        { key: 'banners', label: 'Banners', icon: IoMegaphone },
+        { key: 'coupons', label: 'Coupons', icon: LuTag },
+      ],
+    },
   ];
+  const activeTabMeta = TAB_GROUPS.flatMap(g => g.tabs).find(t => t.key === activeTab);
+
+  const navGroupLabelStyle = { fontSize: 11, color: 'var(--muted)', letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: 700, padding: '0 12px', marginBottom: 6 };
+  const navItemStyle = (active) => ({
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8,
+    fontSize: 13, fontWeight: 500, width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer',
+    background: active ? 'var(--accent)' : 'transparent', color: active ? '#fff' : 'var(--muted)',
+  });
+
+  const renderNavGroups = (onNavigate) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {TAB_GROUPS.map(group => (
+        <div key={group.label}>
+          <div style={navGroupLabelStyle}>{group.label}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {group.tabs.map(tab => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.key;
+              return (
+                <button key={tab.key} onClick={() => { setActiveTab(tab.key); onNavigate(); }} style={navItemStyle(active)}>
+                  <Icon size={16} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{tab.label}</span>
+                  {!!tab.badge && (
+                    <span style={{ background: active ? 'rgba(255,255,255,0.25)' : 'rgba(240,157,81,0.15)', color: active ? '#fff' : 'var(--accent)', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono'" }}>{tab.badge}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   // Same MYT-relative "is this game still upcoming" check ManagerPage uses.
   const isUpcomingGame = (g) => {
@@ -865,7 +917,15 @@ export default function AdminPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div className="page-wrap" style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 1300, margin: '0 auto', padding: '32px 24px' }}>
+        <style>{`
+          .admin-sidebar { display: flex; }
+          .admin-mobile-nav-trigger { display: none; }
+          @media (max-width: 880px) {
+            .admin-sidebar { display: none; }
+            .admin-mobile-nav-trigger { display: flex; }
+          }
+        `}</style>
 
         <div className="fade-up" style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
@@ -891,14 +951,10 @@ export default function AdminPage() {
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Managers',            val: managers.length,  icon: <IoPeople size={24} color="var(--accent)" /> },
-            { label: 'Total Games',         val: games.length,     icon: <GiSoccerBall size={24} color="var(--accent)" /> },
-            { label: 'Active Banners',       val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
-            { label: 'Total Fields',       val: fields.length,    icon: <MdOutlineStadium /> },
-            { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
-            { label: 'Card Borders',        val: borderCatalogAdmin.length, icon: <MdSave size={24} color="var(--accent)" /> },
-            { label: 'Game Requests',       val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
-            { label: 'Avatar Presets',      val: avatarPresets.length, icon: <IoImages size={24} color="var(--accent)" /> },
+            { label: 'Upcoming Games',  val: games.filter(isUpcomingGame).length, icon: <GiSoccerBall size={24} color="var(--accent)" /> },
+            { label: 'Active Managers', val: managers.length, icon: <IoPeople size={24} color="var(--accent)" /> },
+            { label: 'Pending Requests', val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
+            { label: 'Active Banners',  val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -919,17 +975,21 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          {TABS.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              background: activeTab === tab.key ? 'var(--accent)' : 'var(--card)',
-              color: activeTab === tab.key ? '#fff' : 'var(--muted)',
-              border: `1px solid ${activeTab === tab.key ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 600,
-              transition: 'all 0.15s'
-            }}>{tab.label}</button>
-          ))}
-        </div>
+        <button className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} style={{
+          width: '100%', alignItems: 'center', gap: 8, background: 'var(--card)',
+          border: '1px solid var(--border)', borderRadius: 10, padding: '11px 14px',
+          color: 'var(--text)', fontSize: 13, fontWeight: 600, marginBottom: 20,
+        }}>
+          <IoMenu size={17} />
+          {activeTabMeta?.label || 'Menu'}
+        </button>
+
+        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+          <div className="admin-sidebar" style={{ width: 216, flexShrink: 0, flexDirection: 'column', position: 'sticky', top: 20 }}>
+            {renderNavGroups(() => {})}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
 
         {/* ── MANAGERS TAB ── */}
         {activeTab === 'managers' && (
@@ -1020,6 +1080,16 @@ export default function AdminPage() {
         {/* ── PLAYER STATS TAB ── */}
         {activeTab === 'playerstats' && (
           <div>
+            <style>{`
+              @media (max-width: 860px) {
+                .player-stats-layout { grid-template-columns: 1fr !important; }
+                .player-stats-cards { position: static !important; }
+              }
+              @media (max-width: 600px) {
+                .player-stats-cards { flex-direction: column !important; align-items: center !important; }
+                .player-stats-cards > div { width: 100% !important; max-width: 300px; }
+              }
+            `}</style>
             <div style={sectionCard}>
               <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
                 EDIT PLAYER CARD
@@ -1056,9 +1126,9 @@ export default function AdminPage() {
             </div>
 
             {selectedStatsPlayer && statsForm && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 24, alignItems: 'start' }}>
+              <div className="player-stats-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 24, alignItems: 'start' }}>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                   <div style={sectionCard}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                       <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)' }}>
@@ -1118,7 +1188,7 @@ export default function AdminPage() {
                   >{savingStats ? 'Saving…' : <><MdSave size={15} />Save Card</>}</button>
                 </div>
 
-                <div style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'center' }}>
+                <div className="player-stats-cards" style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'center', minWidth: 0 }}>
                   {(() => {
                     const cs = pastCardStats || selectedStatsPlayer.card_stats || {};
                     const cardStatsBefore = { pac: cs.pac ?? 30, sho: cs.sho ?? 30, pas: cs.pas ?? 30, dri: cs.dri ?? 30, def: cs.def ?? 30, phy: cs.phy ?? 30 };
@@ -2238,6 +2308,33 @@ create policy "Admins can delete requests" on game_requests
                   }}>Delete</button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+          </div>
+        </div>
+
+        {mobileNavOpen && (
+          <div
+            onClick={() => setMobileNavOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex' }}
+          >
+            <div onClick={e => e.stopPropagation()} style={{
+              width: 280, maxWidth: '80vw', height: '100%', background: 'var(--card)',
+              borderRight: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column',
+              boxShadow: '8px 0 24px rgba(0,0,0,0.4)', overflowY: 'auto',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)' }}>ADMIN MENU</div>
+                <button onClick={() => setMobileNavOpen(false)} style={{
+                  width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--muted)', background: 'transparent', border: 'none',
+                }}>
+                  <IoClose size={18} />
+                </button>
+              </div>
+              {renderNavGroups(() => setMobileNavOpen(false))}
             </div>
           </div>
         )}

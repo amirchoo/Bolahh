@@ -1,19 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import TutorialModal from '../components/TutorialModal';
 import { RANKS, getRank, getRankColor } from '../lib/rankUtils';
 import { calcOverall, getCardTheme } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
 import EquippedBorderFrame from '../components/EquippedBorderFrame';
-import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown } from 'react-icons/io5';
-import { GiTrophy } from 'react-icons/gi';
+import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown, IoHelpCircleOutline } from 'react-icons/io5';
+import { GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
-const MOTM_META = {
-  0: { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', label: '1ST' },
-  1: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND' },
-  2: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD' },
-};
+// No ranking — every pick gets the identical Bolahh Award. Mirrors GameRatingPage.jsx.
+const AWARD_META = { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)' };
 
 const CARD_STATS = [
   { key: 'shooting_quality', label: 'SHO', color: '#f87171' },
@@ -49,6 +47,39 @@ const MOCK_GAME_TIME = '20:00';
 function rotationOrder(teams, restTeam) {
   if (teams.length < 3 || !restTeam || !teams.includes(restTeam)) return teams;
   return [...teams.filter((t) => t !== restTeam), restTeam];
+}
+
+// Goalkeeper rotation. Mirrors GameRatingPage.jsx.
+function keeperBibForMatchNumber(teamMatchNumber) {
+  return 5 - ((teamMatchNumber - 1) % 5);
+}
+
+function getTeamMatchInfo(schedule, team, matchIndex) {
+  let matchNumber = 0;
+  let lastIndexForTeam = -1;
+  schedule.forEach((m, i) => {
+    if (m.home === team || m.away === team) {
+      lastIndexForTeam = i;
+      if (i <= matchIndex) matchNumber++;
+    }
+  });
+  return { matchNumber, isLastMatch: matchIndex === lastIndexForTeam };
+}
+
+function KeeperBadge({ schedule, team, matchIndex }) {
+  const { matchNumber, isLastMatch } = getTeamMatchInfo(schedule, team, matchIndex);
+  if (matchNumber === 0) return null;
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      background: 'rgba(167,139,250,0.1)', color: '#a78bfa',
+      border: '1px solid rgba(167,139,250,0.3)', borderRadius: 6,
+      padding: '3px 9px', fontSize: 11, fontWeight: 600,
+    }}>
+      <GiGoalKeeper size={12} />
+      {isLastMatch ? 'GK rotates every goal, starts #5' : `GK #${keeperBibForMatchNumber(matchNumber)}`}
+    </div>
+  );
 }
 
 const TEAM_COLORS = {
@@ -99,8 +130,9 @@ const PLAYER_IDS = Object.keys(MOCK_PROFILES);
 // reverses each round) so team average OVR stays close, then bibs each
 // player 1..N in the order they landed on their team. Mirrors the same
 // helper in GameRatingPage.jsx — this is only a starting point managers
-// can freely reassign afterward.
-function balanceTeams(playerIds, profiles, teams) {
+// can freely reassign afterward. A team never gets more than maxPerTeam
+// players (5 for a 5v5 game) — anyone who doesn't fit is left unassigned.
+function balanceTeams(playerIds, profiles, teams, maxPerTeam = 5) {
   const sorted = [...playerIds].sort((a, b) => (profiles[b]?.total_points || 30) - (profiles[a]?.total_points || 30));
   const buckets = Object.fromEntries(teams.map((t) => [t, []]));
   sorted.forEach((uid, i) => {
@@ -112,7 +144,7 @@ function balanceTeams(playerIds, profiles, teams) {
   const teamAssign = {};
   const bibAssign = {};
   teams.forEach((t) => {
-    buckets[t].forEach((uid, idx) => {
+    buckets[t].slice(0, maxPerTeam).forEach((uid, idx) => {
       teamAssign[uid] = t;
       bibAssign[uid] = idx + 1;
     });
@@ -133,6 +165,13 @@ function formatTime(timeStr) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+// Mirrors GameRatingPage.jsx — always shown in Malaysia time.
+function formatCheckInTime(iso) {
+  return new Date(iso).toLocaleTimeString('en-MY', {
+    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur',
+  });
 }
 
 function diffMinutes(endStr, startStr) {
@@ -189,6 +228,290 @@ function buildInitialRatings() {
   return Object.fromEntries(PLAYER_IDS.map((uid) => [uid, { ...MOCK_BASE_TAPS[uid], touched: false }]));
 }
 
+// ── Assign Teams tutorial: a small, fully self-contained hands-on practice
+// widget — its own state, disconnected from the real walkthrough — so a
+// manager can actually tap team/bib buttons inside the tutorial and see
+// real behavior (per-team bib uniqueness, the auto-clear-on-collision fix)
+// instead of just reading about it.
+const PRACTICE_PLAYERS = [
+  { id: 'x1', name: 'Danial' },
+  { id: 'x2', name: 'Faris' },
+  { id: 'x3', name: 'Hafiz' },
+];
+
+function AssignTeamsPracticeDemo() {
+  const [team, setTeam] = useState({ x1: 'A', x2: 'B' });
+  const [bib, setBib] = useState({ x1: 1, x2: 1 });
+  const [expanded, setExpanded] = useState(null);
+
+  const takenBibs = (t, excludeId) =>
+    PRACTICE_PLAYERS.filter((p) => p.id !== excludeId && team[p.id] === t).map((p) => bib[p.id]);
+
+  const setPlayerTeam = (id, t) => {
+    const prevTeam = team[id];
+    setTeam((prev) => {
+      const next = { ...prev };
+      if (next[id] === t) delete next[id]; else next[id] = t;
+      return next;
+    });
+    if (prevTeam !== t) {
+      setBib((prev) => {
+        const currentBib = prev[id];
+        if (currentBib == null) return prev;
+        const collides = PRACTICE_PLAYERS.some((p) => p.id !== id && team[p.id] === t && prev[p.id] === currentBib);
+        if (!collides) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const setPlayerBib = (id, n) => {
+    setBib((prev) => {
+      const next = { ...prev };
+      if (next[id] === n) delete next[id]; else next[id] = n;
+      return next;
+    });
+  };
+
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      {PRACTICE_PLAYERS.map((p, i) => {
+        const t = team[p.id];
+        const b = bib[p.id];
+        const tc = t ? TEAM_COLORS[t] : null;
+        const isExpanded = expanded === p.id;
+        const taken = t ? takenBibs(t, p.id) : [];
+        return (
+          <div key={p.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+            <div onClick={() => setExpanded(isExpanded ? null : p.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', cursor: 'pointer' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{p.name[0]}</div>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
+              {t && b ? (
+                <span style={{ background: tc.bg, color: tc.text, border: `1px solid ${tc.border}`, borderRadius: 6, padding: '3px 9px', fontWeight: 700, fontSize: 11 }}>Team {t} · #{b}</span>
+              ) : t ? (
+                <span style={{ background: 'rgba(240,101,67,0.12)', color: 'var(--red)', border: '1px solid rgba(240,101,67,0.3)', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 }}>Team {t} · pick a bib!</span>
+              ) : (
+                <span style={{ background: 'var(--card)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 9px', fontSize: 11 }}>Unassigned</span>
+              )}
+              <IoChevronDown size={14} style={{ color: 'var(--muted)', flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </div>
+            {isExpanded && (
+              <div style={{ padding: '0 12px 12px' }}>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {['A', 'B'].map((opt) => (
+                    <button key={opt} type="button" onClick={() => setPlayerTeam(p.id, opt)} style={{
+                      flex: 1, padding: '7px 0', borderRadius: 7, fontWeight: 700, fontSize: 12,
+                      background: t === opt ? TEAM_COLORS[opt].bg : 'var(--card)',
+                      color: t === opt ? TEAM_COLORS[opt].text : 'var(--muted)',
+                      border: `1.5px solid ${t === opt ? TEAM_COLORS[opt].border : 'var(--border)'}`, cursor: 'pointer',
+                    }}>Team {opt}</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {[1, 2, 3, 4, 5].map((n) => {
+                    const isTaken = taken.includes(n) && b !== n;
+                    const isSelected = b === n;
+                    return (
+                      <button key={n} type="button" disabled={isTaken} onClick={() => setPlayerBib(p.id, n)} title={isTaken ? 'Already used on this team' : undefined} style={{
+                        width: 28, height: 28, borderRadius: 6, fontWeight: 700, fontSize: 11,
+                        background: isSelected ? 'var(--accent)' : 'var(--card)',
+                        color: isSelected ? '#fff' : isTaken ? 'var(--border)' : 'var(--text)',
+                        border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                        cursor: isTaken ? 'default' : 'pointer', opacity: isTaken ? 0.4 : 1,
+                      }}>{n}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Attendance tutorial page: a tiny live check-in toggle, same idea as
+// AssignTeamsPracticeDemo but for the Check In button.
+function CheckInPracticeDemo() {
+  const [checkedInAt, setCheckedInAt] = useState(null);
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>Z</div>
+      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Zamri</span>
+      <button type="button" onClick={() => setCheckedInAt((prev) => prev ? null : new Date().toISOString())} style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        background: checkedInAt ? 'rgba(74,222,128,0.12)' : 'var(--card)',
+        color: checkedInAt ? '#4ade80' : 'var(--text)',
+        border: `1.5px solid ${checkedInAt ? '#4ade80' : 'var(--border)'}`,
+        borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+      }}>
+        <IoCheckmarkCircle size={14} />
+        {checkedInAt ? `Checked in at ${formatCheckInTime(checkedInAt)}` : 'Check In'}
+      </button>
+    </div>
+  );
+}
+
+// ── Kickoff tutorial: live minute picker showing how a late start eats into
+// match time (not the session, which always ends at the fixed booked hour).
+// Reuses the same addMinutes/diffMinutes/getScheduleInfo math as the real
+// page, just against a fixed 8:00 PM demo booking.
+function KickoffPracticeDemo() {
+  const [demoMinute, setDemoMinute] = useState(0);
+  const demoScheduledEnd = addMinutes('20:00', SESSION_MINUTES);
+  const demoActualStart = `20:${String(demoMinute).padStart(2, '0')}`;
+  const demoAvailable = Math.max(10, diffMinutes(demoScheduledEnd, demoActualStart));
+
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--text)' }}>8</div>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--muted)' }}>:</div>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--accent)', width: 40, textAlign: 'center' }}>{String(demoMinute).padStart(2, '0')}</div>
+        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 16, color: 'var(--muted)', marginLeft: 2 }}>PM</div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+        {[0, 10, 20, 30].map((offset) => (
+          <button key={offset} type="button" onClick={() => setDemoMinute(offset)} style={{
+            background: demoMinute === offset ? 'var(--accent)' : 'var(--card)',
+            color: demoMinute === offset ? '#fff' : 'var(--muted)',
+            border: `1.5px solid ${demoMinute === offset ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+          }}>{offset === 0 ? 'On time' : `+${offset}m`}</button>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text)', textAlign: 'center' }}>
+        <strong>{Math.floor(demoAvailable / 60)}h {demoAvailable % 60}m</strong> left · {getScheduleInfo(demoAvailable, 3, demoScheduledEnd)}
+      </div>
+    </div>
+  );
+}
+
+// ── Schedule tutorial: step through a team's own match count and watch the
+// keeper bib count down, then rotate on the final one.
+function ScheduleKeeperDemo() {
+  const [n, setN] = useState(1);
+  const isFinal = n === 5;
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+        {[1, 2, 3, 4, 5].map((m) => (
+          <button key={m} type="button" onClick={() => setN(m)} style={{
+            background: n === m ? 'var(--accent)' : 'var(--card)',
+            color: n === m ? '#fff' : 'var(--muted)',
+            border: `1.5px solid ${n === m ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: 7, padding: '6px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+          }}>{m === 5 ? 'Final' : `Match ${m}`}</button>
+        ))}
+      </div>
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        background: 'rgba(167,139,250,0.1)', color: '#a78bfa',
+        border: '1px solid rgba(167,139,250,0.3)', borderRadius: 8,
+        padding: '8px 14px', fontSize: 13, fontWeight: 700,
+      }}>
+        <GiGoalKeeper size={16} />
+        {isFinal ? 'Rotates every goal, starts #5' : `Bib #${keeperBibForMatchNumber(n)} keeps`}
+      </div>
+    </div>
+  );
+}
+
+// ── Rate Players tutorial: a single practice player row with the exact same
+// tap +/- mechanic as the real rating grid, live OVR/rank re-theming included.
+function RatePlayerPracticeDemo() {
+  const [taps, setTaps] = useState(defaultStats());
+  const liveCardStats = {};
+  CARD_STATS.forEach(({ key, label }) => {
+    liveCardStats[label.toLowerCase()] = Math.max(30, Math.min(99, 30 + (taps[key] || 0)));
+  });
+  const liveOvr = calcOverall(liveCardStats);
+  const liveRank = getRank(liveOvr);
+  const rt = getCardTheme(liveRank);
+  const totalDelta = CARD_STATS.reduce((sum, { key }) => sum + (taps[key] || 0), 0);
+  const bump = (key, delta) => setTaps((prev) => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) + delta) }));
+
+  return (
+    <div style={{ background: rt.bg, border: `2px solid ${rt.border}`, borderRadius: 12, padding: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', background: rt.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#1e2123', flexShrink: 0 }}>3</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: rt.text }}>Practice Player</div>
+          <div style={{ fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, color: rt.text, background: rt.statBg, border: `1px solid ${rt.border}`, borderRadius: 5, padding: '2px 7px', display: 'inline-block', marginTop: 3 }}>{liveRank.toUpperCase()} · {liveOvr} OVR</div>
+        </div>
+        {totalDelta !== 0 && (
+          <div style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: '#4ade80', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 5, padding: '2px 6px' }}>+{totalDelta}</div>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+        {CARD_STATS.map(({ key, label }) => {
+          const t = taps[key] || 0;
+          const cardVal = Math.max(30, Math.min(99, 30 + t));
+          return (
+            <div key={key} style={{ borderRadius: 8, border: `1.5px solid ${t !== 0 ? rt.border : 'transparent'}`, background: rt.statBg }}>
+              <div style={{ fontFamily: "'Space Mono'", fontSize: 7, fontWeight: 700, color: t !== 0 ? rt.text : rt.muted, letterSpacing: 1, textAlign: 'center', paddingTop: 5 }}>{label}</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <button type="button" onClick={() => bump(key, -1)} disabled={t === 0} style={{ flex: 1, background: 'none', border: 'none', cursor: t > 0 ? 'pointer' : 'default', color: t > 0 ? '#f87171' : rt.muted, fontSize: 15, fontWeight: 700, padding: '3px 0', opacity: t > 0 ? 1 : 0.3 }}>−</button>
+                <div style={{ flex: 2, textAlign: 'center', fontFamily: "'Bebas Neue'", fontSize: 20, color: t !== 0 ? rt.text : rt.muted }}>{cardVal}</div>
+                <button type="button" onClick={() => bump(key, 1)} style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', color: '#4ade80', fontSize: 15, fontWeight: 700, padding: '3px 0' }}>+</button>
+              </div>
+              <div style={{ height: 5 }} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Awards tutorial: pick up to 3 practice players and watch every pick get
+// the identical flat badge — no ranking, no gold/silver/bronze.
+const AWARD_PRACTICE_PLAYERS = [
+  { id: 'w1', name: 'Zamri' },
+  { id: 'w2', name: 'Nabil' },
+  { id: 'w3', name: 'Rafiq' },
+];
+
+function AwardsPracticeDemo() {
+  const [picked, setPicked] = useState([]);
+  const toggle = (id) => setPicked((prev) => {
+    if (prev.includes(id)) return prev.filter((x) => x !== id);
+    if (prev.length >= 3) return prev;
+    return [...prev, id];
+  });
+
+  return (
+    <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      {AWARD_PRACTICE_PLAYERS.map((p, i) => {
+        const isSelected = picked.includes(p.id);
+        const canSelect = !isSelected && picked.length < 3;
+        return (
+          <button key={p.id} type="button" onClick={() => toggle(p.id)} disabled={!isSelected && !canSelect} style={{
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+            padding: '10px 12px', border: 'none', borderTop: i > 0 ? '1px solid var(--border)' : 'none',
+            background: isSelected ? AWARD_META.bg : 'transparent',
+            cursor: isSelected || canSelect ? 'pointer' : 'default',
+            opacity: !isSelected && !canSelect ? 0.4 : 1,
+          }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: isSelected ? AWARD_META.color : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#1e2123', flexShrink: 0 }}>{p.name[0]}</div>
+            <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: isSelected ? AWARD_META.color : 'var(--text)' }}>{p.name}</span>
+            {isSelected ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, background: AWARD_META.bg, border: `1px solid ${AWARD_META.border}`, borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700, color: AWARD_META.color }}>
+                <GiTrophy size={11} />AWARDED
+              </span>
+            ) : (
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>Tap to add</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ManagerWalkthroughPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState('config');
@@ -196,16 +519,75 @@ export default function ManagerWalkthroughPage() {
   const [startMinute, setStartMinute] = useState(scheduledMinute + 15);
   const [firstRestTeam, setFirstRestTeam] = useState(null);
   const [teamMode, setTeamMode] = useState(3);
-  const [teamAssign, setTeamAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C']).teamAssign);
-  const [bibAssign, setBibAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C']).bibAssign);
+  const [teamAssign, setTeamAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C'], 5).teamAssign);
+  const [bibAssign, setBibAssign] = useState(() => balanceTeams(PLAYER_IDS, MOCK_PROFILES, ['A', 'B', 'C'], 5).bibAssign);
   const [autoBalanced, setAutoBalanced] = useState(true);
   const [expandedSetupUid, setExpandedSetupUid] = useState(null);
+  const [checkedIn, setCheckedIn] = useState({});
   const [currentMatch, setCurrentMatch] = useState(0);
   const [ratings, setRatings] = useState(buildInitialRatings);
   const [motmPlayers, setMotmPlayers] = useState([]);
   const [expandedUid, setExpandedUid] = useState(null);
   const [quickRankUid, setQuickRankUid] = useState(null);
   const [testCompleted, setTestCompleted] = useState(false);
+  // Auto-opens once when the walkthrough loads, on the very first step — the
+  // "?" button next to TEAM FORMAT reopens it any time after that.
+  const [showConfigTutorial, setShowConfigTutorial] = useState(true);
+  useEffect(() => {
+    if (step !== 'config') setShowConfigTutorial(false);
+  }, [step]);
+
+  // Auto-opens the first time the manager reaches the Assign Teams step
+  // (not on every return trip to it) — the "?" button reopens it any time.
+  const [showSetupTutorial, setShowSetupTutorial] = useState(false);
+  const [seenSetupTutorial, setSeenSetupTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'setup' && !seenSetupTutorial) {
+      setShowSetupTutorial(true);
+      setSeenSetupTutorial(true);
+    }
+  }, [step, seenSetupTutorial]);
+
+  // Same pattern for the Kickoff Time step.
+  const [showKickoffTutorial, setShowKickoffTutorial] = useState(false);
+  const [seenKickoffTutorial, setSeenKickoffTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'kickoff' && !seenKickoffTutorial) {
+      setShowKickoffTutorial(true);
+      setSeenKickoffTutorial(true);
+    }
+  }, [step, seenKickoffTutorial]);
+
+  // Same pattern for the Schedule and Rate Players steps.
+  const [showScheduleTutorial, setShowScheduleTutorial] = useState(false);
+  const [seenScheduleTutorial, setSeenScheduleTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'schedule' && !seenScheduleTutorial) {
+      setShowScheduleTutorial(true);
+      setSeenScheduleTutorial(true);
+    }
+  }, [step, seenScheduleTutorial]);
+
+  const [showRatingTutorial, setShowRatingTutorial] = useState(false);
+  const [seenRatingTutorial, setSeenRatingTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'rating' && !seenRatingTutorial) {
+      setShowRatingTutorial(true);
+      setSeenRatingTutorial(true);
+    }
+  }, [step, seenRatingTutorial]);
+
+  const [showAwardsTutorial, setShowAwardsTutorial] = useState(false);
+  const [seenAwardsTutorial, setSeenAwardsTutorial] = useState(false);
+  useEffect(() => {
+    if (step === 'motm' && !seenAwardsTutorial) {
+      setShowAwardsTutorial(true);
+      setSeenAwardsTutorial(true);
+    }
+  }, [step, seenAwardsTutorial]);
+
+  // Max players per team — 5 for a 5v5 game, mirrors GameRatingPage.jsx.
+  const teamSize = 5;
 
   const activeTeams = teamMode === 2 ? ['A', 'B'] : ['A', 'B', 'C'];
   const effectiveRestTeam = teamMode === 3
@@ -216,14 +598,28 @@ export default function ManagerWalkthroughPage() {
   const availableMinutes = Math.max(10, diffMinutes(scheduledEnd, actualStart));
   const schedule = buildSchedule(actualStart, availableMinutes, teamMode, activeTeams, effectiveRestTeam);
   const match = schedule[currentMatch] || schedule[0];
-  const homePlayers = PLAYER_IDS.filter((uid) => teamAssign[uid] === match.home);
-  const awayPlayers = PLAYER_IDS.filter((uid) => teamAssign[uid] === match.away);
+  const bibSort = (a, b) => (bibAssign[a] || 0) - (bibAssign[b] || 0);
+  const homePlayers = PLAYER_IDS.filter((uid) => teamAssign[uid] === match.home).sort(bibSort);
+  const awayPlayers = PLAYER_IDS.filter((uid) => teamAssign[uid] === match.away).sort(bibSort);
   const teamPlayers = (team) => PLAYER_IDS.filter((uid) => teamAssign[uid] === team);
 
   const allAssigned = () => PLAYER_IDS.length > 0 && PLAYER_IDS.every((uid) => teamAssign[uid] && bibAssign[uid]);
 
+  // Setup-step roster grouped by team (in activeTeams order, unassigned last),
+  // then by bib within each team. Mirrors GameRatingPage.jsx.
+  const setupSortedPlayers = [...PLAYER_IDS].sort((a, b) => {
+    const teamIdx = (uid) => {
+      const t = teamAssign[uid];
+      const idx = activeTeams.indexOf(t);
+      return idx === -1 ? activeTeams.length : idx;
+    };
+    const diff = teamIdx(a) - teamIdx(b);
+    if (diff !== 0) return diff;
+    return (bibAssign[a] ?? Infinity) - (bibAssign[b] ?? Infinity);
+  });
+
   const runAutoBalance = () => {
-    const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, activeTeams);
+    const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, activeTeams, teamSize);
     setTeamAssign(nextTeams);
     setBibAssign(nextBibs);
     setAutoBalanced(true);
@@ -235,12 +631,15 @@ export default function ManagerWalkthroughPage() {
     setTeamMode(n);
     if (!autoBalanced) return;
     const teams = n === 2 ? ['A', 'B'] : ['A', 'B', 'C'];
-    const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, teams);
+    const { teamAssign: nextTeams, bibAssign: nextBibs } = balanceTeams(PLAYER_IDS, MOCK_PROFILES, teams, teamSize);
     setTeamAssign(nextTeams);
     setBibAssign(nextBibs);
   };
 
   const setPlayerTeam = (uid, team) => {
+    // A full team (already at teamSize members) can't take on another player —
+    // mirrors GameRatingPage.jsx.
+    if (team && teamAssign[uid] !== team && teamPlayers(team).length >= teamSize) return;
     setAutoBalanced(false);
     setTeamAssign((prev) => {
       const next = { ...prev };
@@ -248,6 +647,20 @@ export default function ManagerWalkthroughPage() {
       else next[uid] = team;
       return next;
     });
+    // Moving a player to a different team without re-checking their bib can carry
+    // a number that's already taken there — clear it so it gets re-picked. Mirrors
+    // the same fix in GameRatingPage.jsx.
+    if (team && teamAssign[uid] !== team) {
+      setBibAssign((prev) => {
+        const currentBib = prev[uid];
+        if (currentBib == null) return prev;
+        const collides = PLAYER_IDS.some((other) => other !== uid && teamAssign[other] === team && prev[other] === currentBib);
+        if (!collides) return prev;
+        const next = { ...prev };
+        delete next[uid];
+        return next;
+      });
+    }
   };
 
   const setPlayerBib = (uid, number) => {
@@ -256,6 +669,16 @@ export default function ManagerWalkthroughPage() {
       const next = { ...prev };
       if (next[uid] === number) delete next[uid];
       else next[uid] = number;
+      return next;
+    });
+  };
+
+  // Local-only toggle (this page is a mock walkthrough, nothing to persist).
+  // Mirrors GameRatingPage.jsx's toggleCheckIn.
+  const toggleCheckIn = (uid) => {
+    setCheckedIn((prev) => {
+      const next = { ...prev };
+      if (next[uid]) delete next[uid]; else next[uid] = new Date().toISOString();
       return next;
     });
   };
@@ -282,21 +705,40 @@ export default function ManagerWalkthroughPage() {
     }));
   };
 
-  // Instantly sets every stat to the midpoint OVR of the chosen rank tier —
-  // for a new player who's clearly stronger than their Novis default, this
-  // skips tapping +/- six separate times to reach the observed level.
+  // Instantly boosts a player to roughly the midpoint OVR of the chosen rank
+  // tier — for a new player who's clearly stronger than their Novis default,
+  // this skips tapping +/- six separate times to reach the observed level.
+  // Stats get random jitter around the target rather than all landing on the
+  // same number, then get nudged back toward the target average one stat at
+  // a time. Mirrors GameRatingPage.jsx.
   const applyQuickRank = (uid, rankName) => {
     const rank = RANKS.find((r) => r.name === rankName);
     if (!rank) return;
     const targetTaps = Math.round((rank.minOvr + rank.maxOvr) / 2) - 30;
     const isRanked = (MOCK_PROFILES[uid]?.games_played || 0) > 0;
+    const TAP_CAP = 69;
+    const spread = Math.max(3, Math.min(10, Math.round((rank.maxOvr - rank.minOvr) / 3)));
     setRatings((prev) => {
-      const next = { ...(prev[uid] || defaultStats()), touched: true };
-      CARD_STATS.forEach(({ key }) => {
-        const baseMin = isRanked ? 0 : (MOCK_BASE_TAPS[uid]?.[key] || 0);
-        next[key] = Math.max(baseMin, targetTaps);
+      const keys = CARD_STATS.map((s) => s.key);
+      const baseMins = {};
+      keys.forEach((key) => { baseMins[key] = isRanked ? 0 : (MOCK_BASE_TAPS[uid]?.[key] || 0); });
+
+      const vals = {};
+      keys.forEach((key) => {
+        const jitter = Math.round((Math.random() * 2 - 1) * spread);
+        vals[key] = Math.max(baseMins[key], Math.min(TAP_CAP, targetTaps + jitter));
       });
-      return { ...prev, [uid]: next };
+
+      let diff = Math.round(targetTaps - keys.reduce((s, k) => s + vals[k], 0) / keys.length);
+      let guard = 0;
+      while (diff !== 0 && guard < 200) {
+        const key = keys[Math.floor(Math.random() * keys.length)];
+        if (diff > 0 && vals[key] < TAP_CAP) { vals[key]++; diff--; }
+        else if (diff < 0 && vals[key] > baseMins[key]) { vals[key]--; diff++; }
+        guard++;
+      }
+
+      return { ...prev, [uid]: { ...(prev[uid] || defaultStats()), ...vals, touched: true } };
     });
     setQuickRankUid(null);
   };
@@ -353,7 +795,16 @@ export default function ManagerWalkthroughPage() {
         {step === 'config' && (
           <div>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18, padding: 18, marginBottom: 20 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>TEAM FORMAT</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)' }}>TEAM FORMAT</div>
+                <button type="button" onClick={() => setShowConfigTutorial(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}>
+                  <IoHelpCircleOutline size={15} /> How does this work?
+                </button>
+              </div>
               <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 8 }}>{PLAYER_IDS.length} players joined · 5v5 format</p>
               <div style={{ background: 'rgba(100,160,255,0.08)', border: '1px solid rgba(100,160,255,0.25)', borderRadius: 10, padding: '12px 14px', marginBottom: 16, color: 'var(--text)', fontSize: 13, lineHeight: 1.7 }}>
                 <strong style={{ color: '#64a0ff' }}>Before kickoff:</strong> arrive at least 15 minutes early to set up the location, confirm the pitch is clear and unoccupied for the session, and arrange bibs in advance so the game flow stays smooth.
@@ -378,6 +829,62 @@ export default function ManagerWalkthroughPage() {
           </div>
         )}
 
+        {showConfigTutorial && (
+          <TutorialModal title="PICK YOUR FORMAT ⚔️" badge="Step 1 tutorial" onClose={() => setShowConfigTutorial(false)} maxWidth={680}>
+            <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 16 }}>
+              One choice, whole schedule. Here's the difference:
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 16 }}>
+              {/* 2 TEAMS */}
+              <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 19, letterSpacing: 1.5, color: 'var(--accent)' }}>2 TEAMS</div>
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10 }}>≤10 players</div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>A</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>vs</span>
+                  <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>B</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 11 }}>× 5</span>
+                </div>
+
+                <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--muted)', fontSize: 12, lineHeight: 1.7 }}>
+                  <li>Everyone plays, always — no resting</li>
+                  <li>5 matches, ~15 min each</li>
+                </ul>
+              </div>
+
+              {/* 3 TEAMS */}
+              <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 19, letterSpacing: 1.5, color: 'var(--accent)' }}>3 TEAMS</div>
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10 }}>11+ players</div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>A</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>vs</span>
+                  <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>B</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 10 }}>· C rests, then rotates</span>
+                </div>
+
+                <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--muted)', fontSize: 12, lineHeight: 1.7 }}>
+                  <li>Round-robin, 1 team rests each match</li>
+                  <li>9 matches, ~13 min each</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(100,160,255,0.08)', border: '1px solid rgba(100,160,255,0.25)', borderRadius: 10, padding: '10px 12px', marginBottom: 16, color: 'var(--text)', fontSize: 12, lineHeight: 1.6, display: 'flex', gap: 8 }}>
+              <LuLightbulb size={14} style={{ flexShrink: 0, marginTop: 1, color: '#64a0ff' }} />
+              <span>Bolahh picks one for you — override anytime. Teams cap at <strong>5 players</strong> either way (5v5).</span>
+            </div>
+
+            <button type="button" onClick={() => setShowConfigTutorial(false)} style={{
+              width: '100%', padding: '11px', background: 'var(--accent)', color: '#fff',
+              border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+            }}>Let's go →</button>
+          </TutorialModal>
+        )}
+
         {step === 'setup' && (
           <div>
             <style>{`@media (max-width: 640px) { .team-assign-grid { grid-template-columns: 1fr !important; } }`}</style>
@@ -385,6 +892,14 @@ export default function ManagerWalkthroughPage() {
               <p style={{ color: 'var(--muted)', fontSize: 13, margin: 0, flex: 1, minWidth: 220 }}>
                 Teams start balanced by average rank — tap a player to move them to a different team or bib number, handy for keeping friends grouped together.
               </p>
+              <button type="button" onClick={() => setShowSetupTutorial(true)} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}>
+                <IoHelpCircleOutline size={15} /> How does this work?
+              </button>
               <button type="button" onClick={runAutoBalance} style={{
                 background: 'var(--card2)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.35)',
                 borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
@@ -393,14 +908,14 @@ export default function ManagerWalkthroughPage() {
             </div>
 
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, marginBottom: 20, overflow: 'hidden' }}>
-              {PLAYER_IDS.map((uid, i) => {
+              {setupSortedPlayers.map((uid, i) => {
                 const p = MOCK_PROFILES[uid];
                 const rank = getRank(p?.total_points || 0);
                 const team = teamAssign[uid];
                 const bib = bibAssign[uid];
                 const tc = team ? TEAM_COLORS[team] : null;
                 const isExpanded = expandedSetupUid === uid;
-                const bibNumbers = Array.from({ length: Math.max(PLAYER_IDS.length, 12) }, (_, n) => n + 1);
+                const bibNumbers = Array.from({ length: teamSize }, (_, n) => n + 1);
                 const taken = team ? takenBibs(team, uid) : [];
 
                 return (
@@ -416,6 +931,18 @@ export default function ManagerWalkthroughPage() {
                         <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
                         <span style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: getRankColor(rank), background: `${getRankColor(rank)}18`, border: `1px solid ${getRankColor(rank)}40`, borderRadius: 5, padding: '1px 6px' }}>{rank} · {p?.total_points || 30}</span>
                       </div>
+                      <button type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleCheckIn(uid); }}
+                        title={checkedIn[uid] ? `Checked in at ${formatCheckInTime(checkedIn[uid])} — tap to undo` : 'Tap to check in'}
+                        style={{
+                          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: checkedIn[uid] ? 'rgba(74,222,128,0.15)' : 'var(--card2)',
+                          border: `1.5px solid ${checkedIn[uid] ? '#4ade80' : 'var(--border)'}`,
+                          color: checkedIn[uid] ? '#4ade80' : 'var(--muted)', cursor: 'pointer',
+                        }}>
+                        <IoCheckmarkCircle size={16} />
+                      </button>
                       {team && bib ? (
                         <span style={{ background: tc.bg, color: tc.text, border: `1px solid ${tc.border}`, borderRadius: 6, padding: '4px 10px', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>Team {team} · #{bib}</span>
                       ) : (
@@ -428,15 +955,21 @@ export default function ManagerWalkthroughPage() {
                       <div style={{ padding: '0 14px 16px' }}>
                         <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, marginBottom: 8 }}>TEAM</div>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                          {activeTeams.map((t) => (
-                            <button key={t} type="button" onClick={() => setPlayerTeam(uid, t)} style={{
-                              flex: 1, padding: '8px 0', borderRadius: 8, fontWeight: 700, fontSize: 13,
-                              background: team === t ? TEAM_COLORS[t].bg : 'var(--card2)',
-                              color: team === t ? TEAM_COLORS[t].text : 'var(--muted)',
-                              border: `1.5px solid ${team === t ? TEAM_COLORS[t].border : 'var(--border)'}`,
-                              cursor: 'pointer',
-                            }}>Team {t}</button>
-                          ))}
+                          {activeTeams.map((t) => {
+                            const isFull = team !== t && teamPlayers(t).length >= teamSize;
+                            return (
+                              <button key={t} type="button" disabled={isFull} onClick={() => setPlayerTeam(uid, t)}
+                                title={isFull ? `Team ${t} already has ${teamSize} players` : undefined}
+                                style={{
+                                  flex: 1, padding: '8px 0', borderRadius: 8, fontWeight: 700, fontSize: 13,
+                                  background: team === t ? TEAM_COLORS[t].bg : 'var(--card2)',
+                                  color: team === t ? TEAM_COLORS[t].text : isFull ? 'var(--border)' : 'var(--muted)',
+                                  border: `1.5px solid ${team === t ? TEAM_COLORS[t].border : 'var(--border)'}`,
+                                  cursor: isFull ? 'default' : 'pointer',
+                                  opacity: isFull ? 0.5 : 1,
+                                }}>Team {t}{isFull ? ' · Full' : ''}</button>
+                            );
+                          })}
                         </div>
 
                         <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, marginBottom: 8 }}>BIB NUMBER</div>
@@ -458,6 +991,25 @@ export default function ManagerWalkthroughPage() {
                                 }}>{n}</button>
                             );
                           })}
+                        </div>
+
+                        <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, marginBottom: 8 }}>ATTENDANCE</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                          <button type="button" onClick={() => toggleCheckIn(uid)} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            background: checkedIn[uid] ? 'rgba(74,222,128,0.12)' : 'var(--card2)',
+                            color: checkedIn[uid] ? '#4ade80' : 'var(--text)',
+                            border: `1.5px solid ${checkedIn[uid] ? '#4ade80' : 'var(--border)'}`,
+                            borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                          }}>
+                            <IoCheckmarkCircle size={15} />
+                            {checkedIn[uid] ? 'Checked In' : 'Check In'}
+                          </button>
+                          {checkedIn[uid] && (
+                            <span style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)' }}>
+                              at {formatCheckInTime(checkedIn[uid])}
+                            </span>
+                          )}
                         </div>
 
                         {(team || bib) && (
@@ -523,10 +1075,80 @@ export default function ManagerWalkthroughPage() {
           </div>
         )}
 
+        {showSetupTutorial && (
+          <TutorialModal
+            onClose={() => setShowSetupTutorial(false)}
+            maxWidth={600}
+            pages={[
+              {
+                badge: 'Step 2 tutorial · 1 of 3',
+                title: 'ROSTER, SORTED BY TEAM 📋',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Not join order — team order. A, then B, then C, unassigned last. Move someone and the list follows.
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
+                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>A · #1</span>
+                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>A · #2</span>
+                      <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 11, fontWeight: 700 }}>B · #1</span>
+                      <span style={{ background: 'var(--card)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 9px', fontSize: 11 }}>Unassigned</span>
+                    </div>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Tap a row to open its team/bib picker, or the green ✓ badge to check someone in.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 2 tutorial · 2 of 3',
+                title: 'PICK A TEAM & BIB 🎮',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Try it — this mini roster is just for practice. Tap <strong>Hafiz</strong>, put him on <strong>Team A</strong>, then try bib <strong>#1</strong> (taken). Pick <strong>#2</strong> instead.
+                    </p>
+                    <AssignTeamsPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Now switch <strong>Danial</strong> to Team B — Faris already has #1 there, so Danial's bib clears itself instead of clashing. Bibs only need to be unique per team.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 2 tutorial · 3 of 3',
+                title: 'CAP, RE-BALANCE & CHECK-IN ⚡',
+                content: (
+                  <div>
+                    <ul style={{ margin: '0 0 14px', paddingLeft: 18, color: 'var(--text)', fontSize: 13, lineHeight: 1.9 }}>
+                      <li><strong>5 players max</strong> per team — full teams show "· Full"</li>
+                      <li>Messed it up? <strong>"↻ Re-balance"</strong> resets everyone by rank</li>
+                      <li>Team cards at the bottom show live avg OVR per side</li>
+                    </ul>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 10 }}>
+                      The ✓ badge checks a player in — confirms their bib <em>and</em> attendance, timestamped instantly. Try it:
+                    </p>
+                    <CheckInPracticeDemo />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
+
         {step === 'kickoff' && (
           <div>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18, padding: 18, marginBottom: 20 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>ACTUAL KICKOFF TIME</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)' }}>ACTUAL KICKOFF TIME</div>
+                <button type="button" onClick={() => setShowKickoffTutorial(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}>
+                  <IoHelpCircleOutline size={15} /> How does this work?
+                </button>
+              </div>
               <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
                 This court is booked {formatTime(MOCK_GAME_TIME)}–{formatTime(scheduledEnd)} (2 hours, fixed). Games rarely start right on time — when did the first match actually kick off?
               </p>
@@ -605,13 +1227,67 @@ export default function ManagerWalkthroughPage() {
           </div>
         )}
 
+        {showKickoffTutorial && (
+          <TutorialModal
+            onClose={() => setShowKickoffTutorial(false)}
+            maxWidth={560}
+            pages={[
+              {
+                badge: 'Step 3 tutorial · 1 of 2',
+                title: 'A LATE START EATS MATCH TIME ⏰',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      The court booking is fixed — it always ends on schedule. Start late and you don't get extra time, matches just get shorter to still fit. Try it:
+                    </p>
+                    <KickoffPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Bump the minutes up and watch the leftover time — and each match's length — shrink live.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 3 tutorial · 2 of 2',
+                title: 'WHO RESTS FIRST? 🔄',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Only matters in <strong>3-team mode</strong> — some players run late, so pick whichever two teams already have enough people to start. The third just begins the rotation resting; everyone still gets 6 of the 9 halves.
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+                      <span style={{ background: TEAM_COLORS.A.bg, color: TEAM_COLORS.A.text, border: `1px solid ${TEAM_COLORS.A.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>A</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 12 }}>vs</span>
+                      <span style={{ background: TEAM_COLORS.B.bg, color: TEAM_COLORS.B.text, border: `1px solid ${TEAM_COLORS.B.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700 }}>B</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 11 }}>· C rests first</span>
+                    </div>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6 }}>
+                      2-team mode? Nothing to pick — both teams play every match from the start.
+                    </p>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
+
         {step === 'schedule' && (
           <div>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18, padding: 18, marginBottom: 20 }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)', marginBottom: 16 }}>MATCH SCHEDULE · {formatTime(actualStart)} KICKOFF</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: 'var(--text)' }}>MATCH SCHEDULE · {formatTime(actualStart)} KICKOFF</div>
+                <button type="button" onClick={() => setShowScheduleTutorial(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}>
+                  <IoHelpCircleOutline size={15} /> How does this work?
+                </button>
+              </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>{getScheduleInfo(availableMinutes, teamMode, scheduledEnd)}</div>
               {schedule.map((s, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, marginBottom: 6, background: 'var(--card2)', border: '1px solid var(--border)' }}>
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 10, marginBottom: 6, background: 'var(--card2)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)', minWidth: 60 }}>{s.time ? formatTime(s.time) : `Match ${i + 1}`}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                     <span style={{ background: TEAM_COLORS[s.home].bg, color: TEAM_COLORS[s.home].text, border: `1px solid ${TEAM_COLORS[s.home].border}`, borderRadius: 6, padding: '3px 12px', fontWeight: 700, fontSize: 13 }}>Team {s.home}</span>
@@ -621,6 +1297,11 @@ export default function ManagerWalkthroughPage() {
                   {s.rest && <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}><LuMoon size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />Team {s.rest} rests</div>}
                   {!s.rest && i < schedule.length - 1 && <div style={{ background: 'rgba(100,160,255,0.08)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.2)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}><LuCoffee size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />7 min break</div>}
                 </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 72 }}>
+                  <KeeperBadge schedule={schedule} team={s.home} matchIndex={i} />
+                  <KeeperBadge schedule={schedule} team={s.away} matchIndex={i} />
+                </div>
+                </div>
               ))}
             </div>
 
@@ -629,6 +1310,48 @@ export default function ManagerWalkthroughPage() {
               <button type="button" onClick={() => { setCurrentMatch(0); setStep('rating'); }} style={{ flex: 2, padding: '12px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Start Rating →</button>
             </div>
           </div>
+        )}
+
+        {showScheduleTutorial && (
+          <TutorialModal
+            onClose={() => setShowScheduleTutorial(false)}
+            maxWidth={560}
+            pages={[
+              {
+                badge: 'Step 4 tutorial · 1 of 2',
+                title: 'READING THE SCHEDULE 🗓️',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Auto-built from your format and kickoff time. Each row is one match — its time, who's playing, and who's got the break.
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.9 }}>
+                      <li><LuMoon size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />"Team X rests" — only in 3-team mode</li>
+                      <li><LuCoffee size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />"7 min break" — both teams play back-to-back</li>
+                    </ul>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Changed your mind on kickoff time? Go back and this list updates automatically.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 4 tutorial · 2 of 2',
+                title: 'SPOT THE KEEPER 🧤',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Each match now shows a GK badge per team — bib #5 keeps first, counting down each match. Try it:
+                    </p>
+                    <ScheduleKeeperDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      3-team mode gets one extra match per team before the countdown repeats — same rule either way.
+                    </p>
+                  </div>
+                ),
+              },
+            ]}
+          />
         )}
 
         {step === 'rating' && (
@@ -648,6 +1371,13 @@ export default function ManagerWalkthroughPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {match.rest && <div style={{ background: 'rgba(136,136,128,0.1)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><LuMoon size={11} />Team {match.rest} rests</div>}
                 {match.time && <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)' }}>{formatTime(match.time)}</div>}
+                <button type="button" onClick={() => setShowRatingTutorial(true)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                }}>
+                  <IoHelpCircleOutline size={15} /> How does this work?
+                </button>
               </div>
             </div>
 
@@ -664,7 +1394,10 @@ export default function ManagerWalkthroughPage() {
                 const tc = TEAM_COLORS[team];
                 return (
                   <div key={team} style={{ background: tc.bg, border: `1px solid ${tc.border}`, borderRadius: 14, padding: 10 }}>
-                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text, marginBottom: 10 }}>TEAM {team}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text }}>TEAM {team}</div>
+                      <KeeperBadge schedule={schedule} team={team} matchIndex={match.index} />
+                    </div>
                     {teamUids.map((uid) => {
                       const p = MOCK_PROFILES[uid];
                       const stats = ratings[uid] || defaultStats();
@@ -763,7 +1496,7 @@ export default function ManagerWalkthroughPage() {
                 </button>
               ) : (
                 <button type="button" onClick={() => setStep('motm')} disabled={allPlayersRated} style={{ flex: 1, padding: '11px', background: allPlayersRated ? 'var(--card2)' : 'var(--accent)', color: allPlayersRated ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  {allPlayersRated ? 'Ratings complete' : 'Choose Top 3 →'}
+                  {allPlayersRated ? 'Ratings complete' : 'Pick Awards →'}
                 </button>
               )}
             </div>
@@ -772,29 +1505,96 @@ export default function ManagerWalkthroughPage() {
           </div>
         )}
 
+        {showRatingTutorial && (
+          <TutorialModal
+            onClose={() => setShowRatingTutorial(false)}
+            maxWidth={560}
+            pages={[
+              {
+                badge: 'Step 5 tutorial · 1 of 3',
+                title: 'SWITCH BETWEEN MATCHES 🔀',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      The M1, M2... buttons jump between matches — rate them in any order, none locked until you're done. The header shows who's playing, who's resting, and now each team's keeper reminder too.
+                    </p>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6 }}>
+                      "Prev/Next Match" at the bottom moves through them in order if that's easier.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 5 tutorial · 2 of 3',
+                title: 'TAP TO RATE — TRY IT 👆',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Every stat starts at their current card value. Tap <strong>+</strong> or <strong>−</strong> per event — watch the card's color and OVR shift live as you go.
+                    </p>
+                    <RatePlayerPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Only taps that change something matter — leave a player untouched and nothing's recorded for them.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 5 tutorial · 3 of 3',
+                title: 'INSTANT RANK-UP ⚡',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Obviously stronger than their card shows? Tap a player's rank badge for quick tier options — one tap jumps their stats close to that tier, with a little natural variance so it doesn't look flat.
+                    </p>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {['Gangsa I', 'Perak II', 'Emas III', 'Emas I'].map((r) => {
+                        const rc = getRankColor(r);
+                        return (
+                          <span key={r} style={{ fontSize: 11, fontWeight: 700, color: rc, background: `${rc}15`, border: `1.5px solid ${rc}50`, borderRadius: 6, padding: '5px 9px' }}>{r}</span>
+                        );
+                      })}
+                    </div>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Try it on any player below — tap their rank badge (the one next to their name).
+                    </p>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
+
         {step === 'motm' && (
           <div>
-            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>CHOOSE TOP 3 PLAYERS</div>
-            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>Select the best performers of this session. Tap to assign 1st, 2nd, 3rd place awards. At least 1 required.</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)' }}>PICK BOLAHH AWARDS</div>
+              <button type="button" onClick={() => setShowAwardsTutorial(true)} style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: 'var(--card2)', color: '#64a0ff', border: '1px solid rgba(100,160,255,0.3)',
+                borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+              }}>
+                <IoHelpCircleOutline size={15} /> How does this work?
+              </button>
+            </div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>Select up to 3 standout players from this session — everyone picked gets the same Bolahh Award, no ranking. At least 1 required.</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
               {PLAYER_IDS.map((uid) => {
                 const p = MOCK_PROFILES[uid];
                 const stats = ratings[uid] || defaultStats();
                 const base = MOCK_BASE_TAPS[uid] || defaultStats();
-                const motmIdx = motmPlayers.indexOf(uid);
-                const isSelected = motmIdx >= 0;
-                const meta = isSelected ? MOTM_META[motmIdx] : null;
+                const isSelected = motmPlayers.includes(uid);
                 const canSelect = !isSelected && motmPlayers.length < 3;
 
                 return (
-                  <button key={uid} type="button" onClick={() => toggleMotm(uid)} disabled={!isSelected && motmPlayers.length >= 3} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, textAlign: 'left', background: isSelected ? meta.bg : 'var(--card)', border: `1.5px solid ${isSelected ? meta.border : 'var(--border)'}`, cursor: isSelected || canSelect ? 'pointer' : 'default', opacity: !isSelected && motmPlayers.length >= 3 ? 0.45 : 1, transition: 'all 0.15s' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: isSelected ? meta.color : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#1e2123', overflow: 'hidden' }}>
+                  <button key={uid} type="button" onClick={() => toggleMotm(uid)} disabled={!isSelected && motmPlayers.length >= 3} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, textAlign: 'left', background: isSelected ? AWARD_META.bg : 'var(--card)', border: `1.5px solid ${isSelected ? AWARD_META.border : 'var(--border)'}`, cursor: isSelected || canSelect ? 'pointer' : 'default', opacity: !isSelected && motmPlayers.length >= 3 ? 0.45 : 1, transition: 'all 0.15s' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: isSelected ? AWARD_META.color : 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#1e2123', overflow: 'hidden' }}>
                       {p?.name?.[0] || '?'}
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? meta.color : 'var(--text)', marginBottom: 4 }}>{p?.name || 'Unknown'}</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? AWARD_META.color : 'var(--text)', marginBottom: 4 }}>{p?.name || 'Unknown'}</div>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         {CARD_STATS.map(({ key, label, color }) => {
                           const delta = (stats[key] || 0) - (base[key] || 0);
@@ -806,7 +1606,7 @@ export default function ManagerWalkthroughPage() {
                     </div>
 
                     {isSelected ? (
-                      <div style={{ background: meta.bg, border: `1px solid ${meta.border}`, borderRadius: 8, padding: '4px 12px', flexShrink: 0, fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: meta.color, display: 'flex', alignItems: 'center', gap: 5 }}><GiTrophy size={12} />{meta.label}</div>
+                      <div style={{ background: AWARD_META.bg, border: `1px solid ${AWARD_META.border}`, borderRadius: 8, padding: '4px 12px', flexShrink: 0, fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: AWARD_META.color, display: 'flex', alignItems: 'center', gap: 5 }}><GiTrophy size={12} />AWARDED</div>
                     ) : canSelect ? (
                       <div style={{ background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px', flexShrink: 0, fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Tap</div>
                     ) : null}
@@ -828,6 +1628,46 @@ export default function ManagerWalkthroughPage() {
               </div>
             )}
           </div>
+        )}
+
+        {showAwardsTutorial && (
+          <TutorialModal
+            onClose={() => setShowAwardsTutorial(false)}
+            maxWidth={560}
+            pages={[
+              {
+                badge: 'Step 6 tutorial · 1 of 2',
+                title: 'EVERYONE GETS THE SAME AWARD 🏆',
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      No 1st, 2nd or 3rd — tap up to 3 standout players and they all get the identical Bolahh Award. Try it:
+                    </p>
+                    <AwardsPracticeDemo />
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
+                      Tap an awarded player again to undo it. At least 1 pick is required to submit ratings.
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                badge: 'Step 6 tutorial · 2 of 2',
+                title: "WHAT IF YOU DON'T PICK? 🤔",
+                content: (
+                  <div>
+                    <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
+                      Your picks aren't the only way it's decided. Every rated action earns award points behind the scenes — the top scorers get the award automatically.
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 12.5, lineHeight: 1.9 }}>
+                      <li>Pick fewer than 3? The rest get filled in by points.</li>
+                      <li>Pick none at all? All 3 are chosen by points alone.</li>
+                      <li>Either way — no ranking shown, just the same award.</li>
+                    </ul>
+                  </div>
+                ),
+              },
+            ]}
+          />
         )}
       </div>
     </div>

@@ -9,14 +9,12 @@ import { getCardTheme, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
 import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline, IoChevronDown } from 'react-icons/io5';
-import { GiSoccerBall, GiTrophy } from 'react-icons/gi';
+import { GiSoccerBall, GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
-const MOTM_META = {
-  0: { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)', label: '1ST' },
-  1: { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)', border: 'rgba(192,192,192,0.35)', label: '2ND' },
-  2: { color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', border: 'rgba(205,127,50,0.35)', label: '3RD' },
-};
+// No ranking — every pick gets the identical Bolahh Award, so there's just
+// one shared gold theme instead of a per-place gold/silver/bronze lookup.
+const AWARD_META = { color: '#FFD700', bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.35)' };
 
 const CARD_STATS = [
   { key: 'shooting_quality',   label: 'SHO', color: '#f87171' },
@@ -50,6 +48,49 @@ function rotationOrder(teams, restTeam) {
   return [...teams.filter(t => t !== restTeam), restTeam];
 }
 
+// Goalkeeper rotation: bib #5 keeps a team's 1st match, #4 the 2nd, counting
+// down to #1 on the 5th — then wraps back to #5 for a 6th match (only
+// possible in 3-team mode, where each team plays 6 of the 9 matches).
+function keeperBibForMatchNumber(teamMatchNumber) {
+  return 5 - ((teamMatchNumber - 1) % 5);
+}
+
+// Where a team sits within its OWN match sequence (skipping matches it rests
+// for), 1-indexed — plus whether this is that team's last scheduled match,
+// where the keeper instead rotates every goal starting from #5 rather than
+// holding one fixed bib for the whole match.
+function getTeamMatchInfo(schedule, team, matchIndex) {
+  let matchNumber = 0;
+  let lastIndexForTeam = -1;
+  schedule.forEach((m, i) => {
+    if (m.home === team || m.away === team) {
+      lastIndexForTeam = i;
+      if (i <= matchIndex) matchNumber++;
+    }
+  });
+  return { matchNumber, isLastMatch: matchIndex === lastIndexForTeam };
+}
+
+// Small reminder pill showing which bib keeps for a team in a given match —
+// a fixed bib for every match except the team's last, where the keeper
+// rotates after every goal instead (starting from #5), too dynamic to name
+// a single bib for.
+function KeeperBadge({ schedule, team, matchIndex }) {
+  const { matchNumber, isLastMatch } = getTeamMatchInfo(schedule, team, matchIndex);
+  if (matchNumber === 0) return null;
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      background: 'rgba(167,139,250,0.1)', color: '#a78bfa',
+      border: '1px solid rgba(167,139,250,0.3)', borderRadius: 6,
+      padding: '3px 9px', fontSize: 11, fontWeight: 600,
+    }}>
+      <GiGoalKeeper size={12} />
+      {isLastMatch ? 'GK rotates every goal, starts #5' : `GK #${keeperBibForMatchNumber(matchNumber)}`}
+    </div>
+  );
+}
+
 // Every court booking is a fixed 2-hour slot — kickoff usually slips, but the
 // booking still ends 2 hours after the *scheduled* start, not the actual one.
 const SESSION_MINUTES = 120;
@@ -67,6 +108,14 @@ function formatTime(timeStr) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+// Always shown in Malaysia time, regardless of the manager's own device
+// timezone, since that's the venue's actual local time.
+function formatCheckInTime(iso) {
+  return new Date(iso).toLocaleTimeString('en-MY', {
+    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur',
+  });
 }
 
 function diffMinutes(endStr, startStr) {
@@ -181,6 +230,11 @@ export default function GameRatingPage() {
   // Manual bib numbers: { userId: number } — set by the manager per-player, not auto-derived
   const [bibAssign, setBibAssign] = useState({});
   const [expandedSetupUid, setExpandedSetupUid] = useState(null);
+  // Attendance check-in: { pid: ISO timestamp } — written straight to game_players
+  // as soon as a manager confirms a player's bib/attendance, independent of the
+  // final rating submission (which only happens once, at the very end).
+  const [checkedIn, setCheckedIn] = useState({});
+  const [checkingInUid, setCheckingInUid] = useState(null);
   // True while teamAssign/bibAssign still hold the untouched auto-balanced suggestion —
   // flips false the moment a manager makes any manual change, so we stop overwriting their work.
   const [autoBalanced, setAutoBalanced] = useState(false);
@@ -266,7 +320,7 @@ export default function GameRatingPage() {
     }
 
     const { data: playerData } = await supabase
-      .from('game_players').select('id, user_id, is_guest, guest_name').eq('game_id', id);
+      .from('game_players').select('id, user_id, is_guest, guest_name, checked_in_at').eq('game_id', id);
 
     if (!playerData || playerData.length === 0) { setLoading(false); return; }
 
@@ -299,6 +353,10 @@ export default function GameRatingPage() {
     });
     setProfiles(profileMap);
     setPlayers(pids);
+
+    const checkedInMap = {};
+    playerData.forEach(p => { if (p.checked_in_at) checkedInMap[p.id] = p.checked_in_at; });
+    setCheckedIn(checkedInMap);
 
     // Derive base taps from profiles.card_stats — the authoritative pre-computed source.
     // card_stat = 30 + lifetime_taps  →  taps = card_stat - 30. Guests are skipped —
@@ -398,6 +456,20 @@ export default function GameRatingPage() {
   const allAssigned = () =>
     players.length > 0 && players.every(uid => teamAssign[uid] && bibAssign[uid]);
 
+  // Setup-step roster grouped by team (in activeTeams order, unassigned last),
+  // then by bib within each team, so the list stays neat instead of showing
+  // players in raw join order — and reorders live as team assignments change.
+  const setupSortedPlayers = [...players].sort((a, b) => {
+    const teamIdx = uid => {
+      const t = teamAssign[uid];
+      const idx = activeTeams.indexOf(t);
+      return idx === -1 ? activeTeams.length : idx;
+    };
+    const diff = teamIdx(a) - teamIdx(b);
+    if (diff !== 0) return diff;
+    return (bibAssign[a] ?? Infinity) - (bibAssign[b] ?? Infinity);
+  });
+
   const setPlayerTeam = (uid, team) => {
     // A full team (already at teamSize members) can't take on another player —
     // this is the same cap enforced by disabling the button in the UI, kept
@@ -450,6 +522,32 @@ export default function GameRatingPage() {
     players.filter(uid => uid !== excludeUid && teamAssign[uid] === team).map(uid => bibAssign[uid]);
 
   const getBibNumber = (uid) => bibAssign[uid];
+
+  // Confirms a player's bib and marks them as having shown up, timestamped —
+  // written straight to game_players rather than held for the final submit,
+  // so it's not lost if the rating session gets interrupted. Tapping an
+  // already-checked-in player clears it again (misclick recovery).
+  const toggleCheckIn = async (uid) => {
+    if (isPreview) {
+      setCheckedIn(prev => {
+        const next = { ...prev };
+        if (next[uid]) delete next[uid]; else next[uid] = new Date().toISOString();
+        return next;
+      });
+      return;
+    }
+    const wasCheckedIn = !!checkedIn[uid];
+    const nextValue = wasCheckedIn ? null : new Date().toISOString();
+    setCheckingInUid(uid);
+    const { error } = await supabase.from('game_players').update({ checked_in_at: nextValue }).eq('id', uid);
+    setCheckingInUid(null);
+    if (error) { setError(error.message); return; }
+    setCheckedIn(prev => {
+      const next = { ...prev };
+      if (nextValue) next[uid] = nextValue; else delete next[uid];
+      return next;
+    });
+  };
 
   // Scales the on-time 2-hour plan (13 min/match × 3 rounds for 3 teams, or
   // 15 min match + 7 min break × 5 matches for 2 teams) down to whatever time
@@ -595,7 +693,7 @@ export default function GameRatingPage() {
           successful_dribble: d_dri,
           good_chance:       d_pac,
           good_manner: 0,
-          admin_bonus: motmPlayers.indexOf(pid) >= 0 ? motmPlayers.indexOf(pid) + 1 : 0,
+          admin_bonus: motmPlayers.includes(pid) ? 1 : 0,
           total_points: 0,
         });
         if (insertError) throw new Error('Rating insert failed: ' + insertError.message);
@@ -835,7 +933,7 @@ export default function GameRatingPage() {
             </div>
 
             <div style={{ ...cardStyle, marginBottom: 20, padding: 0, overflow: 'hidden' }}>
-              {players.map((uid, i) => {
+              {setupSortedPlayers.map((uid, i) => {
                 const p = profiles[uid];
                 const rank = getRank(p?.total_points || 0);
                 const team = teamAssign[uid];
@@ -874,6 +972,21 @@ export default function GameRatingPage() {
                           }}>{rank} · {p?.total_points || 30}</span>
                         )}
                       </div>
+                      <button type="button"
+                        onClick={e => { e.stopPropagation(); toggleCheckIn(uid); }}
+                        disabled={checkingInUid === uid}
+                        title={checkedIn[uid] ? `Checked in at ${formatCheckInTime(checkedIn[uid])} — tap to undo` : 'Tap to check in'}
+                        style={{
+                          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: checkedIn[uid] ? 'rgba(74,222,128,0.15)' : 'var(--card2)',
+                          border: `1.5px solid ${checkedIn[uid] ? '#4ade80' : 'var(--border)'}`,
+                          color: checkedIn[uid] ? '#4ade80' : 'var(--muted)',
+                          cursor: checkingInUid === uid ? 'default' : 'pointer',
+                          opacity: checkingInUid === uid ? 0.5 : 1,
+                        }}>
+                        <IoCheckmarkCircle size={16} />
+                      </button>
                       {team && bib ? (
                         <span style={{
                           background: tc.bg, color: tc.text, border: `1px solid ${tc.border}`,
@@ -932,6 +1045,27 @@ export default function GameRatingPage() {
                                 }}>{n}</button>
                             );
                           })}
+                        </div>
+
+                        <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: 0.5, marginBottom: 8 }}>ATTENDANCE</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                          <button type="button" onClick={() => toggleCheckIn(uid)} disabled={checkingInUid === uid} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            background: checkedIn[uid] ? 'rgba(74,222,128,0.12)' : 'var(--card2)',
+                            color: checkedIn[uid] ? '#4ade80' : 'var(--text)',
+                            border: `1.5px solid ${checkedIn[uid] ? '#4ade80' : 'var(--border)'}`,
+                            borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700,
+                            cursor: checkingInUid === uid ? 'default' : 'pointer',
+                            opacity: checkingInUid === uid ? 0.6 : 1,
+                          }}>
+                            <IoCheckmarkCircle size={15} />
+                            {checkedIn[uid] ? 'Checked In' : 'Check In'}
+                          </button>
+                          {checkedIn[uid] && (
+                            <span style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)' }}>
+                              at {formatCheckInTime(checkedIn[uid])}
+                            </span>
+                          )}
                         </div>
 
                         {(team || bib) && (
@@ -1161,10 +1295,11 @@ export default function GameRatingPage() {
 
               {schedule.map((s, i) => (
                 <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
+                  display: 'flex', flexDirection: 'column', gap: 8,
                   padding: '10px 12px', borderRadius: 10, marginBottom: 6,
                   background: 'var(--card2)', border: '1px solid var(--border)'
                 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ fontFamily: "'Space Mono'", fontSize: 12, color: 'var(--muted)', minWidth: 60 }}>
                     {s.time ? formatTime(s.time) : `Match ${i + 1}`}
                   </div>
@@ -1195,6 +1330,11 @@ export default function GameRatingPage() {
                       padding: '3px 10px', fontSize: 11, fontWeight: 600
                     }}><LuCoffee size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />7 min break</div>
                   )}
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 72 }}>
+                  <KeeperBadge schedule={schedule} team={s.home} matchIndex={i} />
+                  <KeeperBadge schedule={schedule} team={s.away} matchIndex={i} />
+                </div>
                 </div>
               ))}
             </div>
@@ -1258,7 +1398,10 @@ export default function GameRatingPage() {
                 const tc = TEAM_COLORS[team];
                 return (
                   <div key={team} style={{ background: tc.bg, border: `1px solid ${tc.border}`, borderRadius: 14, padding: 10 }}>
-                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text, marginBottom: 10 }}>TEAM {team}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: tc.text }}>TEAM {team}</div>
+                      <KeeperBadge schedule={schedule} team={team} matchIndex={match.index} />
+                    </div>
                     {teamUids.map((uid) => {
                       const p = profiles[uid];
                       const stats = ratings[uid] || defaultStats();
@@ -1426,7 +1569,7 @@ export default function GameRatingPage() {
               ) : (
                 <button type="button" onClick={() => setStep('motm')} disabled={alreadyRated}
                   style={{ flex: 1, padding: '11px', background: alreadyRated ? 'var(--card2)' : 'var(--accent)', color: alreadyRated ? 'var(--muted)' : '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  {alreadyRated ? 'Already Submitted' : 'Choose Top 3 →'}
+                  {alreadyRated ? 'Already Submitted' : 'Pick Awards →'}
                 </button>
               )}
             </div>
@@ -1439,14 +1582,14 @@ export default function GameRatingPage() {
           </div>
         )}
 
-        {/* ── STEP 4: MOTM SELECTION ── */}
+        {/* ── STEP 4: BOLAHH AWARDS SELECTION ── */}
         {step === 'motm' && (
           <div>
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: 26, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>
-              CHOOSE TOP 3 PLAYERS
+              PICK BOLAHH AWARDS
             </div>
             <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>
-              Select the best performers of this session. Tap to assign 1st, 2nd, 3rd place awards. At least 1 required.
+              Select up to 3 standout players from this session — everyone picked gets the same Bolahh Award, no ranking. At least 1 required.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
@@ -1454,9 +1597,7 @@ export default function GameRatingPage() {
                 const p = profiles[uid];
                 const stats = ratings[uid] || defaultStats();
                 const base  = baseRatings[uid] || defaultStats();
-                const motmIdx = motmPlayers.indexOf(uid);
-                const isSelected = motmIdx >= 0;
-                const meta = isSelected ? MOTM_META[motmIdx] : null;
+                const isSelected = motmPlayers.includes(uid);
                 const canSelect = !isSelected && motmPlayers.length < 3;
 
                 return (
@@ -1465,8 +1606,8 @@ export default function GameRatingPage() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '12px 16px', borderRadius: 12, textAlign: 'left',
-                      background: isSelected ? meta.bg : 'var(--card)',
-                      border: `1.5px solid ${isSelected ? meta.border : 'var(--border)'}`,
+                      background: isSelected ? AWARD_META.bg : 'var(--card)',
+                      border: `1.5px solid ${isSelected ? AWARD_META.border : 'var(--border)'}`,
                       cursor: isSelected || canSelect ? 'pointer' : 'default',
                       opacity: !isSelected && motmPlayers.length >= 3 ? 0.45 : 1,
                       transition: 'all 0.15s',
@@ -1474,7 +1615,7 @@ export default function GameRatingPage() {
                     {/* Avatar */}
                     <div style={{
                       width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                      background: isSelected ? meta.color : 'var(--accent)',
+                      background: isSelected ? AWARD_META.color : 'var(--accent)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 15, fontWeight: 700, color: '#1e2123', overflow: 'hidden',
                     }}>
@@ -1485,7 +1626,7 @@ export default function GameRatingPage() {
 
                     {/* Name + this-game stats */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? meta.color : 'var(--text)', marginBottom: 4 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: isSelected ? AWARD_META.color : 'var(--text)', marginBottom: 4 }}>
                         {p?.name || 'Unknown'}
                       </div>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -1506,15 +1647,15 @@ export default function GameRatingPage() {
                       </div>
                     </div>
 
-                    {/* Rank badge or tap hint */}
+                    {/* Award badge or tap hint */}
                     {isSelected ? (
                       <div style={{
-                        background: meta.bg, border: `1px solid ${meta.border}`,
+                        background: AWARD_META.bg, border: `1px solid ${AWARD_META.border}`,
                         borderRadius: 8, padding: '4px 12px', flexShrink: 0,
-                        fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: meta.color,
+                        fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: AWARD_META.color,
                         display: 'flex', alignItems: 'center', gap: 5,
                       }}>
-                        <GiTrophy size={12} />{meta.label}
+                        <GiTrophy size={12} />AWARDED
                       </div>
                     ) : canSelect ? (
                       <div style={{
@@ -1534,20 +1675,17 @@ export default function GameRatingPage() {
               borderRadius: 10, padding: '10px 14px', marginBottom: 20,
               display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
             }}>
-              <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>SELECTED:</span>
+              <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>SELECTED ({motmPlayers.length}/3):</span>
               {motmPlayers.length === 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>None yet</span>}
-              {motmPlayers.map((uid, idx) => {
-                const meta = MOTM_META[idx];
-                return (
-                  <span key={uid} style={{
-                    fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
-                    color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`,
-                    borderRadius: 6, padding: '3px 10px',
-                  }}>
-                    {meta.label} {profiles[uid]?.name || uid}
-                  </span>
-                );
-              })}
+              {motmPlayers.map((uid) => (
+                <span key={uid} style={{
+                  fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700,
+                  color: AWARD_META.color, background: AWARD_META.bg, border: `1px solid ${AWARD_META.border}`,
+                  borderRadius: 6, padding: '3px 10px',
+                }}>
+                  {profiles[uid]?.name || uid}
+                </span>
+              ))}
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>

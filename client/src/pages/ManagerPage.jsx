@@ -14,6 +14,7 @@ import { isNegativePlayerTag } from '../lib/feedbackTags';
 import { LuMedal } from 'react-icons/lu';
 import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
+import IncomeChart from '../components/IncomeChart';
 
 // Every game now shares the same title, so the feedback tab identifies games by
 // when they were played instead.
@@ -64,7 +65,9 @@ export default function ManagerPage() {
   const setActiveTab = isPreview ? setPreviewTab : setPersistedTab;
   const [fields, setFields] = useState([]);
   const [games, setGames] = useState([]);
-  const [players, setPlayers] = useState([]);
+  const [_players, setPlayers] = useState([]);
+  const [managedPlayerCount, setManagedPlayerCount] = useState(0);
+  const [income, setIncome] = useState([]);
   const [feedback, setFeedback] = useState([]);
   const [sportsmanship, setSportsmanship] = useState({});
   const [loading, setLoading] = useState(true);
@@ -84,7 +87,8 @@ export default function ManagerPage() {
     }
     const cached = getCached('manager_data');
     if (cached) {
-      setFields(cached.fields); setGames(cached.games); setPlayers(cached.players);
+      setFields(cached.fields); setGames(cached.games); setPlayers(cached.players); setIncome(cached.income || []);
+      setManagedPlayerCount(cached.managedPlayerCount || 0);
       setFeedback(cached.feedback || []); setSportsmanship(cached.sportsmanship || {});
       setLoading(false);
     }
@@ -94,10 +98,12 @@ export default function ManagerPage() {
   const fetchAll = async (silent = false) => {
     if (!silent) setLoading(true);
     const [fieldsData, gamesData, playersData] = await Promise.all([fetchFields(), fetchGames(), fetchPlayers()]);
+    const incomeData = await fetchIncome(gamesData, playersData);
+    const managedPlayerCountData = await fetchManagedPlayerCount(gamesData);
     const { feedback: feedbackData, sportsmanship: sportsmanshipData } = await fetchFeedback();
     setCached('manager_data', {
-      fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [],
-      feedback: feedbackData, sportsmanship: sportsmanshipData,
+      fields: fieldsData ?? [], games: gamesData ?? [], players: playersData ?? [], income: incomeData,
+      managedPlayerCount: managedPlayerCountData, feedback: feedbackData, sportsmanship: sportsmanshipData,
     });
     setLoading(false);
   };
@@ -120,9 +126,81 @@ export default function ManagerPage() {
   };
 
   const fetchPlayers = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('username');
+    const { data } = await supabase.from('profiles').select('*').order('name');
     if (data) setPlayers(data);
     return data ?? [];
+  };
+
+  const fetchManagedPlayerCount = async (visibleGames) => {
+    const gameIds = (visibleGames || []).map(game => game.id);
+    if (gameIds.length === 0) { setManagedPlayerCount(0); return 0; }
+    const { data } = await supabase.from('game_players').select('user_id').in('game_id', gameIds);
+    const count = new Set((data || []).map(row => row.user_id)).size;
+    setManagedPlayerCount(count);
+    return count;
+  };
+
+  const MANAGER_RATE_PER_SESSION = 22;
+
+  const fetchIncome = async (visibleGames, visiblePlayers) => {
+    if (!visibleGames || visibleGames.length === 0) { setIncome([]); return []; }
+
+    // Managers are paid a flat RM22 per session they've actually held —
+    // games still upcoming don't count yet.
+    const now = new Date();
+    const hasStarted = (game) => {
+      const [year, month, day] = game.date.split('-').map(Number);
+      const [hour, minute] = (game.time || '00:00').split(':').map(Number);
+      const gameStart = new Date(Date.UTC(year, month - 1, day, hour - 8, minute));
+      return now >= gameStart;
+    };
+    const heldGames = visibleGames.filter(hasStarted);
+
+    // Bolahh Admin sees what's owed to each manager, grouped by month, with
+    // the specific games behind that total, instead of a single combined
+    // trend line.
+    if (isSuperAdmin) {
+      const nameByManager = Object.fromEntries((visiblePlayers || []).map(player => [player.id, player.name]));
+      const groups = {};
+      heldGames.forEach(game => {
+        const managerId = game.assigned_manager_id;
+        const month = (game.date || '').slice(0, 7);
+        if (!managerId || !month) return;
+        const key = `${managerId}|${month}`;
+        if (!groups[key]) groups[key] = { managerId, managerName: nameByManager[managerId] || 'Unknown', month, sessions: [] };
+        groups[key].sessions.push({
+          id: game.id,
+          date: game.date,
+          time: game.time,
+          label: formatGameLabel(game.date, game.time),
+          fieldName: game.fields?.name || null,
+        });
+      });
+      const result = Object.values(groups).map(group => ({
+        ...group,
+        amount: group.sessions.length * MANAGER_RATE_PER_SESSION,
+        sessions: group.sessions.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '')),
+      }));
+      setIncome(result);
+      return result;
+    }
+
+    const countsByDate = {};
+    heldGames.forEach(game => {
+      if (!game.date) return;
+      countsByDate[game.date] = (countsByDate[game.date] || 0) + 1;
+    });
+    // Cumulative running total, so the trend actually climbs instead of
+    // sitting flat at RM22 every time a single session is held.
+    let running = 0;
+    const result = Object.entries(countsByDate)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, count]) => {
+        running += count * MANAGER_RATE_PER_SESSION;
+        return { date, amount: running };
+      });
+    setIncome(result);
+    return result;
   };
 
   const fetchFeedback = async () => {
@@ -328,7 +406,7 @@ export default function ManagerPage() {
                 { label: 'Total Fields',    val: fields.length,         icon: <MdOutlineStadium/> },
                 { label: 'Total Games',     val: games.length,          icon: <GiSoccerBall/> },
                 { label: 'Upcoming Games',  val: upcomingGames.length,  icon: <MdOutlineCalendarMonth/> },
-                { label: 'Total Players',   val: players.length,        icon: <FaPeopleGroup/> },
+                { label: 'Total Players',   val: managedPlayerCount,    icon: <FaPeopleGroup/> },
               ].map(s => (
                 <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -336,6 +414,10 @@ export default function ManagerPage() {
                   <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <IncomeChart data={income} mode={isSuperAdmin ? 'manager' : 'trend'} />
             </div>
 
             {/* Recent games */}

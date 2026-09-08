@@ -152,16 +152,12 @@ serve(async (req) => {
       if ((r.admin_bonus || 0) > 0) agg[r.user_id].admin_bonus = r.admin_bonus;
     });
 
+    // No ranking — manager-picked winners (admin_bonus > 0) all count equally,
+    // filled out to 3 by computed award points when fewer than 3 were picked.
     const aggValues = Object.values(agg);
-    const hasOfficialMotm = aggValues.some((r: any) => r.admin_bonus > 0);
-    let sorted;
-    if (hasOfficialMotm) {
-      const motmOrder = aggValues.filter((r: any) => r.admin_bonus > 0).sort((a: any, b: any) => a.admin_bonus - b.admin_bonus);
-      const others = aggValues.filter((r: any) => !r.admin_bonus).sort((a: any, b: any) => calcAwardPoints(b) - calcAwardPoints(a));
-      sorted = [...motmOrder, ...others];
-    } else {
-      sorted = [...aggValues].sort((a: any, b: any) => calcAwardPoints(b) - calcAwardPoints(a));
-    }
+    const explicitWinners = aggValues.filter((r: any) => r.admin_bonus > 0);
+    const others = aggValues.filter((r: any) => !r.admin_bonus).sort((a: any, b: any) => calcAwardPoints(b) - calcAwardPoints(a));
+    const sorted = [...explicitWinners, ...others];
 
     const winners = sorted.slice(0, 3).filter((r: any) => calcAwardPoints(r) > 0 || r.admin_bonus > 0);
     if (winners.length === 0) {
