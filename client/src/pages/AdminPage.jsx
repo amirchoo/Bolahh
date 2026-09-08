@@ -7,7 +7,7 @@ import { GiRunningShoe, GiSoccerBall } from 'react-icons/gi';
 import { FaSquareParking, FaLocationDot, FaMedal } from 'react-icons/fa6';
 import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
-import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch } from 'react-icons/io5';
+import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoLayers, IoMegaphone, IoMailUnread, IoMenu, IoWallet } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
 import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -38,6 +38,7 @@ const EMPTY_GAME_FORM = {
 export default function AdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = usePersistedState('admin_tab', 'fields');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState('');
@@ -812,20 +813,68 @@ export default function AdminPage() {
   const checkboxLabel = { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--text)', cursor: 'pointer' };
   const sectionCard = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 20 };
 
-  const TABS = [
-    { key: 'managers',    label: 'Managers'    },
-    { key: 'playerstats', label: 'Player Stats' },
-    { key: 'wallet',      label: 'Wallet'      },
-    { key: 'games',       label: 'Games'       },
-    { key: 'banners',     label: 'Banners'     },
-    { key: 'fields',      label: 'Fields'      },
-    { key: 'backgrounds', label: 'Card BG'     },
-    { key: 'cardmaker',   label: 'Card Maker'  },
-    { key: 'coupons',     label: 'Coupons'     },
-    { key: 'avatars',     label: 'Avatars'     },
-    { key: 'borders',     label: 'Borders'     },
-    { key: 'requests',    label: 'Game Requests' },
+  const TAB_GROUPS = [
+    {
+      label: 'Operations',
+      tabs: [
+        { key: 'games',    label: 'Games',    icon: GiSoccerBall },
+        { key: 'managers', label: 'Managers', icon: IoPeople },
+        { key: 'wallet',   label: 'Wallet',   icon: IoWallet },
+        { key: 'fields',   label: 'Fields',   icon: MdOutlineStadium },
+        { key: 'requests', label: 'Game Requests', icon: IoMailUnread, badge: gameRequests.length },
+      ],
+    },
+    {
+      label: 'Player Cards',
+      tabs: [
+        { key: 'playerstats', label: 'Player Stats',     icon: IoStatsChart },
+        { key: 'cardmaker',   label: 'Card Maker',       icon: IoCard },
+        { key: 'backgrounds', label: 'Card Backgrounds', icon: IoImages },
+        { key: 'avatars',     label: 'Avatars',          icon: IoPersonCircle },
+        { key: 'borders',     label: 'Borders',          icon: IoLayers },
+      ],
+    },
+    {
+      label: 'Marketing',
+      tabs: [
+        { key: 'banners', label: 'Banners', icon: IoMegaphone },
+        { key: 'coupons', label: 'Coupons', icon: LuTag },
+      ],
+    },
   ];
+  const activeTabMeta = TAB_GROUPS.flatMap(g => g.tabs).find(t => t.key === activeTab);
+
+  const navGroupLabelStyle = { fontSize: 11, color: 'var(--muted)', letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: 700, padding: '0 12px', marginBottom: 6 };
+  const navItemStyle = (active) => ({
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8,
+    fontSize: 13, fontWeight: 500, width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer',
+    background: active ? 'var(--accent)' : 'transparent', color: active ? '#fff' : 'var(--muted)',
+  });
+
+  const renderNavGroups = (onNavigate) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {TAB_GROUPS.map(group => (
+        <div key={group.label}>
+          <div style={navGroupLabelStyle}>{group.label}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {group.tabs.map(tab => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.key;
+              return (
+                <button key={tab.key} onClick={() => { setActiveTab(tab.key); onNavigate(); }} style={navItemStyle(active)}>
+                  <Icon size={16} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{tab.label}</span>
+                  {!!tab.badge && (
+                    <span style={{ background: active ? 'rgba(255,255,255,0.25)' : 'rgba(240,157,81,0.15)', color: active ? '#fff' : 'var(--accent)', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono'" }}>{tab.badge}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   // Same MYT-relative "is this game still upcoming" check ManagerPage uses.
   const isUpcomingGame = (g) => {
@@ -969,7 +1018,15 @@ export default function AdminPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div className="page-wrap" style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 1300, margin: '0 auto', padding: '32px 24px' }}>
+        <style>{`
+          .admin-sidebar { display: flex; }
+          .admin-mobile-nav-trigger { display: none; }
+          @media (max-width: 880px) {
+            .admin-sidebar { display: none; }
+            .admin-mobile-nav-trigger { display: flex; }
+          }
+        `}</style>
 
         <div className="fade-up" style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
@@ -995,14 +1052,10 @@ export default function AdminPage() {
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Managers',            val: managers.length,  icon: <IoPeople size={24} color="var(--accent)" /> },
-            { label: 'Total Games',         val: games.length,     icon: <GiSoccerBall size={24} color="var(--accent)" /> },
-            { label: 'Active Banners',       val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
-            { label: 'Total Fields',       val: fields.length,    icon: <MdOutlineStadium /> },
-            { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
-            { label: 'Card Borders',        val: borderCatalogAdmin.length, icon: <MdSave size={24} color="var(--accent)" /> },
-            { label: 'Game Requests',       val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
-            { label: 'Avatar Presets',      val: avatarPresets.length, icon: <IoImages size={24} color="var(--accent)" /> },
+            { label: 'Upcoming Games',  val: games.filter(isUpcomingGame).length, icon: <GiSoccerBall size={24} color="var(--accent)" /> },
+            { label: 'Active Managers', val: managers.length, icon: <IoPeople size={24} color="var(--accent)" /> },
+            { label: 'Pending Requests', val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
+            { label: 'Active Banners',  val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -1023,17 +1076,21 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          {TABS.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              background: activeTab === tab.key ? 'var(--accent)' : 'var(--card)',
-              color: activeTab === tab.key ? '#fff' : 'var(--muted)',
-              border: `1px solid ${activeTab === tab.key ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 600,
-              transition: 'all 0.15s'
-            }}>{tab.label}</button>
-          ))}
-        </div>
+        <button className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} style={{
+          width: '100%', alignItems: 'center', gap: 8, background: 'var(--card)',
+          border: '1px solid var(--border)', borderRadius: 10, padding: '11px 14px',
+          color: 'var(--text)', fontSize: 13, fontWeight: 600, marginBottom: 20,
+        }}>
+          <IoMenu size={17} />
+          {activeTabMeta?.label || 'Menu'}
+        </button>
+
+        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+          <div className="admin-sidebar" style={{ width: 216, flexShrink: 0, flexDirection: 'column', position: 'sticky', top: 20 }}>
+            {renderNavGroups(() => {})}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
 
         {/* ── MANAGERS TAB ── */}
         {activeTab === 'managers' && (
@@ -2557,6 +2614,33 @@ create policy "Admins can delete requests" on game_requests
                   }}>Delete</button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+          </div>
+        </div>
+
+        {mobileNavOpen && (
+          <div
+            onClick={() => setMobileNavOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex' }}
+          >
+            <div onClick={e => e.stopPropagation()} style={{
+              width: 280, maxWidth: '80vw', height: '100%', background: 'var(--card)',
+              borderRight: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column',
+              boxShadow: '8px 0 24px rgba(0,0,0,0.4)', overflowY: 'auto',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)' }}>ADMIN MENU</div>
+                <button onClick={() => setMobileNavOpen(false)} style={{
+                  width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--muted)', background: 'transparent', border: 'none',
+                }}>
+                  <IoClose size={18} />
+                </button>
+              </div>
+              {renderNavGroups(() => setMobileNavOpen(false))}
             </div>
           </div>
         )}
