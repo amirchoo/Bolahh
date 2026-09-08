@@ -10,9 +10,9 @@ import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot, FaMedal } from 'react-icons/fa6';
-import { AREAS as CITY_AREAS } from '../lib/areas';
+import { PLAYER_AREAS } from '../lib/areas';
 
-const AREAS = ['All Areas', ...CITY_AREAS];
+const AREAS = ['All Areas', ...PLAYER_AREAS];
 const POSITION_TABS = [
   { value: 'All',        label: 'ALL' },
   { value: 'Attacker',   label: 'ATK' },
