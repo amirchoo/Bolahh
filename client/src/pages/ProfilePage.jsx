@@ -13,7 +13,7 @@ import { FaLocationDot } from 'react-icons/fa6';
 import FifaCard, { calcOverall } from '../components/FifaCard';
 import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
-import { AREAS } from '../lib/areas';
+import { PLAYER_AREAS } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
@@ -661,7 +661,7 @@ export default function ProfilePage() {
             <div style={{ marginTop: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.areaLabel')}</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {AREAS.map(a => (
+                {PLAYER_AREAS.map(a => (
                   <button key={a} onClick={() => setForm({ ...form, area: form.area === a ? '' : a })} style={{
                     background: form.area === a ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
                     color: form.area === a ? 'var(--accent)' : 'var(--text)',
