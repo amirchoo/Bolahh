@@ -18,6 +18,7 @@ import GameManagerPlayersPage from './pages/GameManagerPlayersPage';
 import AdminPage from './pages/AdminPage';
 import FriendsPage from './pages/FriendsPage';
 import WalletTopupPage from './pages/WalletTopupPage';
+import WalletHistoryPage from './pages/WalletHistoryPage';
 import GameCheckoutPage from './pages/GameCheckoutPage';
 import GameCancelPage from './pages/GameCancelPage';
 import GameFeedbackPage from './pages/GameFeedbackPage';
@@ -62,6 +63,7 @@ function AnimatedRoutes() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/wallet" element={<PrivateRoute><WalletHistoryPage /></PrivateRoute>} />
         <Route path="/wallet/topup" element={<PrivateRoute><WalletTopupPage /></PrivateRoute>} />
         <Route path="/game/:id/checkout" element={<PrivateRoute><GameCheckoutPage /></PrivateRoute>} />
         <Route path="/game/:id/cancel" element={<PrivateRoute><GameCancelPage /></PrivateRoute>} />
