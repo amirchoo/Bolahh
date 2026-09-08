@@ -408,7 +408,7 @@ export default function SignupPage() {
                 onSelect={avatar => setForm({ ...form, avatar })}
               />
 
-              <button onClick={() => { setError(''); advance(); }} disabled={!form.avatar} style={{
+              <button onClick={() => { setError(''); advance(); }} style={{
                 width: '100%', marginTop: 24, padding: '14px',
                 background: form.avatar ? 'var(--accent)' : 'var(--card2)',
                 color: form.avatar ? '#fff' : 'var(--muted)',
