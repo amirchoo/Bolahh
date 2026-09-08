@@ -56,15 +56,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Idempotency — only check if referenceNo is a real value (not empty/undefined)
+    // Idempotency — keyed on billCode (ToyyibPay's own unique bill id), NOT on
+    // billExternalReferenceNo: ToyyibPay silently truncates that field (observed ~50 chars),
+    // and our reference (bolahh_{uuid}_{amount}_{timestamp}) is long enough that the
+    // truncated tail only keeps the first few digits of the millisecond timestamp — which
+    // barely change for months. Two different real top-ups of the same RM amount by the
+    // same user can come back with an IDENTICAL truncated referenceNo, so matching on that
+    // string was silently treating a genuinely new, paid top-up as an already-credited
+    // duplicate and skipping it.
     const referenceNo = tx.billExternalReferenceNo as string | undefined;
-    if (referenceNo && referenceNo.startsWith('bolahh_')) {
+    {
       const { data: existing } = await supabase
         .from('wallet_transactions')
         .select('id, balance_after')
         .eq('user_id', userId)
         .eq('type', 'topup')
-        .like('description', `%${referenceNo}%`)
+        .eq('bill_code', billCode)
         .maybeSingle();
 
       if (existing && (existing.balance_after ?? 0) > 0) {
@@ -111,6 +118,7 @@ serve(async (req) => {
       amount,
       description:   `Wallet topup RM${amount} [${referenceNo ?? billCode}]`,
       balance_after: newBalance,
+      bill_code:     billCode,
     });
 
     if (pendingTxId) {

@@ -7,7 +7,7 @@ import { GiRunningShoe, GiSoccerBall } from 'react-icons/gi';
 import { FaSquareParking, FaLocationDot, FaMedal } from 'react-icons/fa6';
 import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
-import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoLayers, IoMegaphone, IoMailUnread, IoMenu } from 'react-icons/io5';
+import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoLayers, IoMegaphone, IoMailUnread, IoMenu, IoWallet } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
 import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -119,6 +119,22 @@ export default function AdminPage() {
   const [pastCardStats, setPastCardStats] = useState(null);
   const [loadingPastCard, setLoadingPastCard] = useState(false);
   const [pastCardHasHistory, setPastCardHasHistory] = useState(true);
+
+  // ── Wallet Adjustment state ────────────────────────────
+  // Money-moving tab — gated by SuperAdminRoute client-side AND by the
+  // "Super admins can update any profile" RLS policy server-side (same
+  // double-gate the Managers/Player Stats tabs already rely on).
+  const [walletQuery, setWalletQuery] = useState('');
+  const [walletResults, setWalletResults] = useState([]);
+  const [walletSearching, setWalletSearching] = useState(false);
+  const [selectedWalletPlayer, setSelectedWalletPlayer] = useState(null);
+  const [walletTxHistory, setWalletTxHistory] = useState([]);
+  const [loadingWalletTx, setLoadingWalletTx] = useState(false);
+  const [adjustDirection, setAdjustDirection] = useState('add'); // 'add' | 'deduct'
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustingWallet, setAdjustingWallet] = useState(false);
+  const [showAdjustConfirm, setShowAdjustConfirm] = useState(false);
 
   // ── Games state ────────────────────────────────────────
   const [games, setGames] = useState([]);
@@ -351,6 +367,90 @@ export default function AdminPage() {
     }
     showSuccess(`${selectedStatsPlayer.name}'s card updated!${notifyOnStatsSave && newOverall !== oldOverall ? ' They\'ll get an email about it.' : ''}`);
     setSelectedStatsPlayer(prev => prev ? { ...prev, card_stats: cardStats, total_points: newOverall } : prev);
+  };
+
+  // ── Wallet Adjustment ──────────────────────────────────
+  const handleWalletSearch = async (q) => {
+    setWalletQuery(q);
+    if (!q.trim()) { setWalletResults([]); return; }
+    setWalletSearching(true);
+    const { data } = await supabase
+      .from('profiles').select('id, name, email, avatar_url, wallet_balance')
+      .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(10);
+    setWalletResults(data || []);
+    setWalletSearching(false);
+  };
+
+  const handleSelectWalletPlayer = async (p) => {
+    setWalletQuery(''); setWalletResults([]);
+    setAdjustAmount(''); setAdjustReason(''); setAdjustDirection('add'); setShowAdjustConfirm(false);
+    setSelectedWalletPlayer(p);
+    setLoadingWalletTx(true);
+    const [{ data: fresh }, { data: tx }] = await Promise.all([
+      supabase.from('profiles').select('id, name, email, avatar_url, wallet_balance').eq('id', p.id).single(),
+      supabase.from('wallet_transactions').select('*').eq('user_id', p.id).order('created_at', { ascending: false }).limit(15),
+    ]);
+    if (fresh) setSelectedWalletPlayer(fresh);
+    setWalletTxHistory(tx || []);
+    setLoadingWalletTx(false);
+  };
+
+  const parsedAdjustAmount = Math.round((parseFloat(adjustAmount) || 0) * 100) / 100;
+  const canRequestAdjust = !!selectedWalletPlayer && parsedAdjustAmount > 0 && adjustReason.trim().length >= 5 &&
+    (adjustDirection === 'add' || parsedAdjustAmount <= (selectedWalletPlayer?.wallet_balance || 0));
+
+  const handleConfirmAdjustWallet = async () => {
+    if (!selectedWalletPlayer || !(parsedAdjustAmount > 0) || adjustReason.trim().length < 5) return;
+    setAdjustingWallet(true);
+    setError('');
+
+    // Re-fetch the live balance right before writing — never trust the number shown on
+    // screen, it may be stale if the player topped up or spent while this was open.
+    const { data: fresh } = await supabase
+      .from('profiles').select('wallet_balance').eq('id', selectedWalletPlayer.id).single();
+    const freshBalance = fresh?.wallet_balance || 0;
+    const delta = adjustDirection === 'add' ? parsedAdjustAmount : -parsedAdjustAmount;
+
+    if (adjustDirection === 'deduct' && parsedAdjustAmount > freshBalance) {
+      setAdjustingWallet(false);
+      setShowAdjustConfirm(false);
+      showError(`Can't deduct RM ${parsedAdjustAmount.toFixed(2)} — current balance is only RM ${freshBalance.toFixed(2)}.`);
+      return;
+    }
+
+    const newBalance = parseFloat((freshBalance + delta).toFixed(2));
+    const adminUser = (await supabase.auth.getUser()).data.user;
+    const reasonText = adjustReason.trim();
+
+    const { error: balErr, count } = await supabase
+      .from('profiles').update({ wallet_balance: newBalance }, { count: 'exact' }).eq('id', selectedWalletPlayer.id);
+    if (balErr || count === 0) {
+      setAdjustingWallet(false);
+      showError(balErr?.message || 'Update blocked by RLS. Confirm this account has super-admin access.');
+      return;
+    }
+
+    // amount is signed for this type (positive = credit, negative = debit) — unlike
+    // topup/refund/payment, which are always-positive amounts whose sign is implied by type.
+    const description = `Admin ${adjustDirection === 'add' ? 'credit' : 'debit'} by ${adminUser?.email || 'admin'}: ${reasonText}`;
+    const { data: txRow } = await supabase.from('wallet_transactions').insert({
+      user_id: selectedWalletPlayer.id,
+      type: 'admin_adjustment',
+      amount: delta,
+      description,
+      balance_after: newBalance,
+    }).select('*').single();
+
+    setAdjustingWallet(false);
+    setShowAdjustConfirm(false);
+    setSelectedWalletPlayer(prev => prev ? { ...prev, wallet_balance: newBalance } : prev);
+    setWalletTxHistory(prev => [txRow || {
+      id: `local-${Date.now()}`, type: 'admin_adjustment', amount: delta, balance_after: newBalance,
+      description, created_at: new Date().toISOString(),
+    }, ...prev]);
+    setAdjustAmount(''); setAdjustReason('');
+    showSuccess(`RM ${parsedAdjustAmount.toFixed(2)} ${adjustDirection === 'add' ? 'added to' : 'deducted from'} ${selectedWalletPlayer.name}'s wallet.`);
   };
 
   const fetchGameRequests = async () => {
@@ -719,6 +819,7 @@ export default function AdminPage() {
       tabs: [
         { key: 'games',    label: 'Games',    icon: GiSoccerBall },
         { key: 'managers', label: 'Managers', icon: IoPeople },
+        { key: 'wallet',   label: 'Wallet',   icon: IoWallet },
         { key: 'fields',   label: 'Fields',   icon: MdOutlineStadium },
         { key: 'requests', label: 'Game Requests', icon: IoMailUnread, badge: gameRequests.length },
       ],
@@ -1257,6 +1358,211 @@ export default function AdminPage() {
                   })()}
                 </div>
 
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── WALLET TAB ── */}
+        {activeTab === 'wallet' && (
+          <div>
+            <div style={sectionCard}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
+                CHECK / ADJUST WALLET BALANCE
+              </h3>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>
+                Search a player by name or email to view their live wallet balance and full transaction history, or apply a manual credit/debit. Every adjustment is logged with your account and a required reason.
+              </p>
+              <div style={{ position: 'relative', marginBottom: 12 }}>
+                <IoSearch size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+                <input
+                  placeholder="Search by name or email..." value={walletQuery}
+                  onChange={e => handleWalletSearch(e.target.value)}
+                  style={{ paddingLeft: 32 }}
+                />
+              </div>
+              {walletSearching && <div style={{ color: 'var(--muted)', fontSize: 13 }}>Searching...</div>}
+              {!walletSearching && walletQuery && walletResults.length === 0 && (
+                <div style={{ color: 'var(--muted)', fontSize: 13 }}>No players found for "{walletQuery}"</div>
+              )}
+              {walletResults.map(p => (
+                <div key={p.id} onClick={() => handleSelectWalletPlayer(p)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--border)', cursor: 'pointer' }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', flexShrink: 0
+                  }}>
+                    {p.avatar_url ? <img src={p.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p.name?.[0] || '?').toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{p.name || 'Unnamed'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email}</div>
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--accent)', fontFamily: "'Space Mono'", fontWeight: 700, flexShrink: 0 }}>RM {(p.wallet_balance || 0).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
+            {selectedWalletPlayer && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 20 }} className="wallet-adjust-layout">
+                <style>{`@media (max-width: 860px) { .wallet-adjust-layout { grid-template-columns: 1fr !important; } }`}</style>
+
+                {/* Player + adjust form */}
+                <div style={sectionCard}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%', background: 'var(--accent)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', flexShrink: 0
+                      }}>
+                        {selectedWalletPlayer.avatar_url ? <img src={selectedWalletPlayer.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (selectedWalletPlayer.name?.[0] || '?').toUpperCase()}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{selectedWalletPlayer.name || 'Unnamed'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{selectedWalletPlayer.email}</div>
+                      </div>
+                    </div>
+                    <button onClick={() => { setSelectedWalletPlayer(null); setWalletTxHistory([]); }} style={{
+                      background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
+                      borderRadius: 8, padding: '5px 12px', fontSize: 12, flexShrink: 0,
+                    }}>Close</button>
+                  </div>
+
+                  <div style={{
+                    background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12,
+                    padding: '14px 16px', marginBottom: 18, textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>CURRENT BALANCE</div>
+                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 30, letterSpacing: 1, color: 'var(--accent)' }}>
+                      RM {(selectedWalletPlayer.wallet_balance || 0).toFixed(2)}
+                    </div>
+                  </div>
+
+                  {!showAdjustConfirm ? (
+                    <>
+                      <label style={labelStyle}>ADJUSTMENT</label>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                        {[{ key: 'add', label: '+ Add funds' }, { key: 'deduct', label: '− Deduct funds' }].map(opt => (
+                          <button key={opt.key} onClick={() => setAdjustDirection(opt.key)} style={{
+                            flex: 1, padding: '10px 8px',
+                            background: adjustDirection === opt.key ? (opt.key === 'add' ? 'rgba(74,222,128,0.1)' : 'rgba(240,101,67,0.1)') : 'var(--card2)',
+                            color: adjustDirection === opt.key ? (opt.key === 'add' ? '#4ade80' : 'var(--red)') : 'var(--muted)',
+                            border: `1.5px solid ${adjustDirection === opt.key ? (opt.key === 'add' ? '#4ade80' : 'var(--red)') : 'var(--border)'}`,
+                            borderRadius: 10, fontSize: 13, fontWeight: 700,
+                          }}>{opt.label}</button>
+                        ))}
+                      </div>
+                      <label style={labelStyle}>AMOUNT (RM)</label>
+                      <input
+                        type="number" min="0.01" step="0.01" placeholder="0.00"
+                        value={adjustAmount} onChange={e => setAdjustAmount(e.target.value)}
+                        style={{ marginBottom: 12 }}
+                      />
+                      <label style={labelStyle}>REASON (required — shown in audit log)</label>
+                      <textarea
+                        placeholder="e.g. Top-up paid via bank transfer, ToyyibPay didn't credit — ref #12345"
+                        value={adjustReason} onChange={e => setAdjustReason(e.target.value)}
+                        rows={3} style={{ resize: 'vertical', marginBottom: 14 }}
+                      />
+                      {adjustDirection === 'deduct' && parsedAdjustAmount > (selectedWalletPlayer.wallet_balance || 0) && (
+                        <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 12 }}>
+                          Amount exceeds current balance.
+                        </div>
+                      )}
+                      <button
+                        onClick={() => setShowAdjustConfirm(true)}
+                        disabled={!canRequestAdjust}
+                        style={{
+                          width: '100%', padding: '12px', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+                          background: canRequestAdjust ? 'var(--accent)' : 'var(--card2)',
+                          color: canRequestAdjust ? '#fff' : 'var(--muted)',
+                          cursor: canRequestAdjust ? 'pointer' : 'not-allowed',
+                        }}
+                      >Review Adjustment</button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{
+                        background: adjustDirection === 'add' ? 'rgba(74,222,128,0.07)' : 'rgba(240,101,67,0.07)',
+                        border: `1px solid ${adjustDirection === 'add' ? 'rgba(74,222,128,0.3)' : 'rgba(240,101,67,0.3)'}`,
+                        borderRadius: 12, padding: '16px 18px', marginBottom: 16,
+                      }}>
+                        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 1, color: 'var(--text)', marginBottom: 10 }}>
+                          CONFIRM {adjustDirection === 'add' ? 'CREDIT' : 'DEBIT'}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                          <span style={{ color: 'var(--muted)' }}>Player</span>
+                          <span style={{ color: 'var(--text)', fontWeight: 600 }}>{selectedWalletPlayer.name}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                          <span style={{ color: 'var(--muted)' }}>Amount</span>
+                          <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: adjustDirection === 'add' ? '#4ade80' : 'var(--red)' }}>
+                            {adjustDirection === 'add' ? '+' : '−'} RM {parsedAdjustAmount.toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10 }}>
+                          <span style={{ color: 'var(--muted)' }}>New balance</span>
+                          <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>
+                            RM {((selectedWalletPlayer.wallet_balance || 0) + (adjustDirection === 'add' ? parsedAdjustAmount : -parsedAdjustAmount)).toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                          "{adjustReason.trim()}"
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={handleConfirmAdjustWallet}
+                          disabled={adjustingWallet}
+                          style={{
+                            flex: 1, padding: '12px', background: 'var(--accent)', color: '#fff',
+                            border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+                            opacity: adjustingWallet ? 0.6 : 1, cursor: adjustingWallet ? 'not-allowed' : 'pointer',
+                          }}
+                        >{adjustingWallet ? 'Applying…' : 'Confirm — Apply Now'}</button>
+                        <button
+                          onClick={() => setShowAdjustConfirm(false)}
+                          disabled={adjustingWallet}
+                          style={{
+                            flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
+                            border: '1px solid var(--border)', borderRadius: 10, fontSize: 14,
+                          }}
+                        >Back</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Transaction history */}
+                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', height: 'fit-content' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                    Recent Transactions
+                  </div>
+                  {loadingWalletTx ? (
+                    <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Loading…</div>
+                  ) : walletTxHistory.length === 0 ? (
+                    <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No transactions yet.</div>
+                  ) : walletTxHistory.map((tx, i) => {
+                    const credit = tx.type === 'topup' || tx.type === 'refund' || (tx.type === 'admin_adjustment' && tx.amount > 0);
+                    return (
+                      <div key={tx.id} style={{ padding: '12px 20px', borderBottom: i < walletTxHistory.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, textTransform: 'capitalize' }}>{tx.type?.replace('_', ' ')}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, wordBreak: 'break-word' }}>{tx.description}</div>
+                            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>{new Date(tx.created_at).toLocaleString('en-MY')}</div>
+                          </div>
+                          <span style={{
+                            fontFamily: "'Space Mono'", fontWeight: 700, fontSize: 13, flexShrink: 0,
+                            color: credit ? '#4ade80' : 'var(--red)'
+                          }}>{credit ? '+' : '−'} RM {Math.abs(tx.amount || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
