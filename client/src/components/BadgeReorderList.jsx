@@ -1,26 +1,20 @@
-import { useState } from 'react';
-import { MdDragIndicator } from 'react-icons/md';
 import { BADGE_TYPE_LIST, BADGE_RARITY_COLORS, BADGE_RARITY_LABELS } from './FifaCard';
 
-// Purely a reorder list — which badges are IN it is decided elsewhere
-// (clicking a tile in the achievements gallery), so this component never
-// adds or removes entries, only lets you drag them into a new order. The
-// drag handle is the only interactive control on a row; there's no
-// click-to-toggle here, unlike BadgeSlotEditor's free-choice admin rows.
+// Purely a reflection of what's been picked in the achievement gallery above
+// — selecting a badge there adds a row here, deselecting it removes the row
+// entirely, and the row order is just `badges`' own order (whatever order
+// they were picked in), so there's nothing to separately sort. Tapping a
+// row's number here is a shortcut for the same removal, in case going back
+// up to the gallery is inconvenient — but adding only ever happens up there,
+// since only the gallery knows which tier a given type is currently unlocked
+// at.
 export default function BadgeReorderList({ badges, onChange }) {
-  const [dragIndex, setDragIndex] = useState(null);
-  const [dragOverIndex, setDragOverIndex] = useState(null);
-
   if (badges.length === 0) {
     return <p style={{ fontSize: 12, color: 'var(--muted)' }}>Click a badge above to add it here.</p>;
   }
 
-  const reorder = (from, to) => {
-    if (from === to) return;
-    const next = [...badges];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    onChange(next);
+  const remove = (type) => {
+    onChange(badges.filter(b => b.type !== type));
   };
 
   return (
@@ -28,33 +22,25 @@ export default function BadgeReorderList({ badges, onChange }) {
       {badges.map((b, i) => {
         const typeInfo = BADGE_TYPE_LIST.find(t => t.key === b.type);
         return (
-          <div
-            key={b.type}
-            draggable
-            onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = 'move'; }}
-            onDragOver={(e) => { e.preventDefault(); if (dragOverIndex !== i) setDragOverIndex(i); }}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (dragIndex !== null) reorder(dragIndex, i);
-              setDragIndex(null);
-              setDragOverIndex(null);
-            }}
-            onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 10px', borderRadius: 8,
-              background: 'var(--card2)',
-              border: `1px dashed ${dragOverIndex === i && dragIndex !== null && dragIndex !== i ? 'var(--accent)' : 'transparent'}`,
-              outline: '1px solid var(--border)', outlineOffset: -1,
-            }}
-          >
-            <MdDragIndicator size={18} color="var(--accent)" style={{ flexShrink: 0, cursor: 'grab' }} />
-            <span style={{
-              flexShrink: 0, width: 18, height: 18, borderRadius: '50%',
-              background: 'var(--card)', border: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 10, fontWeight: 700, color: 'var(--muted)',
-            }}>{i + 1}</span>
+          <div key={b.type} style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '11px 10px', borderRadius: 8,
+            background: 'var(--card2)',
+            outline: '1px solid var(--border)', outlineOffset: -1,
+          }}>
+            <button
+              type="button"
+              onClick={() => remove(b.type)}
+              aria-label={`Remove ${typeInfo?.label || b.type}`}
+              style={{
+                flexShrink: 0, width: 16, textAlign: 'center', padding: 0,
+                background: 'transparent', border: 'none',
+                color: 'var(--accent)', fontSize: 13, fontWeight: 700,
+                fontFamily: "'Space Mono', monospace", cursor: 'pointer',
+              }}
+            >
+              {i + 1}
+            </button>
             <span style={{
               flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               fontSize: 13, fontWeight: 600, color: 'var(--text)',

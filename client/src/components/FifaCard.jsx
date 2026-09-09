@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useId, useRef, useEffect, memo } from 'react';
 import { IoCameraOutline, IoCheckmark } from 'react-icons/io5';
 
 export const STATS = [
@@ -183,6 +183,21 @@ export function getCardTheme(rank) {
 
 export function calcOverall(stats) {
   return Math.round(STATS.map(s => stats[s.key] || 0).reduce((a, b) => a + b, 0) / 6);
+}
+
+// "28 JUL 26" — matches the card's own all-caps Space Mono labels (GAMES
+// PLAYED, OVR, rank text) rather than a locale-formatted date. Returns null
+// for a missing/invalid input so the caller can just skip rendering it
+// instead of showing "Invalid Date" (some card call sites, e.g. the
+// landing page's demo profile, don't pass a memberSince at all).
+export function formatMemberSinceDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const year = String(d.getFullYear()).slice(-2);
+  return `${day} ${month} ${year}`;
 }
 
 export function buildCustomTheme(form) {
@@ -387,13 +402,18 @@ export function getBadgeColors(rarity) {
   };
 }
 
-export function AchievementBadgeIcon({ type, rarity }) {
+// memo — badges never depend on the card's tilt state, but every mousemove
+// re-renders the whole FifaCard while dragging; without this each badge (its
+// own <svg>, gradient, clipPath, and running shine animation) got rebuilt on
+// every one of those frames for no visible change.
+export const AchievementBadgeIcon = memo(function AchievementBadgeIcon({ type, rarity }) {
   const cfg = BADGE_TYPES[type];
   const uid = useId();
   if (!cfg) return null;
   const colors = getBadgeColors(rarity);
   const shine = BADGE_SHINE[rarity] || BADGE_SHINE.common;
   const shineId = `badgeShine${uid}`;
+  const clipId = `badgeShineClip${uid}`;
   return (
     <svg viewBox="0 0 30 30" style={{ display: 'block', width: '100%', height: '100%', overflow: 'visible' }}>
       <defs>
@@ -408,40 +428,98 @@ export function AchievementBadgeIcon({ type, rarity }) {
           <stop offset="0%" stopColor="#fff" stopOpacity="0" />
           <stop offset="50%" stopColor="#fff" stopOpacity={shine.opacity} />
           <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-          {shine.shimmer && (
-            <animateTransform attributeName="gradientTransform" type="translate" values="0 -1.5; 0 1.5" dur={`${SHINE_DURATION}s`} begin={`${syncedDelay(SHINE_DURATION)}s`} repeatCount="indefinite" />
-          )}
         </linearGradient>
+        {/* Epic/legendary clip the gradient to the gem's own outline so the
+            band below can be swept across it. */}
+        {shine.shimmer && (
+          <clipPath id={clipId}>
+            <path d={cfg.path1} />
+          </clipPath>
+        )}
       </defs>
       <g transform={cfg.diamondTransform}>
         <path d={cfg.path1} fill={colors.fill} />
         <path d={cfg.path2} fill={colors.outline} fillRule="evenodd" />
-        <path d={cfg.path1} fill={`url(#${shineId})`} />
+        {shine.shimmer ? (
+          // Sweeping the gradient itself used SMIL (animateTransform) with a
+          // negative `begin` offset to phase-sync every badge to the wall
+          // clock — WebKit doesn't reliably honor a negative SMIL begin, so
+          // on iOS the animation silently never started at all. Moving the
+          // gradient-filled rect with a plain CSS animation instead (clipped
+          // to the gem's outline) gets the same sweep, and CSS honors a
+          // negative animation-delay everywhere, same as fifaCardFloat below.
+          <g clipPath={`url(#${clipId})`}>
+            <rect
+              x="1605.969" y="1389.419" width="19.879" height="19.878"
+              fill={`url(#${shineId})`}
+              style={{
+                animation: `badgeShineSweep ${SHINE_DURATION}s linear infinite`,
+                animationDelay: `${syncedDelay(SHINE_DURATION)}s`,
+              }}
+            />
+          </g>
+        ) : (
+          <path d={cfg.path1} fill={`url(#${shineId})`} />
+        )}
       </g>
+      {shine.shimmer && (
+        <style>{`
+          @keyframes badgeShineSweep {
+            0%   { transform: translate(0px, -29.8px); }
+            100% { transform: translate(0px, 29.8px); }
+          }
+        `}</style>
+      )}
       <g transform={cfg.iconTransform}>
         <path d={cfg.iconPath} fill={colors.icon} fillRule="nonzero" />
       </g>
     </svg>
   );
-}
+});
 
-export default function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick, customTheme, badge, achievementBadges, interactive = false }) {
+export default function FifaCard({ profile, cardStats, rank, size = 'normal', onAvatarClick, customTheme, badge, achievementBadges, interactive = false, memberSince }) {
   const [reducedMotion] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  // Touch/trackpad drags and raw mousemove can fire far more often than the
+  // screen can paint (mobile Safari especially bursts these) — a coarse
+  // pointer is also almost always weaker hardware, exactly where the sheen's
+  // blur (see sheenBlurEnabled below) is most expensive to keep re-rendering.
+  const [isCoarsePointer] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches);
   const [tilt, setTilt] = useState({ rx: 0, ry: 0, mx: 50, my: 30, active: false });
   const tiltOn = interactive && !reducedMotion;
 
   const applyTiltAt = (clientX, clientY, rect) => {
-    const px = (clientX - rect.left) / rect.width;
-    const py = (clientY - rect.top) / rect.height;
+    // Clamped to [0,1] — a drag that continues past the card's own edge
+    // (e.g. toward the screen edge) would otherwise push px/py, and so
+    // rx/ry, arbitrarily far past their intended ±9deg max, which then had
+    // to unwind on release at the same time the flip's own rotation was
+    // animating and made the two rotations visibly fight each other.
+    const px = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const py = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
     const maxTilt = 9;
     setTilt({ rx: (0.5 - py) * maxTilt * 2, ry: (px - 0.5) * maxTilt * 2, mx: px * 100, my: py * 100, active: true });
   };
+  // Pointer/touch move events can fire many times per animation frame — each
+  // one triggering a setTilt (and so a re-render of the whole card, badges
+  // included) was doing several times the work the screen could ever show.
+  // Collapsing every move within a frame down to one setTilt call, right
+  // before that frame paints, caps the update rate at the screen's own
+  // refresh rate no matter how chatty the input events are.
+  const tiltRAF = useRef(null);
+  useEffect(() => () => { if (tiltRAF.current) cancelAnimationFrame(tiltRAF.current); }, []);
+  const scheduleTiltAt = (clientX, clientY, rect) => {
+    if (tiltRAF.current) cancelAnimationFrame(tiltRAF.current);
+    tiltRAF.current = requestAnimationFrame(() => {
+      tiltRAF.current = null;
+      applyTiltAt(clientX, clientY, rect);
+    });
+  };
   const handleTiltMove = (e) => {
     if (!tiltOn) return;
-    applyTiltAt(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect());
+    scheduleTiltAt(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect());
   };
   const handleTiltLeave = () => {
     if (!tiltOn) return;
+    if (tiltRAF.current) { cancelAnimationFrame(tiltRAF.current); tiltRAF.current = null; }
     setTilt(t => ({ ...t, rx: 0, ry: 0, active: false }));
   };
   // Touch equivalent — a finger dragged across the card tilts it the same
@@ -452,7 +530,86 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
     if (!tiltOn) return;
     const touch = e.touches[0];
     if (!touch) return;
-    applyTiltAt(touch.clientX, touch.clientY, e.currentTarget.getBoundingClientRect());
+    scheduleTiltAt(touch.clientX, touch.clientY, e.currentTarget.getBoundingClientRect());
+  };
+
+  // Swipe-to-flip — a horizontal drag past SWIPE_THRESHOLD spins the card
+  // another half-turn in the direction of the swipe (right swipe always
+  // adds +180deg, left swipe always adds -180deg), rather than snapping
+  // back — so two swipes the same way spin all the way around to the front
+  // again instead of un-flipping. `rotation` accumulates unbounded; CSS
+  // rotateY renders any multiple of 360 as the front and any odd multiple
+  // of 180 as the back, so no wraparound/normalization is needed here.
+  // Tracked separately from the tilt touch handlers above since flip should
+  // work even when tilt is off (reducedMotion), and uses touchend rather
+  // than touchmove so it fires once per gesture instead of fighting the
+  // tilt's continuous updates.
+  const SWIPE_THRESHOLD = 40;
+  const [rotation, setRotation] = useState(0);
+  const flipped = (rotation / 180) % 2 !== 0;
+  // A drag that ends right as a flip triggers usually still has some tilt
+  // (rx/ry) applied — normally that eases back to 0 over the slow 0.6s
+  // "released" transition below, which was overlapping with the flip's own
+  // 0.7s rotateY and made the two rotations (they share the Y axis, so
+  // their angles just add together) visibly fight, occasionally reading as
+  // spinning the wrong way on a fast edge-to-edge swipe. Snapping tilt to 0
+  // with no transition the instant a flip fires removes the second
+  // rotation from the animation entirely, leaving only the flip's.
+  const [suppressTiltTransition, setSuppressTiltTransition] = useState(false);
+  useEffect(() => {
+    if (!suppressTiltTransition) return;
+    const id = requestAnimationFrame(() => setSuppressTiltTransition(false));
+    return () => cancelAnimationFrame(id);
+  }, [suppressTiltTransition]);
+  // Tracks the specific finger (by touch identifier) that started the
+  // swipe, not just "whatever touch is at index 0" — a second finger
+  // brushing the screen mid-gesture (easy to do near a card's edge while
+  // holding the phone) fires its own touchstart/touchend, and reading
+  // touches[0]/changedTouches[0] blindly could mix that second finger's
+  // start or end point into the gesture, producing a near-random dx sign
+  // and an occasional wrong-direction flip.
+  const flipTouchStart = useRef(null);
+  const handleFlipTouchStart = (e) => {
+    if (flipTouchStart.current) return; // already tracking a finger — ignore any other one that touches down
+    const touch = e.touches[0];
+    if (!touch) return;
+    flipTouchStart.current = { x: touch.clientX, y: touch.clientY, id: touch.identifier };
+  };
+  const handleFlipTouchEnd = (e) => {
+    const start = flipTouchStart.current;
+    if (!start) return;
+    let touch = null;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === start.id) { touch = e.changedTouches[i]; break; }
+    }
+    if (!touch) return; // this touchend belongs to a different finger — keep waiting for ours
+    flipTouchStart.current = null;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+      // Swallows the synthetic click iOS/Android fire after touchend, so a
+      // flip swipe on the profile card doesn't also trigger the card-tap
+      // "open share modal" handler some pages wrap this component in.
+      e.preventDefault();
+      setSuppressTiltTransition(true);
+      setTilt(t => ({ ...t, rx: 0, ry: 0, active: false }));
+      // Which sign reads as "correct" for a given swipe direction is a
+      // judgment call about the animation, not something provable from the
+      // math — if a clean single-finger swipe still spins the wrong way,
+      // swap the 180/-180 below (this exact line is the only thing that
+      // needs to change).
+      setRotation(r => r + (dx > 0 ? 180 : -180));
+    }
+  };
+  const handleFlipTouchCancel = (e) => {
+    // If the tracked finger is the one that got cancelled (e.g. the OS
+    // intercepted it for a system gesture), stop tracking it so the next
+    // real gesture isn't ignored by the "already tracking" guard above.
+    const start = flipTouchStart.current;
+    if (!start) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === start.id) { flipTouchStart.current = null; return; }
+    }
   };
 
   const rankTheme = getCardTheme(rank);
@@ -464,6 +621,11 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
   const w = isSmall ? 140 : 220;
   const h = isSmall ? 210 : 330;
   const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
+  // Sourced from the Auth user's created_at (passed in by the caller), not
+  // profile.created_at — the profiles table column of that name has no DB
+  // default and nothing in signup ever sets it, so it's null for most
+  // accounts; the Auth user's own created_at is always populated.
+  const memberSinceDate = formatMemberSinceDate(memberSince);
 
   // Color decides which of the four base outlines is used; sub-tier (I/II/III,
   // read off the rank's numeral suffix) decides the star count/arrangement
@@ -532,7 +694,14 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
   // Perak/Emas run lighter overall (silver/gold) than Gangsa's bronze, so
   // the same sheen opacity reads as fainter against them — bumped up to
   // stay equally visible.
-  const sheenPeakOpacity = colorKey === 'perak' || colorKey === 'emas' ? 0.45 : 0.32;
+  const sheenPeakOpacity = colorKey === 'perak' || colorKey === 'emas' ? 0.65 : 0.32;
+  // The blur is what makes the sheen read as soft light instead of a crisp
+  // spotlight, but a blurred region has to be fully re-rendered every time
+  // its input moves — on a coarse-pointer (touch) device that's every drag
+  // frame, on hardware that can least afford it. The graduated gradient
+  // stops alone (still applied either way, see below) already do most of
+  // the softening cheaply, so touch devices just skip this extra layer.
+  const sheenBlurEnabled = tiltOn && !isCoarsePointer;
 
   const patternStyle = customTheme?.pattern && customTheme.pattern !== 'none'
     ? patternBgStyle(customTheme.pattern, customTheme.patternColor, customTheme.patternOpacity, theme.bg)
@@ -542,20 +711,39 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
     <div
       onMouseMove={tiltOn ? handleTiltMove : undefined}
       onMouseLeave={tiltOn ? handleTiltLeave : undefined}
-      onTouchStart={tiltOn ? handleTiltTouchMove : undefined}
+      onTouchStart={(e) => { if (tiltOn) handleTiltTouchMove(e); if (interactive) handleFlipTouchStart(e); }}
       onTouchMove={tiltOn ? handleTiltTouchMove : undefined}
-      onTouchEnd={tiltOn ? handleTiltLeave : undefined}
-      onTouchCancel={tiltOn ? handleTiltLeave : undefined}
+      onTouchEnd={(e) => { if (tiltOn) handleTiltLeave(); if (interactive) handleFlipTouchEnd(e); }}
+      onTouchCancel={(e) => { if (tiltOn) handleTiltLeave(); if (interactive) handleFlipTouchCancel(e); }}
       style={{
         width: w, height: bodyH + shapeCrownOffset + headroomTop, position: 'relative', flexShrink: 0,
+        perspective: 1000,
         ...(tiltOn ? {
           transform: `perspective(900px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) scale(${tilt.active ? 1.035 : 1})`,
-          transition: tilt.active ? 'transform 0.08s linear' : 'transform 0.6s cubic-bezier(0.22,1,0.36,1)',
+          transition: suppressTiltTransition ? 'none' : (tilt.active ? 'transform 0.08s linear' : 'transform 0.6s cubic-bezier(0.22,1,0.36,1)'),
           willChange: 'transform',
           touchAction: 'none',
         } : null),
       }}
     >
+    {/* Flip container — rotates 180deg on swipe. The card shape+content
+        (front) and the plain back live inside as backface-hidden panes; the
+        crown star and achievement badges are rendered outside this
+        container further down so they don't rotate with the card (star
+        stays put per design; badges fade instead — see below). */}
+    <div style={{
+      position: 'relative', width: '100%', height: '100%',
+      transformStyle: 'preserve-3d', WebkitTransformStyle: 'preserve-3d',
+      transform: `rotateY(${rotation}deg)`,
+      transition: reducedMotion ? 'none' : 'transform 0.7s cubic-bezier(0.22,1,0.36,1)',
+    }}>
+    {/* translateZ(1px) — Safari sometimes lets a backface-hidden pane show
+        through anyway when it (or a descendant, here the shape SVG's own
+        drop-shadow filter) shares exactly the same z=0 plane as the other
+        pane; nudging each face its own hair's-width off that plane forces
+        them onto separate compositing layers and reliably fixes it — this
+        is what was showing the front's (mirrored) text through the back. */}
+    <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'translateZ(1px)', WebkitTransform: 'translateZ(1px)' }}>
     {useShapedCard && (
       <>
         <svg
@@ -576,15 +764,27 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
               // gets stretched non-uniformly into an oval. Radius is a
               // fraction of viewBoxW specifically (not some blend with
               // height) so the highlight keeps the same size it always had.
+              // Multiple graduated stops (rather than a hard peak-then-fade)
+              // plus the feGaussianBlur below on the path itself, so the
+              // highlight reads as a soft diffuse sheen instead of a crisp
+              // spotlight — a wider radius spreads it further across the
+              // card too.
               <radialGradient
                 id={`cardSheen-${colorKey}`}
                 gradientUnits="userSpaceOnUse"
                 cx={(tilt.mx / 100) * shapeDef.viewBoxW} cy={(tilt.my / 100) * shapeDef.viewBoxH}
-                r={shapeDef.viewBoxW * 0.65}
+                r={shapeDef.viewBoxW * 0.9}
               >
                 <stop offset="0%" stopColor="#ffffff" stopOpacity={tilt.active ? sheenPeakOpacity : 0} style={{ transition: 'stop-opacity 0.3s' }} />
-                <stop offset="60%" stopColor="#ffffff" stopOpacity="0" />
+                <stop offset="18%" stopColor="#ffffff" stopOpacity={tilt.active ? sheenPeakOpacity * 0.55 : 0} style={{ transition: 'stop-opacity 0.3s' }} />
+                <stop offset="45%" stopColor="#ffffff" stopOpacity={tilt.active ? sheenPeakOpacity * 0.18 : 0} style={{ transition: 'stop-opacity 0.3s' }} />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
               </radialGradient>
+            )}
+            {sheenBlurEnabled && (
+              <filter id={`cardSheenBlur-${colorKey}`} x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation={shapeDef.viewBoxW * 0.035} />
+              </filter>
             )}
             {/* Baked into the shape itself (rather than a separate div over just
                 the body) so the highlight sweeps continuously across the crown
@@ -596,58 +796,16 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           </defs>
           <path d={shapeDef.path} fill={`url(#cardShapeGrad-${colorKey})`} />
           <path d={shapeDef.path} fill="url(#cardShapeShine)" />
-          {/* Cursor-tracked specular highlight — clipped to the exact same
-              silhouette so it never spills past the card's real edge. */}
-          {tiltOn && <path d={shapeDef.path} fill={`url(#cardSheen-${colorKey})`} pointerEvents="none" />}
+          {/* Cursor-tracked specular highlight — filled through the exact
+              same silhouette, so its only escape past the card's real edge
+              is the soft blur bloom itself, not the highlight's hard shape. */}
+          {tiltOn && <path d={shapeDef.path} fill={`url(#cardSheen-${colorKey})`} filter={sheenBlurEnabled ? `url(#cardSheenBlur-${colorKey})` : undefined} pointerEvents="none" />}
           {/* Stroke drawn as its own pass, on top, so the shine doesn't wash it out.
               Divided by shapeScale so the rendered stroke is always 2 physical
               pixels — matching the Novis card's flat `2px solid` CSS border —
               rather than 2 viewBox units that shrink along with the SVG. */}
           <path d={shapeDef.path} fill="none" stroke={theme.border} strokeWidth={1.7 / shapeScale} />
         </svg>
-        {starSet && starPlacement && (
-          <>
-            <style>{`
-              @keyframes fifaCardFloat {
-                0%, 100% { transform: translateY(2px); }
-                50% { transform: translateY(-8px); }
-              }
-            `}</style>
-            <svg
-              key={achievementResetKey}
-              className="fifa-card-star"
-              width={starPlacement.width * shapeScale} height={starPlacement.height * shapeScale}
-              viewBox={`0 0 ${starSet.viewBoxW} ${starSet.viewBoxH}`}
-              style={{
-                position: 'absolute',
-                left: starPlacement.left * shapeScale,
-                top: headroomTop + starPlacement.top * shapeScale,
-                overflow: 'visible',
-                // A continuous idle float — always on, independent of the
-                // card's own tilt/touch state. Wall-clock synced (see
-                // syncedDelay) so it stays in phase with the achievement
-                // badges' identical bob, no matter when either mounted.
-                animation: `fifaCardFloat ${FLOAT_DURATION}s ease-in-out infinite`,
-                animationDelay: `${syncedDelay(FLOAT_DURATION)}s`,
-              }}
-            >
-              <defs>
-                <linearGradient id={`cardStarGrad-${colorKey}`} x1="15%" y1="0%" x2="85%" y2="100%">
-                  <stop offset="0%" stopColor={shapeGradStops[0]} />
-                  <stop offset="50%" stopColor={shapeGradStops[1]} />
-                  <stop offset="100%" stopColor={shapeGradStops[2]} />
-                </linearGradient>
-              </defs>
-              {/* Same 2-physical-pixel target as the card body outline above,
-                  but converted through the star SVG's own width scale (its
-                  viewBox units map to px at a different rate than the card
-                  shape's) rather than shapeScale directly. */}
-              <g fill={`url(#cardStarGrad-${colorKey})`} stroke={theme.border} strokeWidth={1.7 * starSet.viewBoxW / (starPlacement.width * shapeScale)}>
-                {starSet.paths.map((d, i) => <path key={i} d={d} />)}
-              </g>
-            </svg>
-          </>
-        )}
       </>
     )}
     <div style={{
@@ -769,7 +927,12 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
       {!useShapedCard && tiltOn && (
         <div style={{
           position: 'absolute', inset: 0, borderRadius: 'inherit',
-          background: `radial-gradient(circle at ${tilt.mx}% ${tilt.my}%, rgba(255,255,255,${tilt.active ? 0.32 : 0}) 0%, transparent 60%)`,
+          // Graduated stops (instead of one hard peak-to-transparent step)
+          // plus a real blur, so this reads as a soft diffuse sheen rather
+          // than a crisp circular spotlight — the parent's overflow:hidden
+          // clips the blur's bloom at the card's own rounded edge.
+          background: `radial-gradient(circle at ${tilt.mx}% ${tilt.my}%, rgba(255,255,255,${tilt.active ? 0.32 : 0}) 0%, rgba(255,255,255,${tilt.active ? 0.32 * 0.55 : 0}) 18%, rgba(255,255,255,${tilt.active ? 0.32 * 0.18 : 0}) 45%, transparent 85%)`,
+          filter: sheenBlurEnabled ? 'blur(9px)' : undefined,
           transition: 'opacity 0.3s', pointerEvents: 'none', zIndex: 5,
         }} />
       )}
@@ -897,18 +1060,212 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
         <div style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 5 : 8, color: theme.muted }}>
           <span style={{ fontWeight: 700, color: theme.text }}>{profile?.games_played || 0}</span> GAMES PLAYED
         </div>
+      </div>
+    </div>
+    </div>
+    {/* Back face — same silhouette/gradient/border as the front, plus a
+        skill-graph radar built from the front's own stats (below). */}
+    <div style={{
+      position: 'absolute', inset: 0,
+      backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+      transform: 'rotateY(180deg) translateZ(1px)',
+      WebkitTransform: 'rotateY(180deg) translateZ(1px)',
+    }}>
+      {useShapedCard ? (
+        <svg
+          width={shapeDef.viewBoxW * shapeScale} height={shapeDef.viewBoxH * shapeScale}
+          viewBox={`0 0 ${shapeDef.viewBoxW} ${shapeDef.viewBoxH}`}
+          style={{ position: 'absolute', top: headroomTop, left: -shapeDef.rectLeftX * shapeScale, overflow: 'visible', filter: shapeDropShadow, transition: 'filter 0.3s' }}
+        >
+          <defs>
+            <linearGradient id={`cardBackGrad-${colorKey}`} x1="15%" y1="0%" x2="85%" y2="100%">
+              <stop offset="0%" stopColor={shapeGradStops[0]} />
+              <stop offset="50%" stopColor={shapeGradStops[1]} />
+              <stop offset="100%" stopColor={shapeGradStops[2]} />
+            </linearGradient>
+            {/* Own id (not the front's cardSheen-${colorKey}) even though the
+                math is identical — an SVG id has to be unique per document,
+                and front+back are both always in the DOM at once (just
+                backface-hidden), not swapped in and out. */}
+            {tiltOn && (
+              <radialGradient
+                id={`cardBackSheen-${colorKey}`}
+                gradientUnits="userSpaceOnUse"
+                cx={(tilt.mx / 100) * shapeDef.viewBoxW} cy={(tilt.my / 100) * shapeDef.viewBoxH}
+                r={shapeDef.viewBoxW * 0.9}
+              >
+                <stop offset="0%" stopColor="#ffffff" stopOpacity={tilt.active ? sheenPeakOpacity : 0} style={{ transition: 'stop-opacity 0.3s' }} />
+                <stop offset="18%" stopColor="#ffffff" stopOpacity={tilt.active ? sheenPeakOpacity * 0.55 : 0} style={{ transition: 'stop-opacity 0.3s' }} />
+                <stop offset="45%" stopColor="#ffffff" stopOpacity={tilt.active ? sheenPeakOpacity * 0.18 : 0} style={{ transition: 'stop-opacity 0.3s' }} />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </radialGradient>
+            )}
+            {sheenBlurEnabled && (
+              <filter id={`cardBackSheenBlur-${colorKey}`} x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation={shapeDef.viewBoxW * 0.035} />
+              </filter>
+            )}
+          </defs>
+          <path d={shapeDef.path} fill={`url(#cardBackGrad-${colorKey})`} />
+          {/* cardShapeShine is defined once, in the front svg's own defs —
+              referencing it here works fine since SVG id references resolve
+              document-wide, not just within the <svg> that declared them. */}
+          <path d={shapeDef.path} fill="url(#cardShapeShine)" />
+          {tiltOn && <path d={shapeDef.path} fill={`url(#cardBackSheen-${colorKey})`} filter={sheenBlurEnabled ? `url(#cardBackSheenBlur-${colorKey})` : undefined} pointerEvents="none" />}
+          <path d={shapeDef.path} fill="none" stroke={theme.border} strokeWidth={1.7 / shapeScale} />
+        </svg>
+      ) : (
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: isSmall ? 10 : 16,
+          background: theme.bg, border: `2px solid ${theme.border}`,
+          boxShadow, overflow: 'hidden',
+        }}>
+          {tiltOn && (
+            <div style={{
+              position: 'absolute', inset: 0, borderRadius: 'inherit',
+              background: `radial-gradient(circle at ${tilt.mx}% ${tilt.my}%, rgba(255,255,255,${tilt.active ? 0.32 : 0}) 0%, rgba(255,255,255,${tilt.active ? 0.32 * 0.55 : 0}) 18%, rgba(255,255,255,${tilt.active ? 0.32 * 0.18 : 0}) 45%, transparent 85%)`,
+              filter: sheenBlurEnabled ? 'blur(9px)' : undefined,
+              transition: 'opacity 0.3s', pointerEvents: 'none',
+            }} />
+          )}
+        </div>
+      )}
+      {/* Skill graph — the same six stats/labels as the front's 3x2 grid,
+          plotted as a hexagon radar instead. Centered in the same body
+          rect the front's content uses (bodyH x w), so it lines up
+          identically on shaped and plain cards. Grid + fill both use
+          theme.text (not theme.border): border is the rank's own hue,
+          which on Emas/Perak is close to the background color itself and
+          would nearly disappear as a fill — text is already the color
+          this exact theme guarantees readable against its own card. */}
+      {(() => {
+        const n = STATS.length;
+        const R = w * 0.25;
+        const cx = w / 2;
+        const cy = bodyH / 2;
+        const STAT_MAX = 100;
+        const angleFor = (i) => (-90 + i * (360 / n)) * (Math.PI / 180);
+        const pointAt = (i, r) => {
+          const a = angleFor(i);
+          return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+        };
+        const dataPoints = STATS.map((s, i) => pointAt(i, R * Math.min(1, (cardStats[s.key] || 0) / STAT_MAX)));
+        const gridLevels = [0.25, 0.5, 0.75, 1];
+        const labelOffset = isSmall ? 10 : 18;
+        const fontSize = isSmall ? 6.5 : 10;
+        const gridStroke = isSmall ? 0.75 : 1;
+
+        return (
+          <svg
+            width={w} height={bodyH}
+            viewBox={`0 0 ${w} ${bodyH}`}
+            style={{ position: 'absolute', top: headroomTop + shapeCrownOffset, left: 0, overflow: 'visible' }}
+          >
+            {gridLevels.map((frac, gi) => (
+              <polygon
+                key={`grid-${gi}`}
+                points={STATS.map((_, i) => { const p = pointAt(i, R * frac); return `${p.x},${p.y}`; }).join(' ')}
+                fill="none" stroke={theme.text} strokeOpacity={0.18} strokeWidth={gridStroke}
+              />
+            ))}
+            {STATS.map((_, i) => {
+              const p = pointAt(i, R);
+              return <line key={`spoke-${i}`} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke={theme.text} strokeOpacity={0.18} strokeWidth={gridStroke} />;
+            })}
+            <polygon
+              points={dataPoints.map(p => `${p.x},${p.y}`).join(' ')}
+              fill={theme.text} fillOpacity={0.32}
+              stroke={theme.text} strokeWidth={isSmall ? 1.5 : 2.5} strokeLinejoin="round"
+            />
+            {STATS.map((s, i) => {
+              const p = pointAt(i, R + labelOffset);
+              const anchor = Math.abs(p.x - cx) < 2 ? 'middle' : (p.x > cx ? 'start' : 'end');
+              return (
+                <text
+                  key={`label-${i}`} x={p.x} y={p.y}
+                  textAnchor={anchor}
+                  fontFamily="'Space Mono'" fontSize={fontSize} fill={theme.text}
+                >
+                  <tspan x={p.x} dy="-0.2em">{s.label}</tspan>
+                  <tspan x={p.x} dy="1.15em" fontWeight="700">{cardStats[s.key] || 0}</tspan>
+                </text>
+              );
+            })}
+          </svg>
+        );
+      })()}
+      {/* Bottom row — same position/style as the front's, swapping GAMES
+          PLAYED for the debut date (front keeps GAMES PLAYED; OVR moved
+          here from the front per request). */}
+      <div style={{
+        position: 'absolute', bottom: isSmall ? 5 : 8,
+        left: isSmall ? 6 : 10, right: isSmall ? 6 : 10,
+        display: 'flex', justifyContent: 'space-between', zIndex: 3,
+        borderTop: `1px solid ${theme.border}55`, paddingTop: isSmall ? 3 : 5,
+      }}>
+        <div style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 5 : 8, color: theme.muted }}>
+          {memberSinceDate && <>JOINED <span style={{ fontWeight: 700, color: theme.text }}>{memberSinceDate}</span></>}
+        </div>
         <div style={{ fontFamily: "'Space Mono'", fontSize: isSmall ? 5 : 8, color: theme.muted }}>
           <span style={{ fontWeight: 700, color: theme.text }}>{calcOverall(cardStats)}</span> OVR
         </div>
       </div>
     </div>
-
+    </div>
+    {/* Crown star — deliberately left outside the flip container so it does
+        not rotate with the card; it just stays put on top regardless of
+        front/back state. */}
+    {useShapedCard && starSet && starPlacement && (
+      <>
+        <style>{`
+          @keyframes fifaCardFloat {
+            0%, 100% { transform: translateY(2px); }
+            50% { transform: translateY(-8px); }
+          }
+        `}</style>
+        <svg
+          key={achievementResetKey}
+          className="fifa-card-star"
+          width={starPlacement.width * shapeScale} height={starPlacement.height * shapeScale}
+          viewBox={`0 0 ${starSet.viewBoxW} ${starSet.viewBoxH}`}
+          style={{
+            position: 'absolute',
+            left: starPlacement.left * shapeScale,
+            top: headroomTop + starPlacement.top * shapeScale,
+            overflow: 'visible',
+            // A continuous idle float — always on, independent of the
+            // card's own tilt/touch/flip state. Wall-clock synced (see
+            // syncedDelay) so it stays in phase with the achievement
+            // badges' identical bob, no matter when either mounted.
+            animation: `fifaCardFloat ${FLOAT_DURATION}s ease-in-out infinite`,
+            animationDelay: `${syncedDelay(FLOAT_DURATION)}s`,
+          }}
+        >
+          <defs>
+            <linearGradient id={`cardStarGrad-${colorKey}`} x1="15%" y1="0%" x2="85%" y2="100%">
+              <stop offset="0%" stopColor={shapeGradStops[0]} />
+              <stop offset="50%" stopColor={shapeGradStops[1]} />
+              <stop offset="100%" stopColor={shapeGradStops[2]} />
+            </linearGradient>
+          </defs>
+          {/* Same 2-physical-pixel target as the card body outline above,
+              but converted through the star SVG's own width scale (its
+              viewBox units map to px at a different rate than the card
+              shape's) rather than shapeScale directly. */}
+          <g fill={`url(#cardStarGrad-${colorKey})`} stroke={theme.border} strokeWidth={1.7 * starSet.viewBoxW / (starPlacement.width * shapeScale)}>
+            {starSet.paths.map((d, i) => <path key={i} d={d} />)}
+          </g>
+        </svg>
+      </>
+    )}
 
     {/* Achievement badges — diamond gems stacked down the right edge, one
         per earned achievement, in whatever order/rarity the admin set.
         Each one floats with the same bob rhythm the crown's own star uses,
         synced to the wall clock (see syncedDelay) so every badge stays in
-        phase with the others no matter when it mounted. */}
+        phase with the others no matter when it mounted. Rendered outside
+        the flip container and faded (rather than rotated) across a flip —
+        a stack of flat gem icons reads as broken mid-3D-rotation. */}
     {achievementBadges && achievementBadges.length > 0 && (() => {
       const achievementLayout = ACHIEVEMENT_BADGE_LAYOUT;
       const badgeSize = w * achievementLayout.badgeSizeFrac;
@@ -925,7 +1282,11 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
       const overflowFrac = achievementLayout.overflowFrac;
       const floatDelay = `${syncedDelay(FLOAT_DURATION)}s`;
       return (
-        <>
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          opacity: flipped ? 0 : 1,
+          transition: reducedMotion ? 'none' : 'opacity 0.35s ease',
+        }}>
           <style>{`
             @keyframes fifaCardFloat {
               0%, 100% { transform: translateY(2px); }
@@ -955,7 +1316,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
               <AchievementBadgeIcon type={b.type} rarity={b.rarity} />
             </div>
           ))}
-        </>
+        </div>
       );
     })()}
     </div>

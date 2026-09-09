@@ -521,7 +521,7 @@ export default function ProfilePage() {
             marginBottom: 20, cursor: 'pointer', position: 'relative',
           }}
         >
-          <FifaCard profile={profile} cardStats={cardStats} rank={displayRank} size="normal" achievementBadges={profile?.achievement_badges} onAvatarClick={() => setShowAvatarModal(true)} interactive />
+          <FifaCard profile={profile} cardStats={cardStats} rank={displayRank} size="normal" achievementBadges={profile?.achievement_badges} onAvatarClick={() => setShowAvatarModal(true)} interactive memberSince={user?.created_at} />
           <div className="card-tap-hint" style={{
             marginTop: 8, fontSize: 11, color: 'var(--muted)',
             fontFamily: "'Space Mono'", letterSpacing: 1,
@@ -600,10 +600,16 @@ export default function ProfilePage() {
             where clicking any unlocked tile IS the selection mechanism: it
             adds that (type, rarity) to selectedBadges, clicking a different
             tier of an already-picked type re-tiers it in place, and
-            clicking its active tile again removes it. The reorder list
-            below only reorders whatever's already been picked this way —
-            see BadgeReorderList. Admin has every tile unlocked, so admin can
-            pick and reorder freely too, same mechanism. */}
+            clicking its active tile again removes it. The list below (see
+            BadgeReorderList) mirrors selectedBadges exactly — empty when
+            nothing's picked, a row appears the instant a tile is picked and
+            disappears the instant it's deselected — and can also remove a
+            row directly as a shortcut, but adding only ever happens up here,
+            since only the gallery knows which tier is currently unlocked.
+            Display order is just each badge's index in selectedBadges, so
+            there's nothing to separately "save" the order of. Admin has
+            every tile unlocked, so admin can pick freely too, same
+            mechanism. */}
         {showAchievementsModal && profile && (() => {
           // Adjusting state during render (React's documented pattern) so
           // the draft resets exactly when the caller's real badges change
@@ -716,14 +722,22 @@ export default function ProfilePage() {
 
               <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 18px' }} />
 
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
-                Drag to reorder
-              </div>
               <BadgeReorderList badges={selectedBadges} onChange={setSelectedBadges} />
               {badgesError && (
                 <div style={{ fontSize: 12, color: '#ff6b6b', marginTop: 10 }}>{badgesError}</div>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button
+                  onClick={() => { setSelectedBadges(profile.achievement_badges || []); setBadgesError(''); setShowAchievementsModal(false); }}
+                  style={{
+                    flex: 1, padding: '8px 10px',
+                    background: 'transparent', color: 'var(--text)',
+                    border: '1px solid var(--border)', borderRadius: 8,
+                    fontSize: 13, fontWeight: 700,
+                  }}
+                >
+                  {t('profile.form.cancel')}
+                </button>
                 <button
                   onClick={async () => {
                     const ok = await handleBadgesChange(selectedBadges);
@@ -742,17 +756,6 @@ export default function ProfilePage() {
                   }}
                 >
                   {savingBadges ? 'Saving...' : 'Apply changes'}
-                </button>
-                <button
-                  onClick={() => { setSelectedBadges(profile.achievement_badges || []); setBadgesError(''); setShowAchievementsModal(false); }}
-                  style={{
-                    flex: 1, padding: '8px 10px',
-                    background: 'transparent', color: 'var(--text)',
-                    border: '1px solid var(--border)', borderRadius: 8,
-                    fontSize: 13, fontWeight: 700,
-                  }}
-                >
-                  {t('profile.form.cancel')}
                 </button>
               </div>
             </div>
@@ -823,9 +826,10 @@ export default function ProfilePage() {
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.positionLabel')}</label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 {POSITIONS.map(p => (
                   <button key={p} onClick={() => setForm({ ...form, position: form.position === p ? '' : p })} style={{
+                    flex: 1,
                     background: form.position === p ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
                     color: form.position === p ? 'var(--accent)' : 'var(--text)',
                     border: `1px solid ${form.position === p ? 'var(--accent)' : 'var(--border)'}`,
@@ -848,29 +852,31 @@ export default function ProfilePage() {
                 ))}
               </div>
             </div>
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.ageLabel')}</label>
-              <input type="number" placeholder="e.g. 22" min="10" max="70"
-                value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} />
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.phoneLabel')}</label>
-              <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
-                <span style={{
-                  display: 'flex', alignItems: 'center',
-                  background: '#1a1e20', border: '1px solid var(--border)', borderRadius: 8,
-                  padding: '12px 14px', color: 'var(--text)', fontSize: 14,
-                  fontFamily: "'Space Mono'", flexShrink: 0,
-                }}>+60</span>
-                <input
-                  type="tel" placeholder="12-345 6789"
-                  value={form.phone || ''}
-                  onChange={e => setForm({ ...form, phone: e.target.value.replace(/[^0-9]/g, '') })}
-                  style={{ flex: 1 }}
-                />
+            <div style={{ marginTop: 14, display: 'flex', gap: 12 }}>
+              <div style={{ flex: 2, minWidth: 0 }}>
+                <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.phoneLabel')}</label>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+                  <span style={{
+                    display: 'flex', alignItems: 'center',
+                    background: '#1a1e20', border: '1px solid var(--border)', borderRadius: 8,
+                    padding: '12px 14px', color: 'var(--text)', fontSize: 14,
+                    fontFamily: "'Space Mono'", flexShrink: 0,
+                  }}>+60</span>
+                  <input
+                    type="tel" placeholder="12-345 6789"
+                    value={form.phone || ''}
+                    onChange={e => setForm({ ...form, phone: e.target.value.replace(/[^0-9]/g, '') })}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                  {t('signup.phoneHint')}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
-                {t('signup.phoneHint')}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.ageLabel')}</label>
+                <input type="number" placeholder="e.g. 22" min="10" max="70"
+                  value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} style={{ width: '100%' }} />
               </div>
             </div>
             <div style={{ marginTop: 14 }}>
@@ -887,11 +893,11 @@ export default function ProfilePage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
-                {saving ? t('profile.form.saving') : t('profile.form.saveChanges')}
-              </button>
               <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '', phone: savedPhone }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
                 {t('profile.form.cancel')}
+              </button>
+              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
+                {saving ? t('profile.form.saving') : t('profile.form.saveChanges')}
               </button>
             </div>
           </div>
