@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached } from '../lib/dataCache';
+import { toCdnUrl } from '../lib/storageCdn';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
@@ -89,7 +90,7 @@ export default function ProfilePage() {
           .map(f => ({
             id: f.name,
             label: f.name.replace(/\.[^.]+$/, '').replace(/-|_/g, ' '),
-            src: supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl,
+            src: toCdnUrl(supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl),
           }));
         setPremiumBgs(bgs);
       });
@@ -221,8 +222,9 @@ export default function ProfilePage() {
     const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, uploadBody, { upsert: true, contentType: file.type, cacheControl: '31536000' });
     if (uploadError) { setSaveMsg(t('profile.errors.uploadFailed')); setUploadingAvatar(false); return; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
-    const { error: updateError } = await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id);
-    if (!updateError) setProfile(prev => ({ ...prev, avatar_url: data.publicUrl }));
+    const cdnUrl = toCdnUrl(data.publicUrl);
+    const { error: updateError } = await supabase.from('profiles').update({ avatar_url: cdnUrl }).eq('id', user.id);
+    if (!updateError) setProfile(prev => ({ ...prev, avatar_url: cdnUrl }));
     setUploadingAvatar(false);
     setShowAvatarModal(false);
     e.target.value = '';

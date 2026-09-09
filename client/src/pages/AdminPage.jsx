@@ -17,6 +17,7 @@ import { RANKS, getRank } from '../lib/rankUtils';
 import { RARITY_COLORS, resolveBorderRender } from '../lib/borderCatalog';
 import { AREAS } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
+import { toCdnUrl } from '../lib/storageCdn';
 import { refundGamePlayers } from '../lib/refundGamePlayers';
 import GameRulesEditor from '../components/GameRulesEditor';
 
@@ -516,7 +517,7 @@ export default function AdminPage() {
     const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingAvatarPreset(false); return; }
     const { data } = supabase.storage.from('avatar-presets').getPublicUrl(filename);
-    const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: data.publicUrl });
+    const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: toCdnUrl(data.publicUrl) });
     if (insertErr) { showError(insertErr.message); setUploadingAvatarPreset(false); return; }
     showSuccess('Avatar added.');
     await fetchAvatarPresetsAdmin();
@@ -561,7 +562,7 @@ export default function AdminPage() {
     const { error: insertErr } = await supabase.from('card_border_catalog').insert({
       key, label: borderForm.label.trim(), rarity: borderForm.rarity,
       unlock_type: borderForm.unlockType, unlock_value: Number(borderForm.unlockValue),
-      unlock_label: borderForm.unlockLabel.trim(), card_image_url: data.publicUrl,
+      unlock_label: borderForm.unlockLabel.trim(), card_image_url: toCdnUrl(data.publicUrl),
     });
     if (insertErr) { showError(insertErr.message); setUploadingBorder(false); return; }
     showSuccess('Border added.');
@@ -592,7 +593,7 @@ export default function AdminPage() {
     const { error: uploadErr } = await supabase.storage.from('card-borders').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingVariant(null); return; }
     const { data } = supabase.storage.from('card-borders').getPublicUrl(filename);
-    const { error: updateErr } = await supabase.from('card_border_catalog').update({ [field]: data.publicUrl }).eq('id', row.id);
+    const { error: updateErr } = await supabase.from('card_border_catalog').update({ [field]: toCdnUrl(data.publicUrl) }).eq('id', row.id);
     if (updateErr) { showError(updateErr.message); setUploadingVariant(null); return; }
     showSuccess('Border art updated.');
     await fetchBorderCatalogAdmin();
@@ -612,7 +613,7 @@ export default function AdminPage() {
       .filter(f => f.name && !f.name.startsWith('.'))
       .map(f => ({
         name: f.name,
-        url: supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl,
+        url: toCdnUrl(supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl),
       }));
     setCardBgs(bgs);
   };
@@ -644,7 +645,7 @@ export default function AdminPage() {
       const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, uploadBody, { contentType: file.type, cacheControl: '31536000' });
       if (uploadError) { showError('Upload failed: ' + uploadError.message); continue; }
       const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
-      uploadedUrls.push(data.publicUrl);
+      uploadedUrls.push(toCdnUrl(data.publicUrl));
     }
     setFieldForm(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
     setUploadingImage(false);
@@ -774,7 +775,7 @@ export default function AdminPage() {
     const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadError) { showError('Upload failed: ' + uploadError.message); setUploadingBannerImg(false); return; }
     const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
-    setBannerForm(prev => ({ ...prev, image_url: data.publicUrl }));
+    setBannerForm(prev => ({ ...prev, image_url: toCdnUrl(data.publicUrl) }));
     setUploadingBannerImg(false);
     e.target.value = '';
   };
