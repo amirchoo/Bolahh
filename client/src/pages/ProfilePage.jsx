@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { getCached, setCached } from '../lib/dataCache';
+import { toCdnUrl } from '../lib/storageCdn';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
@@ -14,7 +15,7 @@ import FifaCard, { calcOverall, AchievementBadgeIcon, BADGE_TYPE_LIST, BADGE_RAR
 import BadgeReorderList from '../components/BadgeReorderList';
 import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
-import { AREAS } from '../lib/areas';
+import { PLAYER_AREAS } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
@@ -108,7 +109,7 @@ export default function ProfilePage() {
           .map(f => ({
             id: f.name,
             label: f.name.replace(/\.[^.]+$/, '').replace(/-|_/g, ' '),
-            src: supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl,
+            src: toCdnUrl(supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl),
           }));
         setPremiumBgs(bgs);
       });
@@ -241,8 +242,9 @@ export default function ProfilePage() {
     const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, uploadBody, { upsert: true, contentType: file.type, cacheControl: '31536000' });
     if (uploadError) { setSaveMsg(t('profile.errors.uploadFailed')); setUploadingAvatar(false); return; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
-    const { error: updateError } = await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id);
-    if (!updateError) setProfile(prev => ({ ...prev, avatar_url: data.publicUrl }));
+    const cdnUrl = toCdnUrl(data.publicUrl);
+    const { error: updateError } = await supabase.from('profiles').update({ avatar_url: cdnUrl }).eq('id', user.id);
+    if (!updateError) setProfile(prev => ({ ...prev, avatar_url: cdnUrl }));
     setUploadingAvatar(false);
     setShowAvatarModal(false);
     e.target.value = '';
@@ -882,7 +884,7 @@ export default function ProfilePage() {
             <div style={{ marginTop: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.areaLabel')}</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {AREAS.map(a => (
+                {PLAYER_AREAS.map(a => (
                   <button key={a} onClick={() => setForm({ ...form, area: form.area === a ? '' : a })} style={{
                     background: form.area === a ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
                     color: form.area === a ? 'var(--accent)' : 'var(--text)',
@@ -917,13 +919,17 @@ export default function ProfilePage() {
         </div>
 
         {/* Wallet */}
-        <div className="fade-up-3" style={{
-          background: 'linear-gradient(135deg, #1c1e21, #27292d)',
-          border: '1px solid rgba(240,157,81,0.25)',
-          borderRadius: 16, padding: '18px 20px', marginBottom: 16,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          position: 'relative', overflow: 'hidden'
-        }}>
+        <div
+          className="fade-up-3"
+          onClick={() => navigate('/wallet')}
+          style={{
+            background: 'linear-gradient(135deg, #1c1e21, #27292d)',
+            border: '1px solid rgba(240,157,81,0.25)',
+            borderRadius: 16, padding: '18px 20px', marginBottom: 16,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            position: 'relative', overflow: 'hidden', cursor: 'pointer'
+          }}
+        >
           <div style={{ position: 'absolute', top: -28, right: -28, width: 110, height: 110, borderRadius: '50%', background: 'rgba(240,157,81,0.06)', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', bottom: -18, right: 64, width: 64, height: 64, borderRadius: '50%', background: 'rgba(240,157,81,0.04)', pointerEvents: 'none' }} />
           <div>
@@ -935,11 +941,11 @@ export default function ProfilePage() {
             </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{t('profile.wallet.balance')}</div>
           </div>
-          <button onClick={() => navigate('/wallet/topup')} style={{
+          <button onClick={e => { e.stopPropagation(); navigate('/wallet/topup'); }} style={{
             background: 'var(--accent)', color: '#fff', border: 'none',
             borderRadius: 10, padding: '10px 20px', fontWeight: 700,
             fontSize: 13, cursor: 'pointer', fontFamily: "'Bebas Neue'",
-            letterSpacing: 1.5, flexShrink: 0, transition: 'opacity 0.15s'
+            letterSpacing: 1.5, flexShrink: 0, transition: 'opacity 0.15s', position: 'relative'
           }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}

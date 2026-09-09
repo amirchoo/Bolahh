@@ -54,6 +54,8 @@ export default function GameFeedbackPage() {
   const [venueRating, setVenueRating] = useState(0);
   const [venueComment, setVenueComment] = useState('');
   const [venueTags, setVenueTags] = useState([]);
+  const [managerRating, setManagerRating] = useState(0);
+  const [managerName, setManagerName] = useState(null);
   const [sportsmanship, setSportsmanship] = useState({});
   const [sportsmanshipTags, setSportsmanshipTags] = useState({});
 
@@ -78,6 +80,13 @@ export default function GameFeedbackPage() {
       .from('games').select('*, fields(name)').eq('id', id).single();
     if (!gameData) { navigate(`/game/${id}`); return; }
     setGame(gameData);
+
+    const managerUserId = gameData.assigned_manager_id || gameData.created_by;
+    if (managerUserId) {
+      const { data: managerProfile } = await supabase
+        .from('profiles').select('name').eq('id', managerUserId).maybeSingle();
+      setManagerName(managerProfile?.name || null);
+    }
 
     const { data: joined } = await supabase
       .from('game_players').select('id').eq('game_id', id).eq('user_id', user.id).maybeSingle();
@@ -139,6 +148,7 @@ export default function GameFeedbackPage() {
         user_id: user.id,
         venue_rating: venueRating,
         venue_comment: venueComment.trim() || null,
+        manager_rating: managerRating || null,
         tags: venueTags,
       });
       if (feedbackError) throw new Error(feedbackError.message);
@@ -260,6 +270,14 @@ export default function GameFeedbackPage() {
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Rate the venue to unlock tags</div>
           )}
         </div>
+
+        {managerName && (
+          <div style={cardStyle}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>HOW WAS YOUR MANAGER?</div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>Optional. Rate {managerName}'s organising — this feeds their manager card.</p>
+            <StarPicker value={managerRating} onChange={setManagerRating} />
+          </div>
+        )}
 
         {players.length > 0 && (
           <div style={cardStyle}>

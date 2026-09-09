@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { IoEye, IoEyeOff, IoMail } from 'react-icons/io5';
 import { useTranslation } from 'react-i18next';
-import { AREAS } from '../lib/areas';
+import { PLAYER_AREAS } from '../lib/areas';
 import AvatarPicker from '../components/AvatarPicker';
 
 const ZONE_CONFIG = [
@@ -150,7 +150,7 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const genders = ['Male', 'Female', 'Rather not say'];
-  const areas = AREAS;
+  const areas = PLAYER_AREAS;
 
   const advance = () => { setStepDir('forward'); setStep(s => s + 1); };
   const goBack  = () => { setError(''); setStepDir('back'); setStep(s => s - 1); };;
@@ -408,7 +408,7 @@ export default function SignupPage() {
                 onSelect={avatar => setForm({ ...form, avatar })}
               />
 
-              <button onClick={() => { setError(''); advance(); }} disabled={!form.avatar} style={{
+              <button onClick={() => { setError(''); advance(); }} style={{
                 width: '100%', marginTop: 24, padding: '14px',
                 background: form.avatar ? 'var(--accent)' : 'var(--card2)',
                 color: form.avatar ? '#fff' : 'var(--muted)',

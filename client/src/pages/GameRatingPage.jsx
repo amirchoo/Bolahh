@@ -599,13 +599,28 @@ export default function GameRatingPage() {
     }
   };
 
+  // A player who's already ranked (played at least one match) can gain at most
+  // this many OVR points in a single match — keeps rank climbs feeling earned
+  // over a season instead of maxing out in a handful of standout games. A
+  // brand-new player's first match (and the quick-rank tool) stays uncapped so
+  // a manager can place them at the rank they actually look like they deserve.
+  const MAX_OVR_GAIN_PER_MATCH = 3;
+
   const updateStat = (uid, key, delta) => {
     const isRanked = (profiles[uid]?.games_played || 0) > 0;
     const baseMin = isRanked ? 0 : (baseRatings[uid]?.[key] || 0);
-    setRatings(prev => ({
-      ...prev,
-      [uid]: { ...prev[uid], [key]: Math.max(baseMin, (prev[uid][key] || 0) + delta) }
-    }));
+    setRatings(prev => {
+      const current = prev[uid] || defaultStats();
+      const candidateVal = Math.max(baseMin, (current[key] || 0) + delta);
+      if (isRanked && delta > 0) {
+        const keys = CARD_STATS.map(s => s.key);
+        const base = baseRatings[uid] || defaultStats();
+        const baseOvr = Math.round(keys.reduce((s, k) => s + (base[k] || 0), 0) / keys.length);
+        const newOvr = Math.round(keys.reduce((s, k) => s + (k === key ? candidateVal : (current[k] || 0)), 0) / keys.length);
+        if (newOvr - baseOvr > MAX_OVR_GAIN_PER_MATCH) return prev;
+      }
+      return { ...prev, [uid]: { ...current, [key]: candidateVal } };
+    });
   };
 
   // Instantly boosts a player to roughly the midpoint OVR of the chosen rank tier —
@@ -615,9 +630,19 @@ export default function GameRatingPage() {
   // (which read as an obviously fake, flat card), then get nudged back toward the
   // target average one stat at a time so the resulting OVR still lands in the
   // chosen tier without erasing the variance the jitter just added.
+  // Only a Novis (unranked) player can be jumped straight to a tier — anyone
+  // already past Novis grinds up via the capped +/- taps instead.
+  const getLiveRankForUid = (uid) => {
+    const stats = ratings[uid] || defaultStats();
+    const liveCardStats = {};
+    CARD_STATS.forEach(({ key, label }) => { liveCardStats[label.toLowerCase()] = Math.max(30, Math.min(99, 30 + (stats[key] || 0))); });
+    return getRank(calcOverall(liveCardStats));
+  };
+
   const applyQuickRank = (uid, rankName) => {
     const rank = RANKS.find(r => r.name === rankName);
     if (!rank) return;
+    if (getLiveRankForUid(uid) !== 'Novis') return;
     const targetTaps = Math.round((rank.minOvr + rank.maxOvr) / 2) - 30;
     const isRanked = (profiles[uid]?.games_played || 0) > 0;
     const TAP_CAP = 69; // stat cap 99, taps are offset above the 30 base
@@ -1421,6 +1446,15 @@ export default function GameRatingPage() {
                       const rt = getCardTheme(liveRank);
                       const isExpanded = expandedUid === uid;
 
+                      // Whether this match's OVR gain has hit the per-match cap —
+                      // drives the "+" buttons going dark and the warning banner below.
+                      const baseCardStats = {};
+                      CARD_STATS.forEach(({ key, label }) => {
+                        baseCardStats[label.toLowerCase()] = Math.max(30, Math.min(99, 30 + (base[key] || 0)));
+                      });
+                      const baseOvr = calcOverall(baseCardStats);
+                      const atMatchCap = isRanked && (liveOvr - baseOvr) >= MAX_OVR_GAIN_PER_MATCH;
+
                       return (
                         <div key={uid} style={{
                           background: rt.bg, border: `${totalDelta !== 0 ? 3 : 2}px solid ${rt.border}`,
@@ -1440,15 +1474,16 @@ export default function GameRatingPage() {
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: rt.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
                               <div
-                                onClick={e => { e.stopPropagation(); setQuickRankUid(quickRankUid === uid ? null : uid); }}
-                                title="Tap for instant rank-up"
+                                onClick={liveRank === 'Novis' ? (e => { e.stopPropagation(); setQuickRankUid(quickRankUid === uid ? null : uid); }) : undefined}
+                                title={liveRank === 'Novis' ? 'Tap for instant rank-up' : undefined}
                                 style={{
                                   fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700,
                                   color: rt.text, background: rt.statBg,
                                   border: `1px solid ${rt.border}`, borderRadius: 5,
                                   padding: '2px 7px', letterSpacing: 0.3,
-                                  display: 'inline-block', marginTop: 3, cursor: 'pointer',
-                                }}>{liveRank.toUpperCase()} · {liveOvr} OVR ⚡</div>
+                                  display: 'inline-block', marginTop: 3,
+                                  cursor: liveRank === 'Novis' ? 'pointer' : 'default',
+                                }}>{liveRank.toUpperCase()} · {liveOvr} OVR{liveRank === 'Novis' ? ' ⚡' : ''}</div>
                             </div>
                             {totalDelta !== 0 && (
                               <div style={{
@@ -1494,6 +1529,16 @@ export default function GameRatingPage() {
 
                           {isExpanded && (
                           <>
+                          {atMatchCap && (
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
+                              background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)',
+                              borderRadius: 8, padding: '6px 9px', fontSize: 11, fontWeight: 600, color: '#f87171',
+                            }}>
+                              <IoCloseCircle size={14} style={{ flexShrink: 0 }} />
+                              Max +{MAX_OVR_GAIN_PER_MATCH} OVR reached for this match — lower another stat to free up room.
+                            </div>
+                          )}
                           {/* 6 stat pads — 3×2 grid with [−] VALUE [+] */}
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                             {CARD_STATS.map(({ key, label }) => {
@@ -1533,9 +1578,10 @@ export default function GameRatingPage() {
                                       }}>{delta > 0 ? `+${delta}` : delta !== 0 ? `${delta}` : '·'}</div>
                                     </div>
                                     <button type="button" onClick={() => updateStat(uid, key, 1)} style={{
-                                      flex: 1, background: 'none', border: 'none', cursor: 'pointer',
-                                      color: '#4ade80', fontSize: 15, fontWeight: 700,
-                                      padding: '3px 0', lineHeight: 1,
+                                      flex: 1, background: 'none', border: 'none',
+                                      cursor: atMatchCap ? 'default' : 'pointer',
+                                      color: atMatchCap ? rt.muted : '#4ade80', fontSize: 15, fontWeight: 700,
+                                      padding: '3px 0', lineHeight: 1, opacity: atMatchCap ? 0.35 : 1,
                                     }}>+</button>
                                   </div>
                                   <div style={{ height: 5 }} />

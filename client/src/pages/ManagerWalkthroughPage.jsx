@@ -5,7 +5,7 @@ import TutorialModal from '../components/TutorialModal';
 import { RANKS, getRank, getRankColor } from '../lib/rankUtils';
 import { calcOverall, getCardTheme } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
-import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown, IoHelpCircleOutline } from 'react-icons/io5';
+import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown, IoHelpCircleOutline, IoCloseCircle } from 'react-icons/io5';
 import { GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
 
@@ -691,17 +691,24 @@ export default function ManagerWalkthroughPage() {
   const takenBibs = (team, excludeUid) =>
     PLAYER_IDS.filter((uid) => uid !== excludeUid && teamAssign[uid] === team).map((uid) => bibAssign[uid]);
 
+  // Mirrors GameRatingPage.jsx's per-match OVR gain cap.
+  const MAX_OVR_GAIN_PER_MATCH = 3;
+
   const updateStat = (uid, key, delta) => {
     const isRanked = (MOCK_PROFILES[uid]?.games_played || 0) > 0;
     const baseMin = isRanked ? 0 : (MOCK_BASE_TAPS[uid]?.[key] || 0);
-    setRatings((prev) => ({
-      ...prev,
-      [uid]: {
-        ...(prev[uid] || defaultStats()),
-        [key]: Math.max(baseMin, (prev[uid]?.[key] || 0) + delta),
-        touched: true,
-      },
-    }));
+    setRatings((prev) => {
+      const current = prev[uid] || defaultStats();
+      const candidateVal = Math.max(baseMin, (current[key] || 0) + delta);
+      if (isRanked && delta > 0) {
+        const keys = CARD_STATS.map((s) => s.key);
+        const base = MOCK_BASE_TAPS[uid] || defaultStats();
+        const baseOvr = Math.round(keys.reduce((s, k) => s + (base[k] || 0), 0) / keys.length);
+        const newOvr = Math.round(keys.reduce((s, k) => s + (k === key ? candidateVal : (current[k] || 0)), 0) / keys.length);
+        if (newOvr - baseOvr > MAX_OVR_GAIN_PER_MATCH) return prev;
+      }
+      return { ...prev, [uid]: { ...current, [key]: candidateVal, touched: true } };
+    });
   };
 
   // Instantly boosts a player to roughly the midpoint OVR of the chosen rank
@@ -710,9 +717,20 @@ export default function ManagerWalkthroughPage() {
   // Stats get random jitter around the target rather than all landing on the
   // same number, then get nudged back toward the target average one stat at
   // a time. Mirrors GameRatingPage.jsx.
+  // Only a Novis (unranked) player can be jumped straight to a tier — anyone
+  // already past Novis grinds up via the capped +/- taps instead. Mirrors
+  // GameRatingPage.jsx.
+  const getLiveRankForUid = (uid) => {
+    const stats = ratings[uid] || defaultStats();
+    const liveCardStats = {};
+    CARD_STATS.forEach(({ key, label }) => { liveCardStats[label.toLowerCase()] = Math.max(30, Math.min(99, 30 + (stats[key] || 0))); });
+    return getRank(calcOverall(liveCardStats));
+  };
+
   const applyQuickRank = (uid, rankName) => {
     const rank = RANKS.find((r) => r.name === rankName);
     if (!rank) return;
+    if (getLiveRankForUid(uid) !== 'Novis') return;
     const targetTaps = Math.round((rank.minOvr + rank.maxOvr) / 2) - 30;
     const isRanked = (MOCK_PROFILES[uid]?.games_played || 0) > 0;
     const TAP_CAP = 69;
@@ -1412,6 +1430,13 @@ export default function ManagerWalkthroughPage() {
                       const rt = getCardTheme(liveRank);
                       const isExpanded = expandedUid === uid;
 
+                      const baseCardStats = {};
+                      CARD_STATS.forEach(({ key, label }) => {
+                        baseCardStats[label.toLowerCase()] = Math.max(30, Math.min(99, 30 + (base[key] || 0)));
+                      });
+                      const baseOvr = calcOverall(baseCardStats);
+                      const atMatchCap = isRanked && (liveOvr - baseOvr) >= MAX_OVR_GAIN_PER_MATCH;
+
                       return (
                         <div key={uid} style={{ background: rt.bg, border: `${totalDelta !== 0 ? 3 : 2}px solid ${rt.border}`, borderRadius: 12, padding: 12, marginBottom: 10, transition: 'border-color 0.15s, background 0.2s' }}>
                           <div onClick={() => setExpandedUid(isExpanded ? null : uid)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: isExpanded ? 10 : 0 }}>
@@ -1419,9 +1444,9 @@ export default function ManagerWalkthroughPage() {
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: rt.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
                               <div
-                                onClick={(e) => { e.stopPropagation(); setQuickRankUid(quickRankUid === uid ? null : uid); }}
-                                title="Tap for instant rank-up"
-                                style={{ fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, color: rt.text, background: rt.statBg, border: `1px solid ${rt.border}`, borderRadius: 5, padding: '2px 7px', letterSpacing: 0.3, display: 'inline-block', marginTop: 3, cursor: 'pointer' }}>{liveRank.toUpperCase()} · {liveOvr} OVR ⚡</div>
+                                onClick={liveRank === 'Novis' ? ((e) => { e.stopPropagation(); setQuickRankUid(quickRankUid === uid ? null : uid); }) : undefined}
+                                title={liveRank === 'Novis' ? 'Tap for instant rank-up' : undefined}
+                                style={{ fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, color: rt.text, background: rt.statBg, border: `1px solid ${rt.border}`, borderRadius: 5, padding: '2px 7px', letterSpacing: 0.3, display: 'inline-block', marginTop: 3, cursor: liveRank === 'Novis' ? 'pointer' : 'default' }}>{liveRank.toUpperCase()} · {liveOvr} OVR{liveRank === 'Novis' ? ' ⚡' : ''}</div>
                             </div>
                             {totalDelta !== 0 && <div style={{ fontFamily: "'Space Mono'", fontSize: 10, fontWeight: 700, color: totalDelta > 0 ? '#4ade80' : '#f87171', background: totalDelta > 0 ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)', border: `1px solid ${totalDelta > 0 ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'}`, borderRadius: 5, padding: '2px 6px', flexShrink: 0 }}>{totalDelta > 0 ? `+${totalDelta}` : totalDelta}</div>}
                             <IoChevronDown size={16} style={{ color: rt.text, flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
@@ -1452,6 +1477,13 @@ export default function ManagerWalkthroughPage() {
                           )}
 
                           {isExpanded && (
+                            <>
+                            {atMatchCap && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '6px 9px', fontSize: 11, fontWeight: 600, color: '#f87171' }}>
+                                <IoCloseCircle size={14} style={{ flexShrink: 0 }} />
+                                Max +{MAX_OVR_GAIN_PER_MATCH} OVR reached for this match — lower another stat to free up room.
+                              </div>
+                            )}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                               {CARD_STATS.map(({ key, label }) => {
                                 const taps = stats[key] || 0;
@@ -1468,13 +1500,14 @@ export default function ManagerWalkthroughPage() {
                                         <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, lineHeight: 1, color: delta !== 0 ? rt.text : rt.muted }}>{cardVal}</div>
                                         <div style={{ fontFamily: "'Space Mono'", fontSize: 8, fontWeight: 700, lineHeight: 1.5, color: delta > 0 ? '#4ade80' : delta < 0 ? '#f87171' : 'transparent' }}>{delta > 0 ? `+${delta}` : delta !== 0 ? `${delta}` : '·'}</div>
                                       </div>
-                                      <button type="button" onClick={() => updateStat(uid, key, 1)} style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', color: '#4ade80', fontSize: 15, fontWeight: 700, padding: '3px 0', lineHeight: 1 }}>+</button>
+                                      <button type="button" onClick={() => updateStat(uid, key, 1)} style={{ flex: 1, background: 'none', border: 'none', cursor: atMatchCap ? 'default' : 'pointer', color: atMatchCap ? rt.muted : '#4ade80', fontSize: 15, fontWeight: 700, padding: '3px 0', lineHeight: 1, opacity: atMatchCap ? 0.35 : 1 }}>+</button>
                                     </div>
                                     <div style={{ height: 5 }} />
                                   </div>
                                 );
                               })}
                             </div>
+                            </>
                           )}
                         </div>
                       );
@@ -1534,6 +1567,9 @@ export default function ManagerWalkthroughPage() {
                     <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
                       Only taps that change something matter — leave a player untouched and nothing's recorded for them.
                     </p>
+                    <p style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6, marginTop: 8 }}>
+                      Anyone past Novis caps out at <strong>+3 OVR per match</strong> — taps stop applying past that so rank climbs stay a season-long grind, not a one-game jump. Only a Novis player can be instant ranked up.
+                    </p>
                   </div>
                 ),
               },
@@ -1543,7 +1579,7 @@ export default function ManagerWalkthroughPage() {
                 content: (
                   <div>
                     <p style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.6, marginBottom: 12 }}>
-                      Obviously stronger than their card shows? Tap a player's rank badge for quick tier options — one tap jumps their stats close to that tier, with a little natural variance so it doesn't look flat.
+                      For a brand-new Novis player who's obviously stronger than their card shows, tap their rank badge for quick tier options — one tap jumps their stats close to that tier, with a little natural variance so it doesn't look flat. Once they're past Novis, the badge stops offering this — from there they only climb through capped match-by-match taps.
                     </p>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {['Gangsa I', 'Perak II', 'Emas III', 'Emas I'].map((r) => {

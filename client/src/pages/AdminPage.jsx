@@ -7,7 +7,7 @@ import { GiRunningShoe, GiSoccerBall } from 'react-icons/gi';
 import { FaSquareParking, FaLocationDot, FaMedal } from 'react-icons/fa6';
 import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
-import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch } from 'react-icons/io5';
+import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoMegaphone, IoMailUnread, IoMenu, IoWallet } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
 import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -16,6 +16,7 @@ import { drawCardImage } from '../lib/cardCanvas';
 import { RANKS, getRank } from '../lib/rankUtils';
 import { AREAS } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
+import { toCdnUrl } from '../lib/storageCdn';
 import { refundGamePlayers } from '../lib/refundGamePlayers';
 import GameRulesEditor from '../components/GameRulesEditor';
 
@@ -37,6 +38,7 @@ const EMPTY_GAME_FORM = {
 export default function AdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = usePersistedState('admin_tab', 'fields');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState('');
@@ -87,6 +89,7 @@ export default function AdminPage() {
   // ── Avatar presets state ──────────────────────────────
   const [avatarPresets, setAvatarPresets] = useState([]);
   const [uploadingAvatarPreset, setUploadingAvatarPreset] = useState(false);
+  const [uploadingManagerCard, setUploadingManagerCard] = useState(null); // manager id currently uploading
 
   // ── Field form state ──────────────────────────────────
   const [fieldForm, setFieldForm] = useState({
@@ -117,6 +120,22 @@ export default function AdminPage() {
   const [loadingPastCard, setLoadingPastCard] = useState(false);
   const [pastCardHasHistory, setPastCardHasHistory] = useState(true);
 
+  // ── Wallet Adjustment state ────────────────────────────
+  // Money-moving tab — gated by SuperAdminRoute client-side AND by the
+  // "Super admins can update any profile" RLS policy server-side (same
+  // double-gate the Managers/Player Stats tabs already rely on).
+  const [walletQuery, setWalletQuery] = useState('');
+  const [walletResults, setWalletResults] = useState([]);
+  const [walletSearching, setWalletSearching] = useState(false);
+  const [selectedWalletPlayer, setSelectedWalletPlayer] = useState(null);
+  const [walletTxHistory, setWalletTxHistory] = useState([]);
+  const [loadingWalletTx, setLoadingWalletTx] = useState(false);
+  const [adjustDirection, setAdjustDirection] = useState('add'); // 'add' | 'deduct'
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustingWallet, setAdjustingWallet] = useState(false);
+  const [showAdjustConfirm, setShowAdjustConfirm] = useState(false);
+
   // ── Games state ────────────────────────────────────────
   const [games, setGames] = useState([]);
   const [gameForm, setGameForm] = useState(EMPTY_GAME_FORM);
@@ -137,7 +156,7 @@ export default function AdminPage() {
 
   // ── Managers ───────────────────────────────────────────
   const fetchManagers = async () => {
-    const { data: mgrs } = await supabase.from('profiles').select('id, name, avatar_url').eq('is_admin', true).order('name');
+    const { data: mgrs } = await supabase.from('profiles').select('id, name, avatar_url, manager_card_avatar_url').eq('is_admin', true).order('name');
     if (!mgrs) { setManagers([]); return; }
     const ids = mgrs.map(m => m.id);
     const { data: gamesData } = ids.length
@@ -277,6 +296,24 @@ export default function AdminPage() {
     fetchManagers();
   };
 
+  const handleManagerCardAvatarUpload = async (e, managerId) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingManagerCard(managerId);
+    const ext = file.name.split('.').pop();
+    const filename = `manager-cards/${managerId}-${Date.now()}.${ext}`;
+    const uploadBody = await resizeImageFile(file).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('avatars').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
+    if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingManagerCard(null); return; }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(filename);
+    const { error: updateErr } = await supabase.from('profiles').update({ manager_card_avatar_url: toCdnUrl(data.publicUrl) }).eq('id', managerId);
+    if (updateErr) { showError(updateErr.message); setUploadingManagerCard(null); return; }
+    showSuccess('Manager card avatar updated.');
+    await fetchManagers();
+    setUploadingManagerCard(null);
+    e.target.value = '';
+  };
+
   // ── Player Stats (manual card editor) ─────────────────
   const handleStatsSearch = async (q) => {
     setStatsQuery(q);
@@ -353,6 +390,90 @@ export default function AdminPage() {
     setSelectedStatsPlayer(prev => prev ? { ...prev, card_stats: cardStats, total_points: newOverall, achievement_badges: achievementBadges } : prev);
   };
 
+  // ── Wallet Adjustment ──────────────────────────────────
+  const handleWalletSearch = async (q) => {
+    setWalletQuery(q);
+    if (!q.trim()) { setWalletResults([]); return; }
+    setWalletSearching(true);
+    const { data } = await supabase
+      .from('profiles').select('id, name, email, avatar_url, wallet_balance')
+      .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(10);
+    setWalletResults(data || []);
+    setWalletSearching(false);
+  };
+
+  const handleSelectWalletPlayer = async (p) => {
+    setWalletQuery(''); setWalletResults([]);
+    setAdjustAmount(''); setAdjustReason(''); setAdjustDirection('add'); setShowAdjustConfirm(false);
+    setSelectedWalletPlayer(p);
+    setLoadingWalletTx(true);
+    const [{ data: fresh }, { data: tx }] = await Promise.all([
+      supabase.from('profiles').select('id, name, email, avatar_url, wallet_balance').eq('id', p.id).single(),
+      supabase.from('wallet_transactions').select('*').eq('user_id', p.id).order('created_at', { ascending: false }).limit(15),
+    ]);
+    if (fresh) setSelectedWalletPlayer(fresh);
+    setWalletTxHistory(tx || []);
+    setLoadingWalletTx(false);
+  };
+
+  const parsedAdjustAmount = Math.round((parseFloat(adjustAmount) || 0) * 100) / 100;
+  const canRequestAdjust = !!selectedWalletPlayer && parsedAdjustAmount > 0 && adjustReason.trim().length >= 5 &&
+    (adjustDirection === 'add' || parsedAdjustAmount <= (selectedWalletPlayer?.wallet_balance || 0));
+
+  const handleConfirmAdjustWallet = async () => {
+    if (!selectedWalletPlayer || !(parsedAdjustAmount > 0) || adjustReason.trim().length < 5) return;
+    setAdjustingWallet(true);
+    setError('');
+
+    // Re-fetch the live balance right before writing — never trust the number shown on
+    // screen, it may be stale if the player topped up or spent while this was open.
+    const { data: fresh } = await supabase
+      .from('profiles').select('wallet_balance').eq('id', selectedWalletPlayer.id).single();
+    const freshBalance = fresh?.wallet_balance || 0;
+    const delta = adjustDirection === 'add' ? parsedAdjustAmount : -parsedAdjustAmount;
+
+    if (adjustDirection === 'deduct' && parsedAdjustAmount > freshBalance) {
+      setAdjustingWallet(false);
+      setShowAdjustConfirm(false);
+      showError(`Can't deduct RM ${parsedAdjustAmount.toFixed(2)} — current balance is only RM ${freshBalance.toFixed(2)}.`);
+      return;
+    }
+
+    const newBalance = parseFloat((freshBalance + delta).toFixed(2));
+    const adminUser = (await supabase.auth.getUser()).data.user;
+    const reasonText = adjustReason.trim();
+
+    const { error: balErr, count } = await supabase
+      .from('profiles').update({ wallet_balance: newBalance }, { count: 'exact' }).eq('id', selectedWalletPlayer.id);
+    if (balErr || count === 0) {
+      setAdjustingWallet(false);
+      showError(balErr?.message || 'Update blocked by RLS. Confirm this account has super-admin access.');
+      return;
+    }
+
+    // amount is signed for this type (positive = credit, negative = debit) — unlike
+    // topup/refund/payment, which are always-positive amounts whose sign is implied by type.
+    const description = `Admin ${adjustDirection === 'add' ? 'credit' : 'debit'} by ${adminUser?.email || 'admin'}: ${reasonText}`;
+    const { data: txRow } = await supabase.from('wallet_transactions').insert({
+      user_id: selectedWalletPlayer.id,
+      type: 'admin_adjustment',
+      amount: delta,
+      description,
+      balance_after: newBalance,
+    }).select('*').single();
+
+    setAdjustingWallet(false);
+    setShowAdjustConfirm(false);
+    setSelectedWalletPlayer(prev => prev ? { ...prev, wallet_balance: newBalance } : prev);
+    setWalletTxHistory(prev => [txRow || {
+      id: `local-${Date.now()}`, type: 'admin_adjustment', amount: delta, balance_after: newBalance,
+      description, created_at: new Date().toISOString(),
+    }, ...prev]);
+    setAdjustAmount(''); setAdjustReason('');
+    showSuccess(`RM ${parsedAdjustAmount.toFixed(2)} ${adjustDirection === 'add' ? 'added to' : 'deducted from'} ${selectedWalletPlayer.name}'s wallet.`);
+  };
+
   const fetchGameRequests = async () => {
     const { data } = await supabase.from('game_requests').select('*').order('created_at', { ascending: false });
     if (data) setGameRequests(data);
@@ -416,7 +537,7 @@ export default function AdminPage() {
     const { error: uploadErr } = await supabase.storage.from('avatar-presets').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingAvatarPreset(false); return; }
     const { data } = supabase.storage.from('avatar-presets').getPublicUrl(filename);
-    const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: data.publicUrl });
+    const { error: insertErr } = await supabase.from('avatar_presets').insert({ image_url: toCdnUrl(data.publicUrl) });
     if (insertErr) { showError(insertErr.message); setUploadingAvatarPreset(false); return; }
     showSuccess('Avatar added.');
     await fetchAvatarPresetsAdmin();
@@ -446,7 +567,7 @@ export default function AdminPage() {
       .filter(f => f.name && !f.name.startsWith('.'))
       .map(f => ({
         name: f.name,
-        url: supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl,
+        url: toCdnUrl(supabase.storage.from('card-backgrounds').getPublicUrl(f.name).data.publicUrl),
       }));
     setCardBgs(bgs);
   };
@@ -478,7 +599,7 @@ export default function AdminPage() {
       const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, uploadBody, { contentType: file.type, cacheControl: '31536000' });
       if (uploadError) { showError('Upload failed: ' + uploadError.message); continue; }
       const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
-      uploadedUrls.push(data.publicUrl);
+      uploadedUrls.push(toCdnUrl(data.publicUrl));
     }
     setFieldForm(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
     setUploadingImage(false);
@@ -608,7 +729,7 @@ export default function AdminPage() {
     const { error: uploadError } = await supabase.storage.from('field-images').upload(fileName, uploadBody, { contentType: file.type, cacheControl: '31536000' });
     if (uploadError) { showError('Upload failed: ' + uploadError.message); setUploadingBannerImg(false); return; }
     const { data } = supabase.storage.from('field-images').getPublicUrl(fileName);
-    setBannerForm(prev => ({ ...prev, image_url: data.publicUrl }));
+    setBannerForm(prev => ({ ...prev, image_url: toCdnUrl(data.publicUrl) }));
     setUploadingBannerImg(false);
     e.target.value = '';
   };
@@ -647,18 +768,67 @@ export default function AdminPage() {
   const checkboxLabel = { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--text)', cursor: 'pointer' };
   const sectionCard = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 20 };
 
-  const TABS = [
-    { key: 'managers',    label: 'Managers'    },
-    { key: 'playerstats', label: 'Player Stats' },
-    { key: 'games',       label: 'Games'       },
-    { key: 'banners',     label: 'Banners'     },
-    { key: 'fields',      label: 'Fields'      },
-    { key: 'backgrounds', label: 'Card BG'     },
-    { key: 'cardmaker',   label: 'Card Maker'  },
-    { key: 'coupons',     label: 'Coupons'     },
-    { key: 'avatars',     label: 'Avatars'     },
-    { key: 'requests',    label: 'Game Requests' },
+  const TAB_GROUPS = [
+    {
+      label: 'Operations',
+      tabs: [
+        { key: 'games',    label: 'Games',    icon: GiSoccerBall },
+        { key: 'managers', label: 'Managers', icon: IoPeople },
+        { key: 'wallet',   label: 'Wallet',   icon: IoWallet },
+        { key: 'fields',   label: 'Fields',   icon: MdOutlineStadium },
+        { key: 'requests', label: 'Game Requests', icon: IoMailUnread, badge: gameRequests.length },
+      ],
+    },
+    {
+      label: 'Player Cards',
+      tabs: [
+        { key: 'playerstats', label: 'Player Stats',     icon: IoStatsChart },
+        { key: 'cardmaker',   label: 'Card Maker',       icon: IoCard },
+        { key: 'backgrounds', label: 'Card Backgrounds', icon: IoImages },
+        { key: 'avatars',     label: 'Avatars',          icon: IoPersonCircle },
+      ],
+    },
+    {
+      label: 'Marketing',
+      tabs: [
+        { key: 'banners', label: 'Banners', icon: IoMegaphone },
+        { key: 'coupons', label: 'Coupons', icon: LuTag },
+      ],
+    },
   ];
+  const activeTabMeta = TAB_GROUPS.flatMap(g => g.tabs).find(t => t.key === activeTab);
+
+  const navGroupLabelStyle = { fontSize: 11, color: 'var(--muted)', letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: 700, padding: '0 12px', marginBottom: 6 };
+  const navItemStyle = (active) => ({
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8,
+    fontSize: 13, fontWeight: 500, width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer',
+    background: active ? 'var(--accent)' : 'transparent', color: active ? '#fff' : 'var(--muted)',
+  });
+
+  const renderNavGroups = (onNavigate) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {TAB_GROUPS.map(group => (
+        <div key={group.label}>
+          <div style={navGroupLabelStyle}>{group.label}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {group.tabs.map(tab => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.key;
+              return (
+                <button key={tab.key} onClick={() => { setActiveTab(tab.key); onNavigate(); }} style={navItemStyle(active)}>
+                  <Icon size={16} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{tab.label}</span>
+                  {!!tab.badge && (
+                    <span style={{ background: active ? 'rgba(255,255,255,0.25)' : 'rgba(240,157,81,0.15)', color: active ? '#fff' : 'var(--accent)', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono'" }}>{tab.badge}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   // Same MYT-relative "is this game still upcoming" check ManagerPage uses.
   const isUpcomingGame = (g) => {
@@ -802,7 +972,15 @@ export default function AdminPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div className="page-wrap" style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 1300, margin: '0 auto', padding: '32px 24px' }}>
+        <style>{`
+          .admin-sidebar { display: flex; }
+          .admin-mobile-nav-trigger { display: none; }
+          @media (max-width: 880px) {
+            .admin-sidebar { display: none; }
+            .admin-mobile-nav-trigger { display: flex; }
+          }
+        `}</style>
 
         <div className="fade-up" style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
@@ -828,13 +1006,10 @@ export default function AdminPage() {
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Managers',            val: managers.length,  icon: <IoPeople size={24} color="var(--accent)" /> },
-            { label: 'Total Games',         val: games.length,     icon: <GiSoccerBall size={24} color="var(--accent)" /> },
-            { label: 'Active Banners',       val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
-            { label: 'Total Fields',       val: fields.length,    icon: <MdOutlineStadium /> },
-            { label: 'Card Backgrounds',   val: cardBgs.length,   icon: <IoImages size={24} color="var(--accent)" /> },
-            { label: 'Game Requests',       val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
-            { label: 'Avatar Presets',      val: avatarPresets.length, icon: <IoImages size={24} color="var(--accent)" /> },
+            { label: 'Upcoming Games',  val: games.filter(isUpcomingGame).length, icon: <GiSoccerBall size={24} color="var(--accent)" /> },
+            { label: 'Active Managers', val: managers.length, icon: <IoPeople size={24} color="var(--accent)" /> },
+            { label: 'Pending Requests', val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
+            { label: 'Active Banners',  val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
@@ -855,17 +1030,21 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          {TABS.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              background: activeTab === tab.key ? 'var(--accent)' : 'var(--card)',
-              color: activeTab === tab.key ? '#fff' : 'var(--muted)',
-              border: `1px solid ${activeTab === tab.key ? 'var(--accent)' : 'var(--border)'}`,
-              borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 600,
-              transition: 'all 0.15s'
-            }}>{tab.label}</button>
-          ))}
-        </div>
+        <button className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} style={{
+          width: '100%', alignItems: 'center', gap: 8, background: 'var(--card)',
+          border: '1px solid var(--border)', borderRadius: 10, padding: '11px 14px',
+          color: 'var(--text)', fontSize: 13, fontWeight: 600, marginBottom: 20,
+        }}>
+          <IoMenu size={17} />
+          {activeTabMeta?.label || 'Menu'}
+        </button>
+
+        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+          <div className="admin-sidebar" style={{ width: 216, flexShrink: 0, flexDirection: 'column', position: 'sticky', top: 20 }}>
+            {renderNavGroups(() => {})}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
 
         {/* ── MANAGERS TAB ── */}
         {activeTab === 'managers' && (
@@ -936,7 +1115,7 @@ export default function AdminPage() {
                       }}>Remove</button>
                     </div>
                     {upcoming.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 46 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 46, marginBottom: 12 }}>
                         {upcoming.map(g => (
                           <div key={g.id} style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <FaLocationDot size={10} />
@@ -946,6 +1125,25 @@ export default function AdminPage() {
                         ))}
                       </div>
                     )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 46, marginTop: 10 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', background: 'var(--card2)',
+                        border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700, color: 'var(--muted)', overflow: 'hidden', flexShrink: 0
+                      }}>
+                        {m.manager_card_avatar_url ? <img src={m.manager_card_avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (m.name?.[0] || '?').toUpperCase()}
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>Manager card avatar</span>
+                      <label style={{
+                        background: 'var(--card2)', color: 'var(--accent)', border: '1px solid var(--border)',
+                        borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        opacity: uploadingManagerCard === m.id ? 0.6 : 1,
+                      }}>
+                        {uploadingManagerCard === m.id ? 'Uploading…' : 'Change'}
+                        <input type="file" accept="image/*" hidden disabled={uploadingManagerCard === m.id}
+                          onChange={e => handleManagerCardAvatarUpload(e, m.id)} />
+                      </label>
+                    </div>
                   </div>
                 );
               })}
@@ -1146,6 +1344,211 @@ export default function AdminPage() {
                   })()}
                 </div>
 
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── WALLET TAB ── */}
+        {activeTab === 'wallet' && (
+          <div>
+            <div style={sectionCard}>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>
+                CHECK / ADJUST WALLET BALANCE
+              </h3>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>
+                Search a player by name or email to view their live wallet balance and full transaction history, or apply a manual credit/debit. Every adjustment is logged with your account and a required reason.
+              </p>
+              <div style={{ position: 'relative', marginBottom: 12 }}>
+                <IoSearch size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+                <input
+                  placeholder="Search by name or email..." value={walletQuery}
+                  onChange={e => handleWalletSearch(e.target.value)}
+                  style={{ paddingLeft: 32 }}
+                />
+              </div>
+              {walletSearching && <div style={{ color: 'var(--muted)', fontSize: 13 }}>Searching...</div>}
+              {!walletSearching && walletQuery && walletResults.length === 0 && (
+                <div style={{ color: 'var(--muted)', fontSize: 13 }}>No players found for "{walletQuery}"</div>
+              )}
+              {walletResults.map(p => (
+                <div key={p.id} onClick={() => handleSelectWalletPlayer(p)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--border)', cursor: 'pointer' }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', flexShrink: 0
+                  }}>
+                    {p.avatar_url ? <img src={p.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p.name?.[0] || '?').toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{p.name || 'Unnamed'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email}</div>
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--accent)', fontFamily: "'Space Mono'", fontWeight: 700, flexShrink: 0 }}>RM {(p.wallet_balance || 0).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
+            {selectedWalletPlayer && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 20 }} className="wallet-adjust-layout">
+                <style>{`@media (max-width: 860px) { .wallet-adjust-layout { grid-template-columns: 1fr !important; } }`}</style>
+
+                {/* Player + adjust form */}
+                <div style={sectionCard}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%', background: 'var(--accent)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', flexShrink: 0
+                      }}>
+                        {selectedWalletPlayer.avatar_url ? <img src={selectedWalletPlayer.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (selectedWalletPlayer.name?.[0] || '?').toUpperCase()}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{selectedWalletPlayer.name || 'Unnamed'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{selectedWalletPlayer.email}</div>
+                      </div>
+                    </div>
+                    <button onClick={() => { setSelectedWalletPlayer(null); setWalletTxHistory([]); }} style={{
+                      background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)',
+                      borderRadius: 8, padding: '5px 12px', fontSize: 12, flexShrink: 0,
+                    }}>Close</button>
+                  </div>
+
+                  <div style={{
+                    background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 12,
+                    padding: '14px 16px', marginBottom: 18, textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>CURRENT BALANCE</div>
+                    <div style={{ fontFamily: "'Bebas Neue'", fontSize: 30, letterSpacing: 1, color: 'var(--accent)' }}>
+                      RM {(selectedWalletPlayer.wallet_balance || 0).toFixed(2)}
+                    </div>
+                  </div>
+
+                  {!showAdjustConfirm ? (
+                    <>
+                      <label style={labelStyle}>ADJUSTMENT</label>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                        {[{ key: 'add', label: '+ Add funds' }, { key: 'deduct', label: '− Deduct funds' }].map(opt => (
+                          <button key={opt.key} onClick={() => setAdjustDirection(opt.key)} style={{
+                            flex: 1, padding: '10px 8px',
+                            background: adjustDirection === opt.key ? (opt.key === 'add' ? 'rgba(74,222,128,0.1)' : 'rgba(240,101,67,0.1)') : 'var(--card2)',
+                            color: adjustDirection === opt.key ? (opt.key === 'add' ? '#4ade80' : 'var(--red)') : 'var(--muted)',
+                            border: `1.5px solid ${adjustDirection === opt.key ? (opt.key === 'add' ? '#4ade80' : 'var(--red)') : 'var(--border)'}`,
+                            borderRadius: 10, fontSize: 13, fontWeight: 700,
+                          }}>{opt.label}</button>
+                        ))}
+                      </div>
+                      <label style={labelStyle}>AMOUNT (RM)</label>
+                      <input
+                        type="number" min="0.01" step="0.01" placeholder="0.00"
+                        value={adjustAmount} onChange={e => setAdjustAmount(e.target.value)}
+                        style={{ marginBottom: 12 }}
+                      />
+                      <label style={labelStyle}>REASON (required — shown in audit log)</label>
+                      <textarea
+                        placeholder="e.g. Top-up paid via bank transfer, ToyyibPay didn't credit — ref #12345"
+                        value={adjustReason} onChange={e => setAdjustReason(e.target.value)}
+                        rows={3} style={{ resize: 'vertical', marginBottom: 14 }}
+                      />
+                      {adjustDirection === 'deduct' && parsedAdjustAmount > (selectedWalletPlayer.wallet_balance || 0) && (
+                        <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 12 }}>
+                          Amount exceeds current balance.
+                        </div>
+                      )}
+                      <button
+                        onClick={() => setShowAdjustConfirm(true)}
+                        disabled={!canRequestAdjust}
+                        style={{
+                          width: '100%', padding: '12px', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+                          background: canRequestAdjust ? 'var(--accent)' : 'var(--card2)',
+                          color: canRequestAdjust ? '#fff' : 'var(--muted)',
+                          cursor: canRequestAdjust ? 'pointer' : 'not-allowed',
+                        }}
+                      >Review Adjustment</button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{
+                        background: adjustDirection === 'add' ? 'rgba(74,222,128,0.07)' : 'rgba(240,101,67,0.07)',
+                        border: `1px solid ${adjustDirection === 'add' ? 'rgba(74,222,128,0.3)' : 'rgba(240,101,67,0.3)'}`,
+                        borderRadius: 12, padding: '16px 18px', marginBottom: 16,
+                      }}>
+                        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 1, color: 'var(--text)', marginBottom: 10 }}>
+                          CONFIRM {adjustDirection === 'add' ? 'CREDIT' : 'DEBIT'}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                          <span style={{ color: 'var(--muted)' }}>Player</span>
+                          <span style={{ color: 'var(--text)', fontWeight: 600 }}>{selectedWalletPlayer.name}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                          <span style={{ color: 'var(--muted)' }}>Amount</span>
+                          <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: adjustDirection === 'add' ? '#4ade80' : 'var(--red)' }}>
+                            {adjustDirection === 'add' ? '+' : '−'} RM {parsedAdjustAmount.toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10 }}>
+                          <span style={{ color: 'var(--muted)' }}>New balance</span>
+                          <span style={{ fontFamily: "'Space Mono'", fontWeight: 700, color: 'var(--text)' }}>
+                            RM {((selectedWalletPlayer.wallet_balance || 0) + (adjustDirection === 'add' ? parsedAdjustAmount : -parsedAdjustAmount)).toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                          "{adjustReason.trim()}"
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={handleConfirmAdjustWallet}
+                          disabled={adjustingWallet}
+                          style={{
+                            flex: 1, padding: '12px', background: 'var(--accent)', color: '#fff',
+                            border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
+                            opacity: adjustingWallet ? 0.6 : 1, cursor: adjustingWallet ? 'not-allowed' : 'pointer',
+                          }}
+                        >{adjustingWallet ? 'Applying…' : 'Confirm — Apply Now'}</button>
+                        <button
+                          onClick={() => setShowAdjustConfirm(false)}
+                          disabled={adjustingWallet}
+                          style={{
+                            flex: 1, padding: '12px', background: 'transparent', color: 'var(--muted)',
+                            border: '1px solid var(--border)', borderRadius: 10, fontSize: 14,
+                          }}
+                        >Back</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Transaction history */}
+                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', height: 'fit-content' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                    Recent Transactions
+                  </div>
+                  {loadingWalletTx ? (
+                    <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Loading…</div>
+                  ) : walletTxHistory.length === 0 ? (
+                    <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No transactions yet.</div>
+                  ) : walletTxHistory.map((tx, i) => {
+                    const credit = tx.type === 'topup' || tx.type === 'refund' || (tx.type === 'admin_adjustment' && tx.amount > 0);
+                    return (
+                      <div key={tx.id} style={{ padding: '12px 20px', borderBottom: i < walletTxHistory.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, textTransform: 'capitalize' }}>{tx.type?.replace('_', ' ')}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, wordBreak: 'break-word' }}>{tx.description}</div>
+                            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>{new Date(tx.created_at).toLocaleString('en-MY')}</div>
+                          </div>
+                          <span style={{
+                            fontFamily: "'Space Mono'", fontWeight: 700, fontSize: 13, flexShrink: 0,
+                            color: credit ? '#4ade80' : 'var(--red)'
+                          }}>{credit ? '+' : '−'} RM {Math.abs(tx.amount || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -2068,6 +2471,33 @@ create policy "Admins can delete requests" on game_requests
                   }}>Delete</button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+          </div>
+        </div>
+
+        {mobileNavOpen && (
+          <div
+            onClick={() => setMobileNavOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex' }}
+          >
+            <div onClick={e => e.stopPropagation()} style={{
+              width: 280, maxWidth: '80vw', height: '100%', background: 'var(--card)',
+              borderRight: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column',
+              boxShadow: '8px 0 24px rgba(0,0,0,0.4)', overflowY: 'auto',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)' }}>ADMIN MENU</div>
+                <button onClick={() => setMobileNavOpen(false)} style={{
+                  width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--muted)', background: 'transparent', border: 'none',
+                }}>
+                  <IoClose size={18} />
+                </button>
+              </div>
+              {renderNavGroups(() => setMobileNavOpen(false))}
             </div>
           </div>
         )}
