@@ -86,6 +86,7 @@ export default function AdminPage() {
   // ── Avatar presets state ──────────────────────────────
   const [avatarPresets, setAvatarPresets] = useState([]);
   const [uploadingAvatarPreset, setUploadingAvatarPreset] = useState(false);
+  const [uploadingManagerCard, setUploadingManagerCard] = useState(null); // manager id currently uploading
 
   // ── Card border catalog state ──────────────────────────
   const [borderCatalogAdmin, setBorderCatalogAdmin] = useState([]);
@@ -157,7 +158,7 @@ export default function AdminPage() {
 
   // ── Managers ───────────────────────────────────────────
   const fetchManagers = async () => {
-    const { data: mgrs } = await supabase.from('profiles').select('id, name, avatar_url').eq('is_admin', true).order('name');
+    const { data: mgrs } = await supabase.from('profiles').select('id, name, avatar_url, manager_card_avatar_url').eq('is_admin', true).order('name');
     if (!mgrs) { setManagers([]); return; }
     const ids = mgrs.map(m => m.id);
     const { data: gamesData } = ids.length
@@ -295,6 +296,24 @@ export default function AdminPage() {
     if (error) { showError(error.message); return; }
     showSuccess('Manager access removed.');
     fetchManagers();
+  };
+
+  const handleManagerCardAvatarUpload = async (e, managerId) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingManagerCard(managerId);
+    const ext = file.name.split('.').pop();
+    const filename = `manager-cards/${managerId}-${Date.now()}.${ext}`;
+    const uploadBody = await resizeImageFile(file).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('avatars').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
+    if (uploadErr) { showError('Upload failed: ' + uploadErr.message); setUploadingManagerCard(null); return; }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(filename);
+    const { error: updateErr } = await supabase.from('profiles').update({ manager_card_avatar_url: toCdnUrl(data.publicUrl) }).eq('id', managerId);
+    if (updateErr) { showError(updateErr.message); setUploadingManagerCard(null); return; }
+    showSuccess('Manager card avatar updated.');
+    await fetchManagers();
+    setUploadingManagerCard(null);
+    e.target.value = '';
   };
 
   // ── Player Stats (manual card editor) ─────────────────
@@ -1162,7 +1181,7 @@ export default function AdminPage() {
                       }}>Remove</button>
                     </div>
                     {upcoming.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 46 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 46, marginBottom: 12 }}>
                         {upcoming.map(g => (
                           <div key={g.id} style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <FaLocationDot size={10} />
@@ -1172,6 +1191,25 @@ export default function AdminPage() {
                         ))}
                       </div>
                     )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 46, marginTop: 10 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', background: 'var(--card2)',
+                        border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700, color: 'var(--muted)', overflow: 'hidden', flexShrink: 0
+                      }}>
+                        {m.manager_card_avatar_url ? <img src={m.manager_card_avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (m.name?.[0] || '?').toUpperCase()}
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>Manager card avatar</span>
+                      <label style={{
+                        background: 'var(--card2)', color: 'var(--accent)', border: '1px solid var(--border)',
+                        borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        opacity: uploadingManagerCard === m.id ? 0.6 : 1,
+                      }}>
+                        {uploadingManagerCard === m.id ? 'Uploading…' : 'Change'}
+                        <input type="file" accept="image/*" hidden disabled={uploadingManagerCard === m.id}
+                          onChange={e => handleManagerCardAvatarUpload(e, m.id)} />
+                      </label>
+                    </div>
                   </div>
                 );
               })}

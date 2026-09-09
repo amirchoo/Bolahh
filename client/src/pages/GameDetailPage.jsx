@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import PlayerAvatar from '../components/PlayerAvatar';
 import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import StatChips from '../components/StatChips';
+import ManagerCard from '../components/ManagerCard';
 import { IconLoading } from '../components/Icons';
 import { FaRankingStar } from "react-icons/fa6";
 import { FaSquareParking } from 'react-icons/fa6';
@@ -22,7 +23,6 @@ import { getRank, getRankColor } from '../lib/rankUtils';
 import { getCardTheme } from '../components/FifaCard';
 import { isNegativePlayerTag } from '../lib/feedbackTags';
 import GameRulesDisplay from '../components/GameRulesDisplay';
-import FifaCard from '../components/FifaCard';
 
 const STAT_KEYS = [
   { key: 'shooting_quality',   label: 'SHO', weight: 3, color: '#f87171' },
@@ -221,6 +221,7 @@ export default function GameDetailPage() {
   const [isRated, setIsRated] = useState(false);
   const [managerName, setManagerName] = useState(null);
   const [managerProfile, setManagerProfile] = useState(null);
+  const [managerStats, setManagerStats] = useState(null);
   const [showManagerCard, setShowManagerCard] = useState(false);
   const [sortedRatings, setSortedRatings] = useState([]);
   const [ratingProfiles, setRatingProfiles] = useState({});
@@ -294,13 +295,17 @@ export default function GameDetailPage() {
     setIsOwner(isOwnerVal); setWalletBalance(walletBal);
 
     const managerUserId = gameData.assigned_manager_id || gameData.created_by;
-    const { data: managerProfileData } = await supabase
-      .from('profiles')
-      .select('id, name, avatar_url, position, total_points, games_played, card_stats, is_subscribed, subscription_expires_at, equipped_border')
-      .eq('id', managerUserId)
-      .maybeSingle();
+    const [{ data: managerProfileData }, { data: managerStatsData }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, name, avatar_url, manager_card_avatar_url, position, total_points, games_played, card_stats, is_subscribed, subscription_expires_at, equipped_border')
+        .eq('id', managerUserId)
+        .maybeSingle(),
+      supabase.rpc('get_manager_stats', { p_manager_id: managerUserId }),
+    ]);
     setManagerName(managerProfileData?.name || null);
     setManagerProfile(managerProfileData || null);
+    setManagerStats(managerStatsData?.[0] || null);
 
     const { count } = await supabase
       .from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', id);
@@ -501,32 +506,27 @@ export default function GameDetailPage() {
       )}
 
       {/* ── Manager Card Modal ── */}
-      {showManagerCard && managerProfile && (() => {
-        const cs = managerProfile.card_stats;
-        const cardStats = cs
-          ? { pac: cs.pac || 30, sho: cs.sho || 30, pas: cs.pas || 30, dri: cs.dri || 30, def: cs.def || 30, phy: cs.phy || 30 }
-          : { pac: 30, sho: 30, pas: 30, dri: 30, def: 30, phy: 30 };
-        return (
-          <div
-            onClick={() => setShowManagerCard(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-          >
-            <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-              <FifaCard
-                profile={managerProfile}
-                cardStats={cardStats}
-                rank={getRank(managerProfile.total_points || 0)}
-                equippedBorder={managerProfile.equipped_border}
-              />
-              <button onClick={() => setShowManagerCard(false)} style={{
-                background: 'rgba(255,255,255,0.08)', color: '#fff',
-                border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10,
-                padding: '10px 32px', fontSize: 14, cursor: 'pointer',
-              }}>Close</button>
-            </div>
+      {showManagerCard && managerProfile && (
+        <div
+          onClick={() => setShowManagerCard(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.82)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <ManagerCard
+              name={managerProfile.name}
+              avatarUrl={managerProfile.manager_card_avatar_url || managerProfile.avatar_url}
+              gamesManaged={managerStats?.games_managed ?? 0}
+              satisfactionScore={managerStats?.satisfaction_score ?? 10}
+              reviewCount={managerStats?.review_count ?? 0}
+            />
+            <button onClick={() => setShowManagerCard(false)} style={{
+              background: 'rgba(255,255,255,0.08)', color: '#fff',
+              border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10,
+              padding: '10px 32px', fontSize: 14, cursor: 'pointer',
+            }}>Close</button>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* ── Insufficient Balance Modal ── */}
       {showInsufficientModal && (

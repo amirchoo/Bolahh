@@ -15,6 +15,8 @@ import { LuMedal } from 'react-icons/lu';
 import { IoCheckmarkDoneCircleSharp, IoClose } from "react-icons/io5";
 import { MdError } from "react-icons/md";
 import IncomeChart from '../components/IncomeChart';
+import ManagerCard from '../components/ManagerCard';
+import { resizeImageFile } from '../lib/imageResize';
 
 // Every game now shares the same title, so the feedback tab identifies games by
 // when they were played instead.
@@ -77,6 +79,10 @@ export default function ManagerPage() {
   const [cancelReason, setCancelReason] = useState('Rain');
   const [cancelling, setCancelling] = useState(false);
   const [expandedFeedbackGame, setExpandedFeedbackGame] = useState(null);
+  const [myName, setMyName] = useState('');
+  const [myManagerCardUrl, setMyManagerCardUrl] = useState(null);
+  const [myManagerStats, setMyManagerStats] = useState(null);
+  const [uploadingMyCard, setUploadingMyCard] = useState(false);
 
   useEffect(() => {
     if (isPreview) {
@@ -93,7 +99,37 @@ export default function ManagerPage() {
       setLoading(false);
     }
     fetchAll(!!cached);
+    fetchMyManagerCard();
   }, []);
+
+  const fetchMyManagerCard = async () => {
+    if (isPreview || !user) return;
+    const [{ data: profile }, { data: statsRows }] = await Promise.all([
+      supabase.from('profiles').select('name, manager_card_avatar_url').eq('id', user.id).single(),
+      supabase.rpc('get_manager_stats', { p_manager_id: user.id }),
+    ]);
+    setMyName(profile?.name || '');
+    setMyManagerCardUrl(profile?.manager_card_avatar_url || null);
+    setMyManagerStats(statsRows?.[0] || null);
+  };
+
+  const handleMyManagerCardUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingMyCard(true);
+    const ext = file.name.split('.').pop();
+    const filename = `manager-cards/${user.id}-${Date.now()}.${ext}`;
+    const uploadBody = await resizeImageFile(file).catch(() => file);
+    const { error: uploadErr } = await supabase.storage.from('avatars').upload(filename, uploadBody, { contentType: file.type, cacheControl: '31536000' });
+    if (uploadErr) { setError('Upload failed: ' + uploadErr.message); setUploadingMyCard(false); return; }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(filename);
+    const { error: updateErr } = await supabase.from('profiles').update({ manager_card_avatar_url: data.publicUrl }).eq('id', user.id);
+    if (updateErr) { setError(updateErr.message); setUploadingMyCard(false); return; }
+    setMyManagerCardUrl(data.publicUrl);
+    setSuccess('Manager card avatar updated!');
+    setUploadingMyCard(false);
+    e.target.value = '';
+  };
 
   const fetchAll = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -400,6 +436,35 @@ export default function ManagerPage() {
         {/* ── OVERVIEW TAB ── */}
         {activeTab === 'overview' && (
           <div>
+            {/* My Manager Card */}
+            {!isPreview && (
+              <div style={{ ...sectionCard, display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ flexShrink: 0 }}>
+                  <ManagerCard
+                    name={myName}
+                    avatarUrl={myManagerCardUrl}
+                    gamesManaged={myManagerStats?.games_managed ?? 0}
+                    satisfactionScore={myManagerStats?.satisfaction_score ?? 10}
+                    reviewCount={myManagerStats?.review_count ?? 0}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 8 }}>MY MANAGER CARD</h3>
+                  <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>
+                    This is what players see when they tap your name on a game — separate from your player profile picture. Satisfaction is a running average of ratings players leave after your games.
+                  </p>
+                  <label style={{
+                    display: 'inline-block', background: 'var(--accent)', color: '#fff',
+                    border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 700,
+                    cursor: uploadingMyCard ? 'default' : 'pointer', opacity: uploadingMyCard ? 0.6 : 1,
+                  }}>
+                    {uploadingMyCard ? 'Uploading…' : 'Change Card Avatar'}
+                    <input type="file" accept="image/*" hidden disabled={uploadingMyCard} onChange={handleMyManagerCardUpload} />
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* Stats grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
               {[
