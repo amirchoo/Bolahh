@@ -613,6 +613,14 @@ export default function AdminPage() {
     return '';
   };
 
+  // One description per category (not per rarity row, unlike autoBadgeLabel
+  // above) — shown once under the category title.
+  const CATEGORY_SUBTEXT = {
+    matches: 'Unlocked by total matches played.',
+    mvp: 'Unlocked by total MVP awards won.',
+    ranked: 'Unlocked by reaching, or having already passed, a rank tier.',
+  };
+
   const updateBadgeReqField = (type, rarity, patch) => {
     setBadgeReqDrafts(prev => prev.map(r => (r.type === type && r.rarity === rarity) ? { ...r, ...patch } : r));
   };
@@ -2510,8 +2518,11 @@ create policy "Manage banners" on banners for all using (true);`}</code>
               const saving = savingBadgeType === typeInfo.key;
               return (
                 <div key={typeInfo.key} style={sectionCard}>
-                  <div style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--accent)', marginBottom: 14 }}>
+                  <div style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--accent)' }}>
                     {typeInfo.label.toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+                    {CATEGORY_SUBTEXT[typeInfo.key]}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {['common', 'rare', 'epic', 'legendary'].map(rarity => {
@@ -2560,10 +2571,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                             </>
                           ) : (
                             <>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 220px', minWidth: 160 }}>
-                                {pill}
-                                <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>{row.label}</span>
-                              </div>
+                              {pill}
                               <input
                                 type="number" min={0}
                                 value={row.threshold ?? 0}
@@ -2572,7 +2580,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                                   updateBadgeReqField(row.type, row.rarity, { threshold, label: autoBadgeLabel(row.type, threshold) });
                                 }}
                                 style={{
-                                  flexShrink: 0, width: 80, background: 'var(--card)', border: '1px solid var(--border)',
+                                  flexShrink: 0, width: 80, marginLeft: 'auto', background: 'var(--card)', border: '1px solid var(--border)',
                                   borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
                                 }}
                               />
