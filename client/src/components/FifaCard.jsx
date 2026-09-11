@@ -379,10 +379,10 @@ const BADGE_OUTLINE_COLORS = {
 // with the others, not just briefly coincide.
 const SHINE_DURATION = 2.6;
 const BADGE_SHINE = {
-  common: { opacity: 0.04, shimmer: false },
-  rare: { opacity: 0.15, shimmer: false },
-  epic: { opacity: 0.22, shimmer: true },
-  legendary: { opacity: 0.4, shimmer: true },
+  common: { opacity: 0.08, shimmer: false },
+  rare: { opacity: 0.25, shimmer: false },
+  epic: { opacity: 0.35, shimmer: true },
+  legendary: { opacity: 0.6, shimmer: true },
 };
 
 // A negative delay/begin-offset pinned to the wall clock (rather than 0,
