@@ -1086,8 +1086,8 @@ export default function AdminPage() {
 
         <button className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} style={{
           width: '100%', alignItems: 'center', gap: 8,
-          background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
-          border: '1px solid rgba(240,157,81,0.3)', borderRadius: 10, padding: '12px 14px',
+          background: 'color-mix(in srgb, var(--accent) 14%, var(--card2))', color: 'var(--accent)',
+          border: '1px solid color-mix(in srgb, var(--accent) 40%, var(--card2))', borderRadius: 10, padding: '12px 14px',
           fontSize: 14, fontWeight: 700, marginBottom: 20,
           position: 'sticky', top: 64, zIndex: 50,
         }}>
