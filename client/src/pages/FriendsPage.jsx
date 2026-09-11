@@ -17,7 +17,7 @@ const AREA_OPTIONS = ['All Areas', ...PLAYER_AREAS];
 // A player's stored area can be a bare state (legacy) or a district within
 // it, so filtering by state needs to match either form.
 const areaMatchValues = (state) => [state, ...(PLAYER_DISTRICTS[state] || [])];
-const PROFILE_FIELDS = 'id, name, position, area, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, achievement_badges, equipped_border';
+const PROFILE_FIELDS = 'id, name, position, area, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, achievement_badges, equipped_border, created_at';
 
 export default function FriendsPage() {
   const navigate = useNavigate();
@@ -526,6 +526,7 @@ export default function FriendsPage() {
               achievementBadges={viewingPlayer.profile.achievement_badges}
               size="normal"
               interactive
+              memberSince={viewingPlayer.profile.created_at}
             />
             {(() => {
               const status = getFriendshipStatus(viewingPlayer.profile.id);

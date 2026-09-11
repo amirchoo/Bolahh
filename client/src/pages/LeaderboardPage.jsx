@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import FifaCard from '../components/FifaCard';
 import { getRank, getRankTier } from '../lib/rankUtils';
-import { getCardTheme } from '../components/FifaCard';
+import { getCardTheme, CARD_COLOR_THEMES } from '../components/FifaCard';
 import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaMedal } from 'react-icons/fa6';
@@ -27,7 +27,11 @@ const PAGE_SIZE = 15;
 
 const TIER_ORDER = ['emas', 'perak', 'gangsa'];
 const TIER_DISPLAY = { emas: 'EMAS', perak: 'PERAK', gangsa: 'GANGSA' };
-const TIER_COLORS = { emas: '#FFD700', perak: '#6ec8e8', gangsa: '#cd7f32' };
+// Derived from CARD_COLOR_THEMES (the same source the actual cards render
+// from) rather than duplicated, so this stroke never drifts from the card
+// colors again the way it did when Perak's card was redesigned from blue to
+// silver and this constant was never updated to match.
+const TIER_COLORS = { emas: CARD_COLOR_THEMES.emas.border, perak: CARD_COLOR_THEMES.perak.border, gangsa: CARD_COLOR_THEMES.gangsa.border };
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
@@ -55,7 +59,7 @@ export default function LeaderboardPage() {
     // total_points is the authoritative OVR — synced every time a user visits their profile
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats, achievement_badges')
+      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats, achievement_badges, created_at')
       .gt('total_points', 0)
       .order('total_points', { ascending: false });
 
@@ -401,6 +405,7 @@ export default function LeaderboardPage() {
               achievementBadges={viewingPlayer.profile.achievement_badges}
               size="normal"
               interactive
+              memberSince={viewingPlayer.profile.created_at}
             />
             {viewingPlayer.friendStatus === 'friends' ? (
               <div style={{
