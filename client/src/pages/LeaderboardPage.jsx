@@ -355,7 +355,7 @@ export default function LeaderboardPage() {
         </div>
 
         {/* View mode toggle */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           {[['global', 'Global Rank'], ['tier', 'Tier']].map(([mode, label]) => (
             <button
               key={mode}
