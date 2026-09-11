@@ -248,7 +248,7 @@ export default function FriendsPage() {
     const isSelf = profile.id === user?.id;
     const isSubscribed = profile.is_subscribed && profile.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
     return (
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 10 }}>
       <div
         onClick={() => openPlayerCard(profile)}
         style={{
@@ -359,7 +359,7 @@ export default function FriendsPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
           {TABS.map(tab => (
             <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{
               ...btnBase,
@@ -418,12 +418,12 @@ export default function FriendsPage() {
               placeholder="Search by username..."
               value={searchQuery}
               onChange={e => handleSearch(e.target.value)}
-              style={{ marginBottom: 10 }}
+              style={{ marginBottom: 14 }}
               autoFocus
             />
 
             {/* Area filter — browse/search players by area */}
-            <div style={{ position: 'relative', marginBottom: 16 }}>
+            <div style={{ position: 'relative', marginBottom: 14 }}>
               <select
                 value={areaFilter}
                 onChange={e => setAreaFilter(e.target.value)}

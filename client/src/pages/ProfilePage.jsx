@@ -619,7 +619,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Action row */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
           <button onClick={() => { setEditing(v => !v); setShowAchievementsModal(false); setShowProgression(false); }} disabled={saving} style={{
             flex: 1,
             background: editing ? 'var(--accent)' : 'transparent',
@@ -687,17 +687,18 @@ export default function ProfilePage() {
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 4 }}>
                 BADGES
               </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
                 {isSuperAdmin && 'Admin view — every tier unlocked. '}Display your feats on your player card! (Select up to 3)
               </div>
 
               {BADGE_TYPE_LIST.map(typeInfo => (
-                <div key={typeInfo.key} style={{ marginBottom: 24 }}>
+                <div key={typeInfo.key} style={{ marginBottom: 14 }}>
                   <div style={{
                     fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700,
                     letterSpacing: 1, color: 'var(--accent)', marginBottom: 10,
+                    textAlign: 'center',
                   }}>{typeInfo.label.toUpperCase()}</div>
-                  <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 22, justifyContent: 'center' }}>
                     {Object.keys(BADGE_RARITY_COLORS).map(rarity => {
                       const req = achievementReqs?.[typeInfo.key]?.[rarity] || { text: 'Loading…', met: () => false };
                       const unlocked = isSuperAdmin || req.met(profile, achievementTop3);
@@ -761,13 +762,15 @@ export default function ProfilePage() {
                 </div>
               ))}
 
-              <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 18px' }} />
-
-              <BadgeReorderList badges={selectedBadges} onChange={setSelectedBadges} />
-              {badgesError && (
-                <div style={{ fontSize: 12, color: '#ff6b6b', marginTop: 10 }}>{badgesError}</div>
+              {selectedBadges.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <BadgeReorderList badges={selectedBadges} onChange={setSelectedBadges} />
+                </div>
               )}
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              {badgesError && (
+                <div style={{ fontSize: 12, color: '#ff6b6b', marginTop: 14 }}>{badgesError}</div>
+              )}
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
                 <button
                   onClick={() => { setSelectedBadges(profile.achievement_badges || []); setBadgesError(''); setShowAchievementsModal(false); }}
                   style={{

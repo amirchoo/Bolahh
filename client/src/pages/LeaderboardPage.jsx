@@ -238,7 +238,7 @@ export default function LeaderboardPage() {
     const pageItems = filtered.slice(start, start + PAGE_SIZE);
     return (
       <>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {pageItems.map((player, idx) => renderPlayerRow(player, start + idx + 1))}
         </div>
         {renderPagination(filtered.length)}
@@ -253,7 +253,7 @@ export default function LeaderboardPage() {
     return (
       <div>
         {/* Tier tab row */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
           {TIER_ORDER.map(tier => {
             const isActive = activeTier === tier;
             const tc = TIER_COLORS[tier];
@@ -286,7 +286,7 @@ export default function LeaderboardPage() {
           const pageItems = tierPlayers.slice(start, start + PAGE_SIZE);
           return (
             <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {pageItems.map((player, idx) => renderPlayerRow(player, start + idx + 1))}
               </div>
               {renderPagination(tierPlayers.length)}
@@ -311,7 +311,7 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Area filter — dropdown */}
-        <div style={{ position: 'relative', marginBottom: 10 }}>
+        <div style={{ position: 'relative', marginBottom: 14 }}>
           <select
             value={areaFilter}
             onChange={e => setAreaFilter(e.target.value)}
@@ -331,7 +331,7 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Position filter — compact tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
           {POSITION_TABS.map(({ value, label }) => {
             const isActive = posFilter === value;
             return (
@@ -357,7 +357,7 @@ export default function LeaderboardPage() {
         {/* View mode toggle — 10px to the tier tabs row below it in Tier
             mode, but 12px in Global mode where it sits directly above the
             first leaderboard card instead. */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: viewMode === 'tier' ? 10 : 12 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: viewMode === 'tier' ? 10 : 14 }}>
           {[['global', 'Global Rank'], ['tier', 'Tier']].map(([mode, label]) => (
             <button
               key={mode}
