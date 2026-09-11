@@ -51,7 +51,8 @@ export default function AdminPage() {
 
   // ── Badge requirements state ───────────────────────────
   const [badgeReqs, setBadgeReqs] = useState([]);
-  const [savingBadgeReq, setSavingBadgeReq] = useState(null); // `${type}-${rarity}` currently saving
+  const [badgeReqDrafts, setBadgeReqDrafts] = useState([]);
+  const [savingBadgeType, setSavingBadgeType] = useState(null); // type currently saving
 
   // ── Banners state ─────────────────────────────────────
   const [banners, setBanners] = useState([]);
@@ -591,27 +592,38 @@ export default function AdminPage() {
   };
 
   // ── Badge requirements ─────────────────────────────────
+  // badgeReqs is the last-saved (committed) state; badgeReqDrafts is what the
+  // inputs actually bind to. Edits only touch the draft, so "Cancel Changes"
+  // can snap a whole category back to its committed rows, and "Save" only
+  // writes (and re-commits) the one category it belongs to — a mistake in
+  // one category's inputs can't block saving another's.
   const fetchBadgeRequirements = async () => {
     const { data } = await supabase.from('badge_requirements').select('*').order('type').order('rarity');
-    if (data) setBadgeReqs(data);
-  };
-
-  // Saves one row's edited threshold/tier/label straight to the DB — each
-  // row saves independently (no "Apply all" step) so a mistake on one
-  // rarity can't block saving the others.
-  const saveBadgeRequirement = async (row) => {
-    const key = `${row.type}-${row.rarity}`;
-    setSavingBadgeReq(key);
-    const { error } = await supabase.from('badge_requirements')
-      .update({ label: row.label, threshold: row.threshold, tier: row.tier })
-      .eq('type', row.type).eq('rarity', row.rarity);
-    setSavingBadgeReq(null);
-    if (error) showError(error.message);
-    else showSuccess('Badge requirement updated.');
+    if (data) { setBadgeReqs(data); setBadgeReqDrafts(data); }
   };
 
   const updateBadgeReqField = (type, rarity, patch) => {
-    setBadgeReqs(prev => prev.map(r => (r.type === type && r.rarity === rarity) ? { ...r, ...patch } : r));
+    setBadgeReqDrafts(prev => prev.map(r => (r.type === type && r.rarity === rarity) ? { ...r, ...patch } : r));
+  };
+
+  const badgeCategoryDirty = (type) =>
+    JSON.stringify(badgeReqDrafts.filter(r => r.type === type)) !== JSON.stringify(badgeReqs.filter(r => r.type === type));
+
+  const cancelBadgeCategory = (type) => {
+    setBadgeReqDrafts(prev => prev.map(r => (r.type === type) ? badgeReqs.find(x => x.type === type && x.rarity === r.rarity) : r));
+  };
+
+  const saveBadgeCategory = async (type) => {
+    setSavingBadgeType(type);
+    const rows = badgeReqDrafts.filter(r => r.type === type);
+    const results = await Promise.all(rows.map(row => supabase.from('badge_requirements')
+      .update({ label: row.label, threshold: row.threshold, tier: row.tier })
+      .eq('type', row.type).eq('rarity', row.rarity)));
+    setSavingBadgeType(null);
+    const failed = results.find(r => r.error);
+    if (failed) { showError(failed.error.message); return; }
+    setBadgeReqs(prev => prev.map(r => (r.type === type) ? rows.find(x => x.rarity === r.rarity) : r));
+    showSuccess('Badge requirements updated.');
   };
 
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
@@ -2482,83 +2494,96 @@ create policy "Manage banners" on banners for all using (true);`}</code>
               </p>
             </div>
 
-            {BADGE_TYPE_LIST.map(typeInfo => (
-              <div key={typeInfo.key} style={sectionCard}>
-                <div style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--accent)', marginBottom: 14 }}>
-                  {typeInfo.label.toUpperCase()}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {['common', 'rare', 'epic', 'legendary'].map(rarity => {
-                    const row = badgeReqs.find(r => r.type === typeInfo.key && r.rarity === rarity);
-                    if (!row) return null;
-                    const key = `${row.type}-${row.rarity}`;
-                    const saving = savingBadgeReq === key;
-                    return (
-                      <div key={rarity} style={{
-                        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-                        padding: '10px 12px', borderRadius: 10,
-                        background: 'var(--card2)', border: '1px solid var(--border)',
-                      }}>
-                        <span style={{
-                          flexShrink: 0, width: 78, textAlign: 'center',
-                          background: `${BADGE_RARITY_COLORS[rarity]}22`, color: BADGE_RARITY_COLORS[rarity],
-                          border: `1px solid ${BADGE_RARITY_COLORS[rarity]}55`,
-                          borderRadius: 999, padding: '4px 0', fontSize: 11, fontWeight: 700,
-                          textTransform: 'uppercase', letterSpacing: 0.3,
-                        }}>{BADGE_RARITY_LABELS[rarity]}</span>
+            {BADGE_TYPE_LIST.map(typeInfo => {
+              const dirty = badgeCategoryDirty(typeInfo.key);
+              const saving = savingBadgeType === typeInfo.key;
+              return (
+                <div key={typeInfo.key} style={sectionCard}>
+                  <div style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--accent)', marginBottom: 14 }}>
+                    {typeInfo.label.toUpperCase()}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {['common', 'rare', 'epic', 'legendary'].map(rarity => {
+                      const row = badgeReqDrafts.find(r => r.type === typeInfo.key && r.rarity === rarity);
+                      if (!row) return null;
+                      return (
+                        <div key={rarity} style={{
+                          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                          padding: '10px 12px', borderRadius: 10,
+                          background: 'var(--card2)', border: '1px solid var(--border)',
+                        }}>
+                          <span style={{
+                            flexShrink: 0, width: 78, textAlign: 'center',
+                            background: `${BADGE_RARITY_COLORS[rarity]}22`, color: BADGE_RARITY_COLORS[rarity],
+                            border: `1px solid ${BADGE_RARITY_COLORS[rarity]}55`,
+                            borderRadius: 999, padding: '4px 0', fontSize: 11, fontWeight: 700,
+                            textTransform: 'uppercase', letterSpacing: 0.3,
+                          }}>{BADGE_RARITY_LABELS[rarity]}</span>
 
-                        <input
-                          value={row.label}
-                          onChange={e => updateBadgeReqField(row.type, row.rarity, { label: e.target.value })}
-                          placeholder="Requirement text shown to players"
-                          style={{
-                            flex: '1 1 220px', minWidth: 160, background: 'var(--card)', border: '1px solid var(--border)',
-                            borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
-                          }}
-                        />
-
-                        {typeInfo.key === 'ranked' ? (
-                          <select
-                            value={row.tier || ''}
-                            onChange={e => updateBadgeReqField(row.type, row.rarity, { tier: e.target.value || null })}
-                            style={{
-                              flexShrink: 0, background: 'var(--card)', border: '1px solid var(--border)',
-                              borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
-                            }}
-                          >
-                            <option value="">Always (no requirement)</option>
-                            <option value="gangsa">Reach/pass Gangsa</option>
-                            <option value="perak">Reach/pass Perak</option>
-                            <option value="emas">Reach Emas</option>
-                          </select>
-                        ) : (
                           <input
-                            type="number" min={0}
-                            value={row.threshold ?? 0}
-                            onChange={e => updateBadgeReqField(row.type, row.rarity, { threshold: Number(e.target.value) })}
+                            value={row.label}
+                            onChange={e => updateBadgeReqField(row.type, row.rarity, { label: e.target.value })}
+                            placeholder="Requirement text shown to players"
                             style={{
-                              flexShrink: 0, width: 80, background: 'var(--card)', border: '1px solid var(--border)',
+                              flex: '1 1 220px', minWidth: 160, background: 'var(--card)', border: '1px solid var(--border)',
                               borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
                             }}
                           />
-                        )}
 
-                        <button
-                          onClick={() => saveBadgeRequirement(row)}
-                          disabled={saving}
-                          style={{
-                            flexShrink: 0, background: saving ? 'var(--card2)' : 'var(--accent)',
-                            color: saving ? 'var(--muted)' : '#fff', border: 'none',
-                            borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700,
-                            cursor: saving ? 'default' : 'pointer',
-                          }}
-                        >{saving ? 'Saving…' : 'Save'}</button>
-                      </div>
-                    );
-                  })}
+                          {typeInfo.key === 'ranked' ? (
+                            <select
+                              value={row.tier || ''}
+                              onChange={e => updateBadgeReqField(row.type, row.rarity, { tier: e.target.value || null })}
+                              style={{
+                                flexShrink: 0, background: 'var(--card)', border: '1px solid var(--border)',
+                                borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
+                              }}
+                            >
+                              <option value="">Always (no requirement)</option>
+                              <option value="gangsa">Reach/pass Gangsa</option>
+                              <option value="perak">Reach/pass Perak</option>
+                              <option value="emas">Reach Emas</option>
+                            </select>
+                          ) : (
+                            <input
+                              type="number" min={0}
+                              value={row.threshold ?? 0}
+                              onChange={e => updateBadgeReqField(row.type, row.rarity, { threshold: Number(e.target.value) })}
+                              style={{
+                                flexShrink: 0, width: 80, background: 'var(--card)', border: '1px solid var(--border)',
+                                borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 16 }}>
+                    <button
+                      onClick={() => cancelBadgeCategory(typeInfo.key)}
+                      disabled={!dirty || saving}
+                      style={{
+                        background: 'var(--card2)', color: dirty ? 'var(--text)' : 'var(--muted)',
+                        border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px',
+                        fontSize: 13, fontWeight: 700, cursor: (dirty && !saving) ? 'pointer' : 'default',
+                        opacity: dirty ? 1 : 0.5,
+                      }}
+                    >Cancel Changes</button>
+                    <button
+                      onClick={() => saveBadgeCategory(typeInfo.key)}
+                      disabled={!dirty || saving}
+                      style={{
+                        background: (dirty && !saving) ? 'var(--accent)' : 'var(--card2)',
+                        color: (dirty && !saving) ? '#fff' : 'var(--muted)', border: 'none',
+                        borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 700,
+                        cursor: (dirty && !saving) ? 'pointer' : 'default',
+                      }}
+                    >{saving ? 'Saving…' : 'Save'}</button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
