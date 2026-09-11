@@ -366,7 +366,7 @@ export default function LeaderboardPage() {
                 color: viewMode === mode ? '#111' : 'var(--muted)',
                 border: `1px solid ${viewMode === mode ? 'var(--accent)' : 'var(--border)'}`,
                 borderRadius: 8, padding: '8px 16px',
-                fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer',
                 fontFamily: "'DM Sans'", transition: 'all 0.15s',
               }}
             >
