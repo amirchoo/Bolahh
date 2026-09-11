@@ -1215,7 +1215,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           <svg
             width={w} height={bodyH}
             viewBox={`0 0 ${w} ${bodyH}`}
-            style={{ position: 'absolute', top: headroomTop + shapeCrownOffset, left: 0, overflow: 'visible' }}
+            style={{ position: 'absolute', top: headroomTop + shapeCrownOffset - 6, left: 0, overflow: 'visible' }}
           >
             {gridLevels.map((frac, gi) => (
               <polygon
