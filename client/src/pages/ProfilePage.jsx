@@ -24,7 +24,7 @@ const GENDERS = ['Male', 'Female', 'Rather not say'];
 const CARD_DESIGNS = ['Novis', 'Gangsa III', 'Gangsa II', 'Gangsa I', 'Perak III', 'Perak II', 'Perak I', 'Emas III', 'Emas II', 'Emas I'];
 
 export default function ProfilePage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
@@ -119,10 +119,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!showCardModal || !profile) return;
-    const previewRank = (isAdmin && profile.card_design_override) || getRank(calcOverall(cardStats));
+    const previewRank = (isSuperAdmin && profile.card_design_override) || getRank(calcOverall(cardStats));
     drawCardImage({ profile, cardStats, rank: previewRank, bgUrl: selectedBg.src, achievementBadges: profile.achievement_badges })
       .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
-  }, [showCardModal, selectedBg, cardStats, profile?.card_design_override, profile?.achievement_badges, isAdmin]);
+  }, [showCardModal, selectedBg, cardStats, profile?.card_design_override, profile?.achievement_badges, isSuperAdmin]);
 
   const fetchProfile = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -375,7 +375,7 @@ export default function ProfilePage() {
   // Admin-only cosmetic override — picks any available design for their own
   // card regardless of real stats (see CARD_DESIGNS picker below). Null for
   // everyone else, and null resets an admin back to their real rank too.
-  const displayRank = (isAdmin && profile?.card_design_override) || rank;
+  const displayRank = (isSuperAdmin && profile?.card_design_override) || rank;
   const rankColor = getRankColor(displayRank);
   const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
 
@@ -535,7 +535,7 @@ export default function ProfilePage() {
           }}>
             {t('profile.tapToShare')}
           </div>
-          {isAdmin && (
+          {isSuperAdmin && (
             <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
               <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>ADMIN · CARD DESIGN</span>
               <select
@@ -661,7 +661,7 @@ export default function ProfilePage() {
                 BADGES
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
-                {isAdmin && 'Admin view — every tier unlocked. '}Display your feats on your player card! (Select up to 3)
+                {isSuperAdmin && 'Admin view — every tier unlocked. '}Display your feats on your player card! (Select up to 3)
               </div>
 
               {BADGE_TYPE_LIST.map(typeInfo => (
@@ -673,7 +673,7 @@ export default function ProfilePage() {
                   <div style={{ display: 'flex', gap: 12 }}>
                     {Object.keys(BADGE_RARITY_COLORS).map(rarity => {
                       const req = ACHIEVEMENT_REQUIREMENTS[typeInfo.key][rarity];
-                      const unlocked = isAdmin || req.met(profile, achievementTop3);
+                      const unlocked = isSuperAdmin || req.met(profile, achievementTop3);
                       const selected = selectedBadges.some(b => b.type === typeInfo.key && b.rarity === rarity);
                       const tooltipKey = `${typeInfo.key}-${rarity}`;
                       const tooltipOpen = openTooltip === tooltipKey;
