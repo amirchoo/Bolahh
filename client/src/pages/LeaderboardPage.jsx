@@ -331,7 +331,7 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Position filter — compact tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           {POSITION_TABS.map(({ value, label }) => {
             const isActive = posFilter === value;
             return (
@@ -361,6 +361,7 @@ export default function LeaderboardPage() {
               key={mode}
               onClick={() => setViewMode(mode)}
               style={{
+                flex: 1,
                 background: viewMode === mode ? 'var(--accent)' : 'var(--card)',
                 color: viewMode === mode ? '#111' : 'var(--muted)',
                 border: `1px solid ${viewMode === mode ? 'var(--accent)' : 'var(--border)'}`,
