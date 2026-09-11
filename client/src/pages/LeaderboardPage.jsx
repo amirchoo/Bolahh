@@ -267,7 +267,7 @@ export default function LeaderboardPage() {
                   color: isActive ? tc : 'var(--muted)',
                   border: `1.5px solid ${isActive ? tc : 'var(--border)'}`,
                   borderRadius: 10, padding: '8px 0',
-                  fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2,
+                  fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 2,
                   cursor: 'pointer', transition: 'all 0.15s',
                 }}
               >
@@ -344,7 +344,7 @@ export default function LeaderboardPage() {
                   color: isActive ? 'var(--accent)' : 'var(--muted)',
                   border: `1.5px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
                   borderRadius: 10, padding: '8px 0',
-                  fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2,
+                  fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 2,
                   cursor: 'pointer', transition: 'all 0.15s',
                 }}
               >
