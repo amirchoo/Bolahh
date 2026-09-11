@@ -602,6 +602,17 @@ export default function AdminPage() {
     if (data) { setBadgeReqs(data); setBadgeReqDrafts(data); }
   };
 
+  // 'matches'/'mvp' requirement text is just their threshold count in a
+  // sentence — no reason to let it drift from the number, so it's derived
+  // here instead of being its own free-text field. 'ranked' has no single
+  // number to derive from (it's a tier gate), so it keeps its own text input.
+  const autoBadgeLabel = (type, threshold) => {
+    const n = threshold || 0;
+    if (type === 'matches') return `Play ${n} match${n === 1 ? '' : 'es'}`;
+    if (type === 'mvp') return `Become MVP ${n} time${n === 1 ? '' : 's'}`;
+    return '';
+  };
+
   const updateBadgeReqField = (type, rarity, patch) => {
     setBadgeReqDrafts(prev => prev.map(r => (r.type === type && r.rarity === rarity) ? { ...r, ...patch } : r));
   };
@@ -2506,54 +2517,66 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                     {['common', 'rare', 'epic', 'legendary'].map(rarity => {
                       const row = badgeReqDrafts.find(r => r.type === typeInfo.key && r.rarity === rarity);
                       if (!row) return null;
+                      const pill = (
+                        <span style={{
+                          flexShrink: 0, width: 78, textAlign: 'center',
+                          background: `${BADGE_RARITY_COLORS[rarity]}22`, color: BADGE_RARITY_COLORS[rarity],
+                          border: `1px solid ${BADGE_RARITY_COLORS[rarity]}55`,
+                          borderRadius: 999, padding: '4px 0', fontSize: 11, fontWeight: 700,
+                          textTransform: 'uppercase', letterSpacing: 0.3,
+                        }}>{BADGE_RARITY_LABELS[rarity]}</span>
+                      );
                       return (
                         <div key={rarity} style={{
                           display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
                           padding: '10px 12px', borderRadius: 10,
                           background: 'var(--card2)', border: '1px solid var(--border)',
                         }}>
-                          <span style={{
-                            flexShrink: 0, width: 78, textAlign: 'center',
-                            background: `${BADGE_RARITY_COLORS[rarity]}22`, color: BADGE_RARITY_COLORS[rarity],
-                            border: `1px solid ${BADGE_RARITY_COLORS[rarity]}55`,
-                            borderRadius: 999, padding: '4px 0', fontSize: 11, fontWeight: 700,
-                            textTransform: 'uppercase', letterSpacing: 0.3,
-                          }}>{BADGE_RARITY_LABELS[rarity]}</span>
-
-                          <input
-                            value={row.label}
-                            onChange={e => updateBadgeReqField(row.type, row.rarity, { label: e.target.value })}
-                            placeholder="Requirement text shown to players"
-                            style={{
-                              flex: '1 1 220px', minWidth: 160, background: 'var(--card)', border: '1px solid var(--border)',
-                              borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
-                            }}
-                          />
-
                           {typeInfo.key === 'ranked' ? (
-                            <select
-                              value={row.tier || ''}
-                              onChange={e => updateBadgeReqField(row.type, row.rarity, { tier: e.target.value || null })}
-                              style={{
-                                flexShrink: 0, background: 'var(--card)', border: '1px solid var(--border)',
-                                borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
-                              }}
-                            >
-                              <option value="">Always (no requirement)</option>
-                              <option value="gangsa">Reach/pass Gangsa</option>
-                              <option value="perak">Reach/pass Perak</option>
-                              <option value="emas">Reach Emas</option>
-                            </select>
+                            <>
+                              {pill}
+                              <input
+                                value={row.label}
+                                onChange={e => updateBadgeReqField(row.type, row.rarity, { label: e.target.value })}
+                                placeholder="Requirement text shown to players"
+                                style={{
+                                  flex: '1 1 220px', minWidth: 160, background: 'var(--card)', border: '1px solid var(--border)',
+                                  borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
+                                }}
+                              />
+                              <select
+                                value={row.tier || ''}
+                                onChange={e => updateBadgeReqField(row.type, row.rarity, { tier: e.target.value || null })}
+                                style={{
+                                  flexShrink: 0, background: 'var(--card)', border: '1px solid var(--border)',
+                                  borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
+                                }}
+                              >
+                                <option value="">Always (no requirement)</option>
+                                <option value="gangsa">Reach/pass Gangsa</option>
+                                <option value="perak">Reach/pass Perak</option>
+                                <option value="emas">Reach Emas</option>
+                              </select>
+                            </>
                           ) : (
-                            <input
-                              type="number" min={0}
-                              value={row.threshold ?? 0}
-                              onChange={e => updateBadgeReqField(row.type, row.rarity, { threshold: Number(e.target.value) })}
-                              style={{
-                                flexShrink: 0, width: 80, background: 'var(--card)', border: '1px solid var(--border)',
-                                borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
-                              }}
-                            />
+                            <>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 220px', minWidth: 160 }}>
+                                {pill}
+                                <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>{row.label}</span>
+                              </div>
+                              <input
+                                type="number" min={0}
+                                value={row.threshold ?? 0}
+                                onChange={e => {
+                                  const threshold = Number(e.target.value);
+                                  updateBadgeReqField(row.type, row.rarity, { threshold, label: autoBadgeLabel(row.type, threshold) });
+                                }}
+                                style={{
+                                  flexShrink: 0, width: 80, background: 'var(--card)', border: '1px solid var(--border)',
+                                  borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
+                                }}
+                              />
+                            </>
                           )}
                         </div>
                       );
