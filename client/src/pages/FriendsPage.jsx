@@ -569,7 +569,7 @@ export default function FriendsPage() {
                 }}><UserRoundPlus size={18} />Add Friend</button>
               );
             })()}
-            <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0 }}>Tap anywhere to close.</p>
+            <p style={{ color: 'var(--muted)', fontSize: 11, margin: 0, fontFamily: "'Space Mono'", letterSpacing: 1 }}>TAP ANYWHERE TO CLOSE</p>
           </div>
         </div>
       )}
