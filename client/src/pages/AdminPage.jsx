@@ -10,7 +10,7 @@ import { CiShop } from 'react-icons/ci';
 import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoMegaphone, IoMailUnread, IoMenu, IoWallet, IoCallOutline } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
 import { Badge as IconBadge } from 'lucide-react';
-import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall, BADGE_TYPE_LIST, BADGE_RARITY_LABELS, BADGE_RARITY_COLORS } from '../components/FifaCard';
+import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall, BADGE_TYPE_LIST, BADGE_RARITY_LABELS, BADGE_RARITY_COLORS, AchievementBadgeIcon } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
 import { BadgeSlotEditor, badgesToSlots, slotsToBadges } from '../components/BadgeSlotEditor';
 import { drawCardImage } from '../lib/cardCanvas';
@@ -616,8 +616,8 @@ export default function AdminPage() {
   // One description per category (not per rarity row, unlike autoBadgeLabel
   // above) — shown once under the category title.
   const CATEGORY_SUBTEXT = {
-    matches: 'Unlocked by total matches played.',
-    mvp: 'Unlocked by total MVP awards won.',
+    matches: 'Played XX matches',
+    mvp: 'Become MVP XX times',
     ranked: 'Unlocked by reaching, or having already passed, a rank tier.',
   };
 
@@ -2509,7 +2509,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20, marginBottom: 20 }}>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>BADGE REQUIREMENTS</div>
               <p style={{ color: 'var(--muted)', fontSize: 13 }}>
-                Edit the unlock requirement for each achievement badge tier — these drive which tiers a player can select for their own card in Edit Badges. "Matches" and "MVP Awards" unlock at a threshold count; "Ranked" unlocks by reaching (or having passed) a tier.
+                Edit the unlock requirement for each achievement badge tier.
               </p>
             </div>
 
@@ -2537,6 +2537,11 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                           textTransform: 'uppercase', letterSpacing: 0.3,
                         }}>{BADGE_RARITY_LABELS[rarity]}</span>
                       );
+                      const icon = (
+                        <div style={{ flexShrink: 0, width: 36, height: 36 }}>
+                          <AchievementBadgeIcon type={typeInfo.key} rarity={rarity} />
+                        </div>
+                      );
                       return (
                         <div key={rarity} style={{
                           display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
@@ -2545,6 +2550,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                         }}>
                           {typeInfo.key === 'ranked' ? (
                             <>
+                              {icon}
                               {pill}
                               <input
                                 value={row.label}
@@ -2571,6 +2577,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                             </>
                           ) : (
                             <>
+                              {icon}
                               {pill}
                               <input
                                 type="number" min={0}
