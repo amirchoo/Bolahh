@@ -13,6 +13,7 @@ import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, I
 import { FaLocationDot } from 'react-icons/fa6';
 import FifaCard, { calcOverall, AchievementBadgeIcon, BADGE_TYPE_LIST, BADGE_RARITY_COLORS, BADGE_RARITY_LABELS } from '../components/FifaCard';
 import BadgeReorderList from '../components/BadgeReorderList';
+import ProgressionPanel from '../components/ProgressionPanel';
 import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
 import { PLAYER_AREAS } from '../lib/areas';
@@ -30,6 +31,7 @@ export default function ProfilePage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [showProgression, setShowProgression] = useState(false);
   const [form, setForm] = useState({ name: '', position: '', gender: '', age: '', area: '', phone: '' });
   const [savedPhone, setSavedPhone] = useState('');
   const [saving, setSaving] = useState(false);
@@ -386,7 +388,6 @@ export default function ProfilePage() {
           .profile-header { flex-direction: column !important; align-items: center !important; text-align: center !important; }
           .profile-header .edit-btn { margin-top: 12px; width: 100%; }
           .profile-info { align-items: center !important; }
-          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
         .avatar-hover-overlay { pointer-events: none; }
         div:hover > .avatar-hover-overlay { opacity: 1 !important; }
@@ -530,16 +531,6 @@ export default function ProfilePage() {
           }}>
             {t('profile.tapToShare')}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 10 }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); navigate('/guide#ranks'); }}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                color: 'var(--accent)', fontSize: 12, fontWeight: 600, textDecoration: 'underline',
-              }}
-            >How does the rank system work?</button>
-          </div>
-
           {isAdmin && (
             <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
               <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>ADMIN · CARD DESIGN</span>
@@ -560,11 +551,14 @@ export default function ProfilePage() {
         </div>
 
         <button
-          onClick={() => navigate('/progression')}
+          onClick={() => { setShowProgression(v => !v); setEditing(false); setShowAchievementsModal(false); }}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-            background: 'var(--card)', border: '1px solid var(--border)',
-            borderRadius: 14, padding: '14px 18px', marginBottom: 16, cursor: 'pointer',
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderBottom: showProgression ? 'none' : '1px solid var(--border)',
+            borderRadius: showProgression ? '14px 14px 0 0' : 14,
+            padding: '14px 18px', marginBottom: showProgression ? 0 : 16, cursor: 'pointer',
           }}
         >
           <span style={{
@@ -576,19 +570,33 @@ export default function ProfilePage() {
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: 15, letterSpacing: 1, color: 'var(--text)' }}>MY PROGRESSION</div>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>See your level climb over time</div>
           </span>
-          <IoChevronForward size={16} color="var(--muted)" />
+          <IoChevronForward size={16} color="var(--muted)" style={{ transform: showProgression ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
         </button>
+
+        {/* Always mounted (just hidden) so its data fetch starts as soon as
+            the profile page loads, rather than only once the user expands
+            it — by the time they click, it's already loaded. */}
+        <div
+          className={showProgression ? 'slide-down' : undefined}
+          style={{
+            display: showProgression ? 'block' : 'none',
+            background: 'var(--card)', border: '1px solid var(--border)', borderTop: 'none',
+            borderRadius: '0 0 14px 14px', padding: '20px', marginBottom: 16,
+          }}
+        >
+          <ProgressionPanel showRankBadge={false} />
+        </div>
 
         {/* Action row */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-          <button onClick={() => { setEditing(v => !v); setShowAchievementsModal(false); }} disabled={saving} style={{
+          <button onClick={() => { setEditing(v => !v); setShowAchievementsModal(false); setShowProgression(false); }} disabled={saving} style={{
             flex: 1,
             background: editing ? 'var(--accent)' : 'transparent',
             color: editing ? '#fff' : 'var(--accent)',
             border: '1.5px solid var(--accent)', borderRadius: 10, padding: '8px 24px',
             fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
           }}>{saving ? t('profile.form.saving') : editing ? t('profile.cancelEdit') : t('profile.editProfile')}</button>
-          <button onClick={() => { setShowAchievementsModal(v => !v); setEditing(false); }} style={{
+          <button onClick={() => { setShowAchievementsModal(v => !v); setEditing(false); setShowProgression(false); }} style={{
             flex: 1,
             background: showAchievementsModal ? 'var(--accent)' : 'transparent',
             color: showAchievementsModal ? '#fff' : 'var(--accent)',
@@ -904,19 +912,6 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
-
-        {/* Stats */}
-        <div className="fade-up-3 stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
-          {[
-            { labelKey: 'profile.stats.gamesJoined', val: profile?.games_played || 0 },
-            { labelKey: 'profile.stats.memberSince', val: new Date(user?.created_at).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' }) },
-          ].map(s => (
-            <div key={s.labelKey} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px' }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--accent)', letterSpacing: 1 }}>{s.val}</div>
-              <div style={{ color: 'var(--text)', fontSize: 12, marginTop: 2 }}>{t(s.labelKey)}</div>
-            </div>
-          ))}
-        </div>
 
         {/* Wallet */}
         <div

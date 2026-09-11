@@ -2,73 +2,19 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
+import FifaCard, { getCardTheme } from '../components/FifaCard';
 import { useAuth } from '../context/AuthContext';
 import { getCached, setCached } from '../lib/dataCache';
 import { usePersistedState } from '../lib/usePersistedState';
-import { getRank, getRankColor } from '../lib/rankUtils';
+import { getRank } from '../lib/rankUtils';
 import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoSearch, IoPeople, IoMailOpen, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
+import { UserRoundPlus } from 'lucide-react';
 import { PLAYER_AREAS } from '../lib/areas';
 
 const AREA_OPTIONS = ['All Areas', ...PLAYER_AREAS];
-const PROFILE_FIELDS = 'id, name, area, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, equipped_border';
-
-const POSITION_ABBR = { 'Attacker': 'AT', 'Midfielder': 'MF', 'Defender': 'DF', 'Goalkeeper': 'GK' };
-const STATS = [
-  { key: 'pac', label: 'PAC' }, { key: 'sho', label: 'SHO' }, { key: 'pas', label: 'PAS' },
-  { key: 'dri', label: 'DRI' }, { key: 'def', label: 'DEF' }, { key: 'phy', label: 'PHY' },
-];
-
-function getCardTheme(rank) {
-  if (rank.startsWith('Emas'))   return { bg: 'linear-gradient(145deg, #b8860b, #ffd700, #b8860b)', border: '#ffd700', text: '#3a2a00', muted: '#6b4e00', statBg: 'rgba(0,0,0,0.2)' };
-  if (rank.startsWith('Perak'))  return { bg: 'linear-gradient(145deg, #3a7a96, #aadaef, #3a7a96)', border: '#6ec8e8', text: '#0b1e2b', muted: '#1a3c50', statBg: 'rgba(0,0,0,0.15)' };
-  if (rank.startsWith('Gangsa')) return { bg: 'linear-gradient(145deg, #7c4a1a, #cd7f32, #7c4a1a)', border: '#cd7f32', text: '#2a1400', muted: '#5a3010', statBg: 'rgba(0,0,0,0.2)' };
-  return { bg: 'linear-gradient(145deg, #2a2d30, #3d4144, #2a2d30)', border: '#555', text: '#e8e9eb', muted: '#aaa', statBg: 'rgba(255,255,255,0.1)' };
-}
-
-
-function FifaCard({ profile, cardStats, rank }) {
-  const theme = getCardTheme(rank);
-  const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
-  return (
-    <div style={{ width: 220, height: 330, borderRadius: 16, background: theme.bg, border: `2px solid ${theme.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)', position: 'relative', overflow: 'hidden', flexShrink: 0, fontFamily: "'DM Sans'" }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%)', pointerEvents: 'none', zIndex: 2 }} />
-      <div style={{ position: 'absolute', top: 12, left: 14, zIndex: 3 }}>
-        <div style={{ fontFamily: "'Bebas Neue'", fontSize: 44, color: theme.text, lineHeight: 1 }}>{cardStats.overall || 30}</div>
-        <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: theme.text, fontWeight: 700, letterSpacing: 1, marginTop: 2 }}>{POSITION_ABBR[profile?.position] || 'POS'}</div>
-      </div>
-      <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 3, fontFamily: "'Bebas Neue'", fontSize: 10, color: theme.muted, letterSpacing: 1, textAlign: 'right' }}>{rank}</div>
-      <div style={{ position: 'absolute', top: 44, left: '50%', transform: 'translateX(-50%)', width: 108, height: 108, borderRadius: '50%', overflow: 'hidden', border: `3px solid ${theme.border}`, background: theme.statBg, zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {profile?.avatar_url
-          ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ fontFamily: "'Space Mono'", fontSize: 28, fontWeight: 700, color: theme.text }}>{(profile?.name?.[0] || '?').toUpperCase()}</span>}
-      </div>
-      {/* Name + verified tick */}
-      <div style={{ position: 'absolute', top: 160, left: 0, right: 0, zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '0 8px' }}>
-        <span style={{ fontFamily: "'Bebas Neue'", fontSize: 17, color: theme.text, letterSpacing: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {profile?.name || 'PLAYER'}
-        </span>
-        {isSubscribed && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, color: '#fff' }}><IoCheckmark size={9} /></span>
-        )}
-      </div>
-      <div style={{ position: 'absolute', top: 182, left: 16, right: 16, height: 1, background: `${theme.border}55`, zIndex: 3 }} />
-      <div style={{ position: 'absolute', top: 190, left: 10, right: 10, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, zIndex: 3 }}>
-        {STATS.map(s => (
-          <div key={s.key} style={{ background: theme.statBg, borderRadius: 5, padding: '4px', textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Space Mono'", fontSize: 14, fontWeight: 700, color: theme.text, lineHeight: 1 }}>{cardStats[s.key] || 0}</div>
-            <div style={{ fontFamily: "'Space Mono'", fontSize: 8, color: theme.muted, letterSpacing: 0.5, marginTop: 1 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ position: 'absolute', bottom: 8, left: 10, right: 10, display: 'flex', justifyContent: 'space-between', zIndex: 3, borderTop: `1px solid ${theme.border}55`, paddingTop: 5 }}>
-        <div style={{ fontFamily: "'Space Mono'", fontSize: 8, color: theme.muted }}><span style={{ fontWeight: 700, color: theme.text }}>{profile?.games_played || 0}</span> GAMES PLAYED</div>
-        <div style={{ fontFamily: "'Space Mono'", fontSize: 8, color: theme.muted }}><span style={{ fontWeight: 700, color: theme.text }}>{profile?.total_points || 30}</span> OVR</div>
-      </div>
-    </div>
-  );
-}
+const PROFILE_FIELDS = 'id, name, position, area, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, achievement_badges, equipped_border';
 
 export default function FriendsPage() {
   const navigate = useNavigate();
@@ -282,8 +228,8 @@ export default function FriendsPage() {
   const openPlayerCard = (profile) => {
     const cs = profile.card_stats;
     const cardStats = cs
-      ? { pac: cs.pac || 30, sho: cs.sho || 30, pas: cs.pas || 30, dri: cs.dri || 30, def: cs.def || 30, phy: cs.phy || 30, overall: profile.total_points || 30 }
-      : { pac: 30, sho: 30, pas: 30, dri: 30, def: 30, phy: 30, overall: 30 };
+      ? { pac: cs.pac || 30, sho: cs.sho || 30, pas: cs.pas || 30, dri: cs.dri || 30, def: cs.def || 30, phy: cs.phy || 30 }
+      : { pac: 30, sho: 30, pas: 30, dri: 30, def: 30, phy: 30 };
     setViewingPlayer({ profile, cardStats });
   };
 
@@ -293,54 +239,98 @@ export default function FriendsPage() {
     { key: 'search', label: <><IoSearch size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />Find Players</> },
   ];
 
-  const PlayerCard = ({ profile, actions, playedTogether }) => {
+  const PlayerCard = ({ profile, onRemove, onAccept, onDecline }) => {
     const rank = getRank(profile.total_points || 0);
-    const color = getRankColor(rank);
+    const theme = getCardTheme(rank);
+    const isSelf = profile.id === user?.id;
+    const isSubscribed = profile.is_subscribed && profile.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
     return (
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: 8 }}>
       <div
         onClick={() => openPlayerCard(profile)}
         style={{
+          background: theme.bg,
+          border: `1.5px solid ${theme.border}`,
+          borderRadius: 14, padding: '12px 14px',
           display: 'flex', alignItems: 'center', gap: 12,
-          padding: '12px 16px',
-          background: 'var(--card)', border: '1px solid var(--border)',
-          borderRadius: 12, marginBottom: 8,
-          cursor: 'pointer', transition: 'background 0.15s',
+          cursor: 'pointer', flex: 1, minWidth: 0,
         }}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--card2)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
       >
         {/* Avatar */}
         <div style={{
           width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
-          background: profile.avatar_url ? 'transparent' : 'var(--accent)',
+          background: profile.avatar_url ? 'transparent' : theme.statBg,
+          border: `1.5px solid ${theme.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 17, fontWeight: 700, color: '#fff', overflow: 'hidden',
+          fontSize: 17, fontWeight: 700, color: theme.text, overflow: 'hidden',
         }}>
           {profile.avatar_url
-            ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : (profile.name?.[0] || '?').toUpperCase()}
         </div>
 
-        {/* Info */}
+        {/* Name + meta */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>{profile.name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: "'Bebas Neue'", fontSize: 13, letterSpacing: 1, color }}>{rank}</span>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-              · {playedTogether ? `Played ${playedTogether}x together` : `${profile.games_played || 0} games`}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+              {profile.name || 'Unknown'}
             </span>
-            {profile.area && (
-              <span style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                <FaLocationDot size={9} />{profile.area}
-              </span>
+            {isSelf && (
+              <span style={{
+                background: theme.statBg, color: theme.text, flexShrink: 0,
+                fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+                borderRadius: 20, padding: '3px 8px',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              }}>YOU</span>
             )}
+            {isSubscribed && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff' }}><IoCheckmark size={9} /></span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: "'Bebas Neue'", fontSize: 12, letterSpacing: 1, color: theme.text }}>
+              {rank}{profile.position && ` · ${profile.position.toUpperCase()}`}
+            </span>
           </div>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {actions}
+        {/* OVR */}
+        <div style={{ textAlign: 'center', flexShrink: 0 }}>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: theme.text, lineHeight: 1, letterSpacing: 1 }}>
+            {profile.total_points || 30}
+          </div>
+          <div style={{ fontSize: 9, color: theme.muted, fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
         </div>
+      </div>
+
+      {onRemove && (
+        <button type="button" onClick={onRemove} style={{
+          ...btnBase, flexShrink: 0, alignSelf: 'stretch',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+          border: '1px solid rgba(240,101,67,0.25)'
+        }}>Remove</button>
+      )}
+
+      {(onAccept || onDecline) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+          {onAccept && (
+            <button type="button" onClick={onAccept} style={{
+              ...btnBase, flex: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--accent)', color: '#fff'
+            }}>Accept</button>
+          )}
+          {onDecline && (
+            <button type="button" onClick={onDecline} style={{
+              ...btnBase, flex: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--card2)', color: 'var(--muted)',
+              border: '1px solid var(--border)'
+            }}>Decline</button>
+          )}
+        </div>
+      )}
       </div>
     );
   };
@@ -392,12 +382,7 @@ export default function FriendsPage() {
                 }}>Find Players</button>
               </div>
             ) : friends.map(profile => (
-              <PlayerCard key={profile.id} profile={profile} actions={
-                <button type="button" onClick={e => { e.stopPropagation(); removeFriend(profile.id); }} style={{
-                  ...btnBase, background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
-                  border: '1px solid rgba(240,101,67,0.25)'
-                }}>Remove</button>
-              } />
+              <PlayerCard key={profile.id} profile={profile} onRemove={() => removeFriend(profile.id)} />
             ))}
           </div>
         )}
@@ -416,17 +401,7 @@ export default function FriendsPage() {
                   INCOMING REQUESTS
                 </div>
                 {pending.map(profile => (
-                  <PlayerCard key={profile.id} profile={profile} actions={
-                    <>
-                      <button type="button" onClick={e => { e.stopPropagation(); acceptRequest(profile.id); }} style={{
-                        ...btnBase, background: 'var(--accent)', color: '#fff'
-                      }}>Accept</button>
-                      <button type="button" onClick={e => { e.stopPropagation(); declineRequest(profile.id); }} style={{
-                        ...btnBase, background: 'var(--card2)', color: 'var(--muted)',
-                        border: '1px solid var(--border)'
-                      }}>Decline</button>
-                    </>
-                  } />
+                  <PlayerCard key={profile.id} profile={profile} onAccept={() => acceptRequest(profile.id)} onDecline={() => declineRequest(profile.id)} />
                 ))}
               </>
             )}
@@ -494,12 +469,7 @@ export default function FriendsPage() {
                       PLAYERS IN {areaFilter.toUpperCase()}
                     </div>
                     {candidates.map(profile => (
-                      <PlayerCard key={profile.id} profile={profile} actions={
-                        <button type="button" onClick={e => { e.stopPropagation(); sendRequest(profile.id); }} style={{
-                          ...btnBase, background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
-                          border: '1px solid rgba(240,157,81,0.3)'
-                        }}>+ Add</button>
-                      } />
+                      <PlayerCard key={profile.id} profile={profile} />
                     ))}
                   </>
                 );
@@ -525,45 +495,16 @@ export default function FriendsPage() {
                       PLAYED WITH BEFORE
                     </div>
                     {suggestions.map(profile => (
-                      <PlayerCard key={profile.id} profile={profile} playedTogether={profile.playedTogether} actions={
-                        <button type="button" onClick={e => { e.stopPropagation(); sendRequest(profile.id); }} style={{
-                          ...btnBase, background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
-                          border: '1px solid rgba(240,157,81,0.3)'
-                        }}>+ Add</button>
-                      } />
+                      <PlayerCard key={profile.id} profile={profile} />
                     ))}
                   </>
                 );
               })()
             )}
 
-            {searchResults.map(profile => {
-              const status = getFriendshipStatus(profile.id);
-              return (
-                <PlayerCard key={profile.id} profile={profile} actions={
-                  status === 'friends' ? (
-                    <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}><IoCheckmark size={13} />Friends</span>
-                  ) : status === 'sent' ? (
-                    <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Pending...</span>
-                  ) : status === 'pending' ? (
-                    <>
-                      <button type="button" onClick={e => { e.stopPropagation(); acceptRequest(profile.id); }} style={{
-                        ...btnBase, background: 'var(--accent)', color: '#fff'
-                      }}>Accept</button>
-                      <button type="button" onClick={e => { e.stopPropagation(); declineRequest(profile.id); }} style={{
-                        ...btnBase, background: 'var(--card2)', color: 'var(--muted)',
-                        border: '1px solid var(--border)'
-                      }}>Decline</button>
-                    </>
-                  ) : (
-                    <button type="button" onClick={e => { e.stopPropagation(); sendRequest(profile.id); }} style={{
-                      ...btnBase, background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
-                      border: '1px solid rgba(240,157,81,0.3)'
-                    }}>+ Add</button>
-                  )
-                } />
-              );
-            })}
+            {searchResults.map(profile => (
+              <PlayerCard key={profile.id} profile={profile} />
+            ))}
           </div>
         )}
 
@@ -579,12 +520,53 @@ export default function FriendsPage() {
               profile={viewingPlayer.profile}
               cardStats={viewingPlayer.cardStats}
               rank={getRank(viewingPlayer.profile.total_points || 0)}
+              achievementBadges={viewingPlayer.profile.achievement_badges}
+              size="normal"
+              interactive
             />
-            <button onClick={() => setViewingPlayer(null)} style={{
-              background: 'rgba(255,255,255,0.1)', color: '#fff',
-              border: '1px solid rgba(255,255,255,0.25)', borderRadius: 10,
-              padding: '10px 32px', fontSize: 14, cursor: 'pointer',
-            }}>Close</button>
+            {(() => {
+              const status = getFriendshipStatus(viewingPlayer.profile.id);
+              if (status === 'friends') {
+                return (
+                  <button onClick={() => removeFriend(viewingPlayer.profile.id)} style={{
+                    background: 'rgba(240,101,67,0.1)', color: 'var(--red)',
+                    border: '1px solid rgba(240,101,67,0.25)', borderRadius: 10,
+                    padding: '10px 32px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  }}>Remove Friend</button>
+                );
+              }
+              if (status === 'pending') {
+                return (
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => { acceptRequest(viewingPlayer.profile.id); setViewingPlayer(null); }} style={{
+                      background: 'var(--accent)', color: '#fff', border: 'none',
+                      borderRadius: 10, padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    }}>Accept</button>
+                    <button onClick={() => { declineRequest(viewingPlayer.profile.id); setViewingPlayer(null); }} style={{
+                      background: 'var(--card2)', color: 'var(--muted)', border: '1px solid var(--border)',
+                      borderRadius: 10, padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    }}>Decline</button>
+                  </div>
+                );
+              }
+              if (status === 'sent') {
+                return (
+                  <div style={{
+                    background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                    border: '1px solid rgba(240,157,81,0.3)', borderRadius: 10,
+                    padding: '10px 32px', fontSize: 14, fontWeight: 600,
+                  }}>Request Sent</div>
+                );
+              }
+              return (
+                <button onClick={() => sendRequest(viewingPlayer.profile.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: 'var(--accent)', color: '#fff', border: 'none',
+                  borderRadius: 10, padding: '10px 32px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}><UserRoundPlus size={18} />Add Friend</button>
+              );
+            })()}
+            <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0 }}>Tap anywhere to close.</p>
           </div>
         </div>
       )}

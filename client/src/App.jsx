@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { useAuth } from './context/AuthContext';
@@ -55,6 +56,12 @@ function SuperAdminRoute({ children }) {
 
 function AnimatedRoutes() {
   const location = useLocation();
+  // Browser routers don't reset scroll on client-side navigation the way a
+  // full page load does — without this, a route change while scrolled down
+  // lands the new page at that same scroll offset instead of its top.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
   return (
     <div key={location.pathname} className="page-enter">
       <Routes>

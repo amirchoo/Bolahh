@@ -59,12 +59,7 @@ export default function AdminPage() {
     name: 'PLAYER ONE', position: 'Attacker', rank: 'Emas I',
     pac: 72, sho: 68, pas: 75, dri: 70, def: 60, phy: 65,
     games_played: 0,
-    // Achievement badges: fixed set of 3 types, each toggled on/off with its
-    // own rarity — array ORDER is display order (top to bottom on the
-    // card), so reordering means swapping array positions, not relabeling.
-    badgeSlots: badgesToSlots([]),
   });
-  const activeBadges = slotsToBadges(cardForm.badgeSlots);
   const [cardAvatarPreview, setCardAvatarPreview] = useState(null);
   const [cardDownloading, setCardDownloading] = useState(false);
 
@@ -706,7 +701,6 @@ export default function AdminPage() {
         profile,
         cardStats: stats,
         rank: cardForm.rank,
-        achievementBadges: activeBadges,
       });
       const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
       const a = document.createElement('a');
@@ -2063,15 +2057,6 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                   </div>
                 </div>
 
-                {/* Achievement badges — fixed set of 3 types; admin picks which show,
-                    their rarity, and their order (top to bottom on the card) via the
-                    up/down arrows, which just swap array positions. */}
-                <div style={sectionCard}>
-                  <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 2, color: 'var(--text)', marginBottom: 4 }}>ACHIEVEMENT BADGES</h3>
-                  <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>Stack order top to bottom matches the order below.</p>
-                  <BadgeSlotEditor slots={cardForm.badgeSlots} onChange={slots => setCardForm(prev => ({ ...prev, badgeSlots: slots }))} />
-                </div>
-
               </div>
 
               {/* ── Right column: live preview + download ── */}
@@ -2089,7 +2074,6 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                       }}
                       cardStats={{ pac: cardForm.pac, sho: cardForm.sho, pas: cardForm.pas, dri: cardForm.dri, def: cardForm.def, phy: cardForm.phy }}
                       rank={cardForm.rank}
-                      achievementBadges={activeBadges}
                     />
                   </div>
                   <div style={{ fontFamily: "'Space Mono'", fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>

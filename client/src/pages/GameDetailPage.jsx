@@ -1110,7 +1110,7 @@ export default function GameDetailPage() {
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, color: theme.text }}>{rank}</span>
+                        <span style={{ fontFamily: "'Bebas Neue'", fontSize: 11, fontWeight: 700, color: theme.text, letterSpacing: 1 }}>{rank}</span>
                         {p.position && <span style={{ fontSize: 11, color: theme.muted }}>· {p.position}</span>}
                       </div>
                     </div>

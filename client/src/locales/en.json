@@ -260,10 +260,6 @@
       "Female": "Female",
       "Rather not say": "Rather not say"
     },
-    "stats": {
-      "gamesJoined": "Games Joined",
-      "memberSince": "Member Since"
-    },
     "wallet": {
       "title": "BOLAHH WALLET",
       "balance": "Available balance",
