@@ -523,7 +523,7 @@ export default function ProfilePage() {
           {t('profile.title')}
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 3,
-            position: 'relative', top: 1,
+            position: 'relative', top: -3,
             background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)',
             border: `1px solid ${isSubscribed ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
             color: isSubscribed ? '#4ade80' : 'var(--muted)',
