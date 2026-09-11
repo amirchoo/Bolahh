@@ -16,7 +16,7 @@ import BadgeReorderList from '../components/BadgeReorderList';
 import ProgressionPanel from '../components/ProgressionPanel';
 import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
-import { PLAYER_AREAS } from '../lib/areas';
+import { PLAYER_AREAS, PLAYER_DISTRICTS, stateForPlayerArea } from '../lib/areas';
 import { resizeImageFile } from '../lib/imageResize';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
@@ -897,14 +897,28 @@ export default function ProfilePage() {
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.areaLabel')}</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {PLAYER_AREAS.map(a => (
-                  <button key={a} onClick={() => setForm({ ...form, area: form.area === a ? '' : a })} style={{
-                    background: form.area === a ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                    color: form.area === a ? 'var(--accent)' : 'var(--text)',
-                    border: `1px solid ${form.area === a ? 'var(--accent)' : 'var(--border)'}`,
+                  <button key={a} onClick={() => setForm({ ...form, area: stateForPlayerArea(form.area) === a ? '' : PLAYER_DISTRICTS[a][0] })} style={{
+                    background: stateForPlayerArea(form.area) === a ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: stateForPlayerArea(form.area) === a ? 'var(--accent)' : 'var(--text)',
+                    border: `1px solid ${stateForPlayerArea(form.area) === a ? 'var(--accent)' : 'var(--border)'}`,
                     borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500
                   }}>{a}</button>
                 ))}
               </div>
+              {stateForPlayerArea(form.area) && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, display: 'block' }}>District in {stateForPlayerArea(form.area)}</label>
+                  <select
+                    value={PLAYER_DISTRICTS[stateForPlayerArea(form.area)].includes(form.area) ? form.area : ''}
+                    onChange={e => setForm({ ...form, area: e.target.value })}
+                    style={{ width: '100%' }}
+                  >
+                    {PLAYER_DISTRICTS[stateForPlayerArea(form.area)].map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '', phone: savedPhone }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>

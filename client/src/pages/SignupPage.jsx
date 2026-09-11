@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { IoEye, IoEyeOff, IoMail } from 'react-icons/io5';
 import { useTranslation } from 'react-i18next';
-import { PLAYER_AREAS } from '../lib/areas';
+import { PLAYER_AREAS, PLAYER_DISTRICTS, stateForPlayerArea } from '../lib/areas';
 import AvatarPicker from '../components/AvatarPicker';
 
 const ZONE_CONFIG = [
@@ -523,13 +523,27 @@ export default function SignupPage() {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {areas.map(a => (
                       <button key={a}
-                        onClick={() => setForm({ ...form, area: form.area === a ? '' : a })}
-                        style={chipBtn(form.area === a)}
+                        onClick={() => setForm({ ...form, area: stateForPlayerArea(form.area) === a ? '' : PLAYER_DISTRICTS[a][0] })}
+                        style={chipBtn(stateForPlayerArea(form.area) === a)}
                       >
                         {a}
                       </button>
                     ))}
                   </div>
+                  {stateForPlayerArea(form.area) && (
+                    <div style={{ marginTop: 10 }}>
+                      <label style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, display: 'block' }}>District in {stateForPlayerArea(form.area)}</label>
+                      <select
+                        value={PLAYER_DISTRICTS[stateForPlayerArea(form.area)].includes(form.area) ? form.area : ''}
+                        onChange={e => setForm({ ...form, area: e.target.value })}
+                        style={{ width: '100%' }}
+                      >
+                        {PLAYER_DISTRICTS[stateForPlayerArea(form.area)].map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
 
