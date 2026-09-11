@@ -557,7 +557,7 @@ export default function ProfilePage() {
         >
           <FifaCard profile={profile} cardStats={cardStats} rank={displayRank} size="normal" achievementBadges={profile?.achievement_badges} onAvatarClick={() => setShowAvatarModal(true)} interactive memberSince={user?.created_at} />
           <div className="card-tap-hint" style={{
-            marginTop: 8, fontSize: 11, color: 'var(--muted)',
+            marginTop: 16, fontSize: 11, color: 'var(--muted)',
             fontFamily: "'Space Mono'", letterSpacing: 1,
           }}>
             {t('profile.tapToShare')}
