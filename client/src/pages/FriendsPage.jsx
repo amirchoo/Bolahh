@@ -11,9 +11,12 @@ import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoSearch, IoPeople, IoMailOpen, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
 import { UserRoundPlus } from 'lucide-react';
-import { PLAYER_AREAS } from '../lib/areas';
+import { PLAYER_AREAS, PLAYER_DISTRICTS } from '../lib/areas';
 
 const AREA_OPTIONS = ['All Areas', ...PLAYER_AREAS];
+// A player's stored area can be a bare state (legacy) or a district within
+// it, so filtering by state needs to match either form.
+const areaMatchValues = (state) => [state, ...(PLAYER_DISTRICTS[state] || [])];
 const PROFILE_FIELDS = 'id, name, position, area, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, achievement_badges, equipped_border';
 
 export default function FriendsPage() {
@@ -147,7 +150,7 @@ export default function FriendsPage() {
       .ilike('name', `%${q}%`)
       .neq('id', user.id)
       .limit(10);
-    if (area !== 'All Areas') query = query.eq('area', area);
+    if (area !== 'All Areas') query = query.in('area', areaMatchValues(area));
 
     const { data } = await query;
     setSearchResults(data || []);
@@ -166,7 +169,7 @@ export default function FriendsPage() {
     const { data } = await supabase
       .from('profiles')
       .select(PROFILE_FIELDS)
-      .eq('area', area)
+      .in('area', areaMatchValues(area))
       .neq('id', user.id)
       .order('total_points', { ascending: false })
       .limit(20);

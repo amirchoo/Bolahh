@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Confirm it's you</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
+  body { margin: 0; padding: 0; background: #111213; }
+  .brand { font-family: 'Bebas Neue', Arial, sans-serif; }
+  .sans { font-family: 'DM Sans', Arial, sans-serif; }
+  .mono { font-family: 'Space Mono', 'Courier New', monospace; }
+</style>
+</head>
+<body style="margin:0; padding:0; background:#111213;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111213;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background:linear-gradient(135deg,#1c1e21,#27292d); background-color:#1c1e21; border:1px solid rgba(240,157,81,0.25); border-radius:20px; overflow:hidden;">
+          <tr>
+            <td align="center" style="padding:32px 32px 0;">
+              <img src="https://www.bolahh.com/icons/icon-512.png" width="48" height="48" alt="Bolahh" style="border-radius:12px; display:block;" />
+              <div class="brand" style="font-size:22px; letter-spacing:3px; color:#F09D51; margin-top:12px;">BOLAHH</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <h1 class="brand" style="font-size:28px; letter-spacing:1px; color:#ffffff; margin:0 0 12px; text-align:center;">Confirm it's you</h1>
+              <p class="sans" style="font-size:14px; line-height:1.6; color:#e8e9eb; margin:0 0 24px; text-align:center;">
+                For your security, enter this code in Bolahh to confirm this sensitive action.
+              </p>
+              <div class="mono" style="font-size:36px; font-weight:700; letter-spacing:10px; color:#F09D51; text-align:center; padding:20px; background:rgba(240,157,81,0.08); border:1px solid rgba(240,157,81,0.2); border-radius:14px; margin-bottom:20px;">
+                {{ .Token }}
+              </div>
+              <p class="sans" style="font-size:12px; color:#6b6d6f; text-align:center; margin:0;">This code expires shortly, so use it right away.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 28px; border-top:1px solid rgba(255,255,255,0.08);">
+              <p class="sans" style="font-size:11px; color:#6b6d6f; text-align:center; margin:0;">If you didn't request this, you can safely ignore this email.</p>
+              <p class="sans" style="font-size:11px; color:#6b6d6f; text-align:center; margin:6px 0 0;">© Bolahh · bolahh.com</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

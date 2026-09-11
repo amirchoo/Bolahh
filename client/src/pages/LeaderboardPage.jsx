@@ -11,7 +11,7 @@ import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
 import { FaMedal } from 'react-icons/fa6';
 import { UserRoundPlus } from 'lucide-react';
-import { PLAYER_AREAS } from '../lib/areas';
+import { PLAYER_AREAS, stateForPlayerArea } from '../lib/areas';
 
 const AREAS = ['All Areas', ...PLAYER_AREAS];
 const POSITION_TABS = [
@@ -77,7 +77,7 @@ export default function LeaderboardPage() {
   };
 
   const filtered = players.filter(p => {
-    if (areaFilter !== 'All Areas' && p.area !== areaFilter) return false;
+    if (areaFilter !== 'All Areas' && stateForPlayerArea(p.area) !== areaFilter) return false;
     if (posFilter !== 'All' && p.position !== posFilter) return false;
     if (getRankTier(getRank(p.overall)) === 'novis') return false;
     return true;
