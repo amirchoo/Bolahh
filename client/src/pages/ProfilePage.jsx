@@ -518,18 +518,19 @@ export default function ProfilePage() {
         <h2 className="fade-up" style={{
           fontFamily: "'Bebas Neue'", fontSize: 32,
           letterSpacing: 3, marginBottom: 20, color: 'var(--text)',
-          display: 'flex', alignItems: 'center', gap: 12,
+          display: 'flex', alignItems: 'center', gap: 10,
         }}>
           {t('profile.title')}
           <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            position: 'relative', top: 1,
             background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)',
             border: `1px solid ${isSubscribed ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
             color: isSubscribed ? '#4ade80' : 'var(--muted)',
-            borderRadius: 20, padding: '4px 10px',
-            fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, letterSpacing: 1,
+            borderRadius: 20, padding: '3px 8px',
+            fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, letterSpacing: 1,
           }}>
-            {isSubscribed ? <IconCheck size={12} /> : <IconX size={12} />}
+            {isSubscribed ? <IconCheck size={9} /> : <IconX size={9} />}
             {isSubscribed ? 'VERIFIED' : 'NOT VERIFIED'}
           </span>
         </h2>
