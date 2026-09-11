@@ -11,6 +11,7 @@ import { ACHIEVEMENT_REQUIREMENTS, computeTop3Tiers } from '../lib/achievements'
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
+import { Check as IconCheck, X as IconX } from 'lucide-react';
 import FifaCard, { calcOverall, AchievementBadgeIcon, BADGE_TYPE_LIST, BADGE_RARITY_COLORS, BADGE_RARITY_LABELS } from '../components/FifaCard';
 import BadgeReorderList from '../components/BadgeReorderList';
 import ProgressionPanel from '../components/ProgressionPanel';
@@ -516,8 +517,22 @@ export default function ProfilePage() {
 
         <h2 className="fade-up" style={{
           fontFamily: "'Bebas Neue'", fontSize: 32,
-          letterSpacing: 3, marginBottom: 20, color: 'var(--text)'
-        }}>{t('profile.title')}</h2>
+          letterSpacing: 3, marginBottom: 20, color: 'var(--text)',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          {t('profile.title')}
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)',
+            border: `1px solid ${isSubscribed ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
+            color: isSubscribed ? '#4ade80' : 'var(--muted)',
+            borderRadius: 20, padding: '4px 10px',
+            fontFamily: "'Space Mono'", fontSize: 11, fontWeight: 700, letterSpacing: 1,
+          }}>
+            {isSubscribed ? <IconCheck size={12} /> : <IconX size={12} />}
+            {isSubscribed ? 'VERIFIED' : 'NOT VERIFIED'}
+          </span>
+        </h2>
 
         {/* FIFA Card section */}
         <div
