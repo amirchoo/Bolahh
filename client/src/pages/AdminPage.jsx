@@ -2518,10 +2518,10 @@ create policy "Manage banners" on banners for all using (true);`}</code>
               const saving = savingBadgeType === typeInfo.key;
               return (
                 <div key={typeInfo.key} style={sectionCard}>
-                  <div style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--accent)' }}>
+                  <div style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--accent)', lineHeight: 1.4 }}>
                     {typeInfo.label.toUpperCase()}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4, marginTop: 6, marginBottom: 14 }}>
                     {CATEGORY_SUBTEXT[typeInfo.key]}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
