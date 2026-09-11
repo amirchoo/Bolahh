@@ -1,10 +1,14 @@
-import { IoStar, IoCalendarOutline, IoChatbubbleEllipsesOutline } from 'react-icons/io5';
+import { IoStar, IoCalendarOutline, IoChatbubbleEllipsesOutline, IoCallOutline } from 'react-icons/io5';
+
+// Placeholder shown until an admin sets the manager's real number.
+const DUMMY_CONTACT_NUMBER = '+60 12-345 6789';
 
 // Business-card style profile for a game's manager — distinct from the
 // FIFA-style player card. Shows the manager's own card avatar (separate
-// from their player avatar), games managed, and a 0-10 satisfaction score
-// averaged from post-game "how was your manager?" ratings.
-export default function ManagerCard({ name, avatarUrl, gamesManaged = 0, satisfactionScore = 10, reviewCount = 0 }) {
+// from their player avatar), games managed, a 0-10 satisfaction score
+// averaged from post-game "how was your manager?" ratings, and a contact
+// number so players can reach them directly.
+export default function ManagerCard({ name, avatarUrl, gamesManaged = 0, satisfactionScore = 10, reviewCount = 0, contactNumber }) {
   return (
     <div style={{
       width: 320, borderRadius: 20, overflow: 'hidden',
@@ -81,6 +85,17 @@ export default function ManagerCard({ name, avatarUrl, gamesManaged = 0, satisfa
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>/10</span>
             </div>
           </div>
+        </div>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginTop: 14,
+          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: 12, padding: '10px 14px',
+        }}>
+          <IoCallOutline size={14} color="var(--accent)" />
+          <span style={{ fontFamily: "'Space Mono'", fontSize: 13, color: '#fff' }}>
+            {contactNumber || DUMMY_CONTACT_NUMBER}
+          </span>
         </div>
 
         <div style={{
