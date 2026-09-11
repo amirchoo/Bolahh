@@ -11,7 +11,7 @@ const BENEFITS = [
   'Verified tick badge on your Bolahh card',
   'Upload GIF as your avatar, animated profile photo',
   'Stand out in friend lists and search',
-  'Show your commitment to the Bolahh community',
+  'Support the Bolahh community and development',
 ];
 
 export default function SubscriptionPage() {
@@ -169,31 +169,6 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* Wallet balance */}
-        {!subscribed && (
-          <div style={{
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-dim))',
-            borderRadius: 16, padding: '18px 20px', marginBottom: 20,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            boxShadow: '0 4px 20px rgba(240,157,81,0.2)', position: 'relative', overflow: 'hidden',
-          }}>
-            <div style={{ position: 'absolute', top: -20, right: -20, width: 90, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', pointerEvents: 'none' }} />
-            <div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>WALLET BALANCE</div>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 38, color: '#fff', letterSpacing: 2, lineHeight: 1 }}>
-                RM {loading ? '-' : balance.toFixed(2)}
-              </div>
-            </div>
-            {!loading && balance < SUBSCRIPTION_COST && (
-              <button onClick={() => navigate('/wallet/topup')} style={{
-                background: 'rgba(0,0,0,0.25)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: 10, padding: '8px 16px', fontWeight: 700, fontSize: 12,
-                cursor: 'pointer', fontFamily: "'Bebas Neue'", letterSpacing: 1.5, flexShrink: 0,
-              }}>+ TOPUP</button>
-            )}
-          </div>
-        )}
-
         {/* Success */}
         {success && (
           <div style={{
@@ -240,6 +215,31 @@ export default function SubscriptionPage() {
             </div>
           ))}
         </div>
+
+        {/* Wallet balance */}
+        {!subscribed && (
+          <div style={{
+            background: 'linear-gradient(135deg, var(--accent), var(--accent-dim))',
+            borderRadius: 16, padding: '18px 20px', marginBottom: 24,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            boxShadow: '0 4px 20px rgba(240,157,81,0.2)', position: 'relative', overflow: 'hidden',
+          }}>
+            <div style={{ position: 'absolute', top: -20, right: -20, width: 90, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', pointerEvents: 'none' }} />
+            <div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>WALLET BALANCE</div>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 38, color: '#fff', letterSpacing: 2, lineHeight: 1 }}>
+                RM {loading ? '-' : balance.toFixed(2)}
+              </div>
+            </div>
+            {!loading && balance < SUBSCRIPTION_COST && (
+              <button onClick={() => navigate('/wallet/topup')} style={{
+                background: 'rgba(0,0,0,0.25)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 10, padding: '8px 16px', fontWeight: 700, fontSize: 12,
+                cursor: 'pointer', fontFamily: "'Bebas Neue'", letterSpacing: 1.5, flexShrink: 0,
+              }}>+ TOPUP</button>
+            )}
+          </div>
+        )}
 
         {/* Price */}
         {!subscribed && (
