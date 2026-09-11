@@ -9,8 +9,9 @@ import { getRank, getRankColor } from '../lib/rankUtils';
 import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
 import { ACHIEVEMENT_REQUIREMENTS, computeTop3Tiers } from '../lib/achievements';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
-import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
+import { IoClose, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
+import { Check as IconCheck, X as IconX } from 'lucide-react';
 import FifaCard, { calcOverall, AchievementBadgeIcon, BADGE_TYPE_LIST, BADGE_RARITY_COLORS, BADGE_RARITY_LABELS } from '../components/FifaCard';
 import BadgeReorderList from '../components/BadgeReorderList';
 import ProgressionPanel from '../components/ProgressionPanel';
@@ -24,7 +25,7 @@ const GENDERS = ['Male', 'Female', 'Rather not say'];
 const CARD_DESIGNS = ['Novis', 'Gangsa III', 'Gangsa II', 'Gangsa I', 'Perak III', 'Perak II', 'Perak I', 'Emas III', 'Emas II', 'Emas I'];
 
 export default function ProfilePage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
@@ -119,10 +120,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!showCardModal || !profile) return;
-    const previewRank = (isAdmin && profile.card_design_override) || getRank(calcOverall(cardStats));
+    const previewRank = (isSuperAdmin && profile.card_design_override) || getRank(calcOverall(cardStats));
     drawCardImage({ profile, cardStats, rank: previewRank, bgUrl: selectedBg.src, achievementBadges: profile.achievement_badges })
       .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
-  }, [showCardModal, selectedBg, cardStats, profile?.card_design_override, profile?.achievement_badges, isAdmin]);
+  }, [showCardModal, selectedBg, cardStats, profile?.card_design_override, profile?.achievement_badges, isSuperAdmin]);
 
   const fetchProfile = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -375,7 +376,7 @@ export default function ProfilePage() {
   // Admin-only cosmetic override — picks any available design for their own
   // card regardless of real stats (see CARD_DESIGNS picker below). Null for
   // everyone else, and null resets an admin back to their real rank too.
-  const displayRank = (isAdmin && profile?.card_design_override) || rank;
+  const displayRank = (isSuperAdmin && profile?.card_design_override) || rank;
   const rankColor = getRankColor(displayRank);
   const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
 
@@ -516,8 +517,25 @@ export default function ProfilePage() {
 
         <h2 className="fade-up" style={{
           fontFamily: "'Bebas Neue'", fontSize: 32,
-          letterSpacing: 3, marginBottom: 20, color: 'var(--text)'
-        }}>{t('profile.title')}</h2>
+          letterSpacing: 3, marginBottom: 20, color: 'var(--text)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          {t('profile.title')}
+          <span
+            onClick={() => navigate('/subscription')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+              position: 'relative', top: -1, cursor: 'pointer',
+              background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${isSubscribed ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
+              color: isSubscribed ? '#4ade80' : 'var(--muted)',
+              borderRadius: 20, padding: '3px 8px',
+              fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, letterSpacing: 1,
+            }}>
+            {isSubscribed ? <IconCheck size={9} /> : <IconX size={9} />}
+            {isSubscribed ? 'VERIFIED' : 'NOT VERIFIED'}
+          </span>
+        </h2>
 
         {/* FIFA Card section */}
         <div
@@ -535,7 +553,7 @@ export default function ProfilePage() {
           }}>
             {t('profile.tapToShare')}
           </div>
-          {isAdmin && (
+          {isSuperAdmin && (
             <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
               <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>ADMIN · CARD DESIGN</span>
               <select
@@ -661,7 +679,7 @@ export default function ProfilePage() {
                 BADGES
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
-                {isAdmin && 'Admin view — every tier unlocked. '}Display your feats on your player card! (Select up to 3)
+                {isSuperAdmin && 'Admin view — every tier unlocked. '}Display your feats on your player card! (Select up to 3)
               </div>
 
               {BADGE_TYPE_LIST.map(typeInfo => (
@@ -673,7 +691,7 @@ export default function ProfilePage() {
                   <div style={{ display: 'flex', gap: 12 }}>
                     {Object.keys(BADGE_RARITY_COLORS).map(rarity => {
                       const req = ACHIEVEMENT_REQUIREMENTS[typeInfo.key][rarity];
-                      const unlocked = isAdmin || req.met(profile, achievementTop3);
+                      const unlocked = isSuperAdmin || req.met(profile, achievementTop3);
                       const selected = selectedBadges.some(b => b.type === typeInfo.key && b.rarity === rarity);
                       const tooltipKey = `${typeInfo.key}-${rarity}`;
                       const tooltipOpen = openTooltip === tooltipKey;
@@ -965,58 +983,6 @@ export default function ProfilePage() {
           >
             {t('profile.wallet.topup')}
           </button>
-        </div>
-
-        {/* Subscription */}
-        <div
-          className="fade-up-3"
-          onClick={() => navigate('/subscription')}
-          style={{
-            background: isSubscribed
-              ? 'linear-gradient(135deg, #0f3824, #1a5c3a)'
-              : 'linear-gradient(135deg, #1c1e21, #27292d)',
-            border: isSubscribed
-              ? '1px solid rgba(74,222,128,0.3)'
-              : '1px solid rgba(240,157,81,0.15)',
-            borderRadius: 16, padding: '16px 20px', marginBottom: 16,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            cursor: 'pointer', position: 'relative', overflow: 'hidden',
-          }}
-          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-        >
-          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: isSubscribed ? '#4ade8033' : 'rgba(255,255,255,0.06)',
-              border: isSubscribed ? '2px solid #4ade8066' : '2px solid rgba(255,255,255,0.1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, color: isSubscribed ? '#4ade80' : 'var(--muted)',
-            }}><IoCheckmark size={16} /></div>
-            <div>
-              <div style={{ fontSize: 10, color: isSubscribed ? 'rgba(74,222,128,0.7)' : 'rgba(240,157,81,0.65)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 3 }}>
-                {t('profile.subscription.title')}
-              </div>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, lineHeight: 1, color: isSubscribed ? '#4ade80' : '#fff' }}>
-                {isSubscribed ? t('profile.subscription.active') : t('profile.subscription.get')}
-              </div>
-              {isSubscribed && profile?.subscription_expires_at && (
-                <div style={{ fontSize: 11, color: 'rgba(74,222,128,0.6)', marginTop: 3 }}>
-                  {t('profile.subscription.expires')} {new Date(profile.subscription_expires_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{
-            background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'var(--accent)',
-            color: isSubscribed ? '#4ade80' : '#fff',
-            border: isSubscribed ? '1px solid rgba(74,222,128,0.3)' : 'none',
-            borderRadius: 10, padding: '8px 16px', fontWeight: 700,
-            fontSize: 12, fontFamily: "'Bebas Neue'", letterSpacing: 1.5, flexShrink: 0,
-          }}>
-            {isSubscribed ? t('profile.subscription.renew') : t('profile.subscription.price')}
-          </div>
         </div>
 
         {/* Upcoming Games */}

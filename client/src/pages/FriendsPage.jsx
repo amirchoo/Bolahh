@@ -385,7 +385,7 @@ export default function FriendsPage() {
                 }}>Find Players</button>
               </div>
             ) : friends.map(profile => (
-              <PlayerCard key={profile.id} profile={profile} onRemove={() => removeFriend(profile.id)} />
+              <PlayerCard key={profile.id} profile={profile} />
             ))}
           </div>
         )}

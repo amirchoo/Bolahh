@@ -623,6 +623,49 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
     }
   };
 
+  // Mouse equivalent of the swipe-to-flip above, for laptop/desktop users
+  // with no touchscreen. Tracked with a window-level mouseup listener
+  // (rather than onMouseUp on the card itself) so a drag that's released
+  // past the card's edge — easy to do on a fast swipe — still completes the
+  // gesture instead of being silently dropped.
+  const flipMouseStart = useRef(null);
+  const activeFlipMouseUpListener = useRef(null);
+  const handleFlipMouseUp = (e) => {
+    window.removeEventListener('mouseup', handleFlipMouseUp);
+    activeFlipMouseUpListener.current = null;
+    const start = flipMouseStart.current;
+    flipMouseStart.current = null;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+      // Unlike touchend, preventDefault() on mouseup doesn't stop the click
+      // event mouseup+mousedown-on-the-same-target normally synthesizes
+      // next — swallow that one click at the window (capture phase, so it
+      // never reaches the page's own onClick) so a flip swipe doesn't also
+      // trigger whatever "open share modal" handler wraps this card.
+      const swallowClick = (ce) => { ce.stopPropagation(); ce.preventDefault(); };
+      window.addEventListener('click', swallowClick, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener('click', swallowClick, { capture: true }), 350);
+      setSuppressTiltTransition(true);
+      setTilt(t => ({ ...t, rx: 0, ry: 0, active: false }));
+      setRotation(r => r + (dx > 0 ? 180 : -180));
+    }
+  };
+  const handleFlipMouseDown = (e) => {
+    if (!interactive) return;
+    if (e.button !== 0) return; // left button / primary touch-pad click only
+    flipMouseStart.current = { x: e.clientX, y: e.clientY };
+    activeFlipMouseUpListener.current = handleFlipMouseUp;
+    window.addEventListener('mouseup', handleFlipMouseUp);
+  };
+  // window listeners aren't DOM nodes React owns, so they outlive an unmount
+  // mid-drag (e.g. navigating away while still holding the mouse button)
+  // unless cleaned up explicitly here.
+  useEffect(() => () => {
+    if (activeFlipMouseUpListener.current) window.removeEventListener('mouseup', activeFlipMouseUpListener.current);
+  }, []);
+
   const rankTheme = getCardTheme(rank);
   const theme = customTheme
     ? { bg: customTheme.bg, border: customTheme.border, text: customTheme.text, muted: customTheme.muted, statBg: customTheme.statBg }
@@ -722,6 +765,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
     <div
       onMouseMove={tiltOn ? handleTiltMove : undefined}
       onMouseLeave={tiltOn ? handleTiltLeave : undefined}
+      onMouseDown={interactive ? handleFlipMouseDown : undefined}
       onTouchStart={(e) => { if (tiltOn) handleTiltTouchMove(e); if (interactive) handleFlipTouchStart(e); }}
       onTouchMove={tiltOn ? handleTiltTouchMove : undefined}
       onTouchEnd={(e) => { if (tiltOn) handleTiltLeave(); if (interactive) handleFlipTouchEnd(e); }}
@@ -729,6 +773,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
       style={{
         width: w, height: bodyH + shapeCrownOffset + headroomTop, position: 'relative', flexShrink: 0,
         perspective: 1000,
+        ...(interactive ? { cursor: 'grab', WebkitUserSelect: 'none', userSelect: 'none' } : null),
         ...(tiltOn ? {
           transform: `perspective(900px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) scale(${tilt.active ? 1.035 : 1})`,
           transition: suppressTiltTransition ? 'none' : (tilt.active ? 'transform 0.08s linear' : 'transform 0.6s cubic-bezier(0.22,1,0.36,1)'),
