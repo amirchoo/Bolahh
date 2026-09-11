@@ -863,6 +863,7 @@ export default function AdminPage() {
     },
   ];
   const activeTabMeta = TAB_GROUPS.flatMap(g => g.tabs).find(t => t.key === activeTab);
+  const totalNavBadges = TAB_GROUPS.flatMap(g => g.tabs).reduce((sum, t) => sum + (t.badge || 0), 0);
 
   const navGroupLabelStyle = { fontSize: 11, color: 'var(--muted)', letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: 700, padding: '0 12px', marginBottom: 6 };
   const navItemStyle = (active) => ({
@@ -1069,6 +1070,24 @@ export default function AdminPage() {
           </div>
         </div>
 
+        <button className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} style={{
+          width: '100%', alignItems: 'center', gap: 8,
+          background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+          border: '1px solid rgba(240,157,81,0.3)', borderRadius: 10, padding: '12px 14px',
+          fontSize: 14, fontWeight: 700, marginBottom: 20,
+          position: 'sticky', top: 64, zIndex: 50,
+        }}>
+          <IoMenu size={19} />
+          {activeTabMeta?.label || 'Menu'}
+          {totalNavBadges > 0 && (
+            <span style={{
+              background: 'var(--accent)', color: '#fff', borderRadius: 20, padding: '1px 8px',
+              fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono'",
+            }}>{totalNavBadges}</span>
+          )}
+          <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>Tap to switch section</span>
+        </button>
+
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
@@ -1095,15 +1114,6 @@ export default function AdminPage() {
             <MdError /> {error}
           </div>
         )}
-
-        <button className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} style={{
-          width: '100%', alignItems: 'center', gap: 8, background: 'var(--card)',
-          border: '1px solid var(--border)', borderRadius: 10, padding: '11px 14px',
-          color: 'var(--text)', fontSize: 13, fontWeight: 600, marginBottom: 20,
-        }}>
-          <IoMenu size={17} />
-          {activeTabMeta?.label || 'Menu'}
-        </button>
 
         <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
           <div className="admin-sidebar" style={{ width: 216, flexShrink: 0, flexDirection: 'column', position: 'sticky', top: 20 }}>
