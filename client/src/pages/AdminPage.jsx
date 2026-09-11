@@ -988,6 +988,18 @@ export default function AdminPage() {
             .admin-sidebar { display: none; }
             .admin-mobile-nav-trigger { display: flex; }
           }
+          .admin-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+          .admin-stats-grid .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
+          .admin-stats-grid .stat-card .stat-icon { font-size: 24px; margin-bottom: 8px; }
+          .admin-stats-grid .stat-card .stat-val { font-family: 'Bebas Neue'; font-size: 32px; color: var(--accent); letter-spacing: 1px; }
+          .admin-stats-grid .stat-card .stat-label { color: var(--muted); font-size: 12px; margin-top: 2px; }
+          @media (max-width: 600px) {
+            .admin-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+            .admin-stats-grid .stat-card { padding: 14px 16px; }
+            .admin-stats-grid .stat-card .stat-icon { font-size: 22px; margin-bottom: 6px; }
+            .admin-stats-grid .stat-card .stat-val { font-size: 26px; }
+            .admin-stats-grid .stat-card .stat-label { font-size: 11px; margin-top: 2px; line-height: 1.2; }
+          }
         `}</style>
 
         <div className="fade-up" style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
@@ -1030,7 +1042,7 @@ export default function AdminPage() {
         </button>
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
+        <div className="admin-stats-grid">
           {[
             { label: 'Upcoming Games',  val: games.filter(isUpcomingGame).length, icon: <GiSoccerBall size={24} color="var(--accent)" /> },
             { label: 'Active Managers', val: managers.length, icon: <IoPeople size={24} color="var(--accent)" />, onClick: () => setActiveTab('managers') },
@@ -1038,12 +1050,12 @@ export default function AdminPage() {
             { label: 'Active Banners',  val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
             <div
-              key={s.label} onClick={s.onClick}
-              style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', cursor: s.onClick ? 'pointer' : 'default' }}
+              key={s.label} onClick={s.onClick} className="stat-card"
+              style={{ cursor: s.onClick ? 'pointer' : 'default' }}
             >
-              <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: 'var(--accent)', letterSpacing: 1 }}>{s.val}</div>
-              <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
+              <div className="stat-icon">{s.icon}</div>
+              <div className="stat-val">{s.val}</div>
+              <div className="stat-label">{s.label}</div>
             </div>
           ))}
         </div>
