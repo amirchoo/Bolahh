@@ -123,6 +123,7 @@ export default function Navbar() {
     { path: '/friends', label: t('navbar.friends'), icon: <IconFriends size={20} /> },
     { path: '/profile', label: t('navbar.profile'), icon: <IconProfile size={20} /> },
     ...(isAdmin ? [{ path: '/manager', label: t('navbar.manager'), icon: <IconManager size={18} /> }] : []),
+    ...(isSuperAdmin ? [{ path: '/admin', label: t('navbar.admin'), icon: <IconAdmin size={18} /> }] : []),
   ];
 
   return (
