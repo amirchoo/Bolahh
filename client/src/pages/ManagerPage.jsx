@@ -81,6 +81,7 @@ export default function ManagerPage() {
   const [expandedFeedbackGame, setExpandedFeedbackGame] = useState(null);
   const [myName, setMyName] = useState('');
   const [myManagerCardUrl, setMyManagerCardUrl] = useState(null);
+  const [myManagerContactNumber, setMyManagerContactNumber] = useState(null);
   const [myManagerStats, setMyManagerStats] = useState(null);
   const [uploadingMyCard, setUploadingMyCard] = useState(false);
 
@@ -105,11 +106,12 @@ export default function ManagerPage() {
   const fetchMyManagerCard = async () => {
     if (isPreview || !user) return;
     const [{ data: profile }, { data: statsRows }] = await Promise.all([
-      supabase.from('profiles').select('name, manager_card_avatar_url').eq('id', user.id).single(),
+      supabase.from('profiles').select('name, manager_card_avatar_url, manager_contact_number').eq('id', user.id).single(),
       supabase.rpc('get_manager_stats', { p_manager_id: user.id }),
     ]);
     setMyName(profile?.name || '');
     setMyManagerCardUrl(profile?.manager_card_avatar_url || null);
+    setMyManagerContactNumber(profile?.manager_contact_number || null);
     setMyManagerStats(statsRows?.[0] || null);
   };
 
@@ -446,6 +448,7 @@ export default function ManagerPage() {
                     gamesManaged={myManagerStats?.games_managed ?? 0}
                     satisfactionScore={myManagerStats?.satisfaction_score ?? 10}
                     reviewCount={myManagerStats?.review_count ?? 0}
+                    contactNumber={myManagerContactNumber}
                   />
                 </div>
                 <div style={{ flex: 1, minWidth: 220 }}>

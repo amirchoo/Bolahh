@@ -7,7 +7,7 @@ import { GiRunningShoe, GiSoccerBall } from 'react-icons/gi';
 import { FaSquareParking, FaLocationDot, FaMedal } from 'react-icons/fa6';
 import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
-import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoMegaphone, IoMailUnread, IoMenu, IoWallet } from 'react-icons/io5';
+import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoMegaphone, IoMailUnread, IoMenu, IoWallet, IoCallOutline } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
 import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -98,6 +98,9 @@ export default function AdminPage() {
   const [promoteQuery, setPromoteQuery] = useState('');
   const [promoteResults, setPromoteResults] = useState([]);
   const [promoteSearching, setPromoteSearching] = useState(false);
+  const [editingContactManagerId, setEditingContactManagerId] = useState(null);
+  const [contactNumberInput, setContactNumberInput] = useState('');
+  const [savingContactNumber, setSavingContactNumber] = useState(false);
 
   // ── Player Stats (manual card editor) state ────────────
   const [statsQuery, setStatsQuery] = useState('');
@@ -151,7 +154,7 @@ export default function AdminPage() {
 
   // ── Managers ───────────────────────────────────────────
   const fetchManagers = async () => {
-    const { data: mgrs } = await supabase.from('profiles').select('id, name, avatar_url, manager_card_avatar_url').eq('is_admin', true).order('name');
+    const { data: mgrs } = await supabase.from('profiles').select('id, name, avatar_url, manager_card_avatar_url, manager_contact_number').eq('is_admin', true).order('name');
     if (!mgrs) { setManagers([]); return; }
     const ids = mgrs.map(m => m.id);
     const { data: gamesData } = ids.length
@@ -307,6 +310,16 @@ export default function AdminPage() {
     await fetchManagers();
     setUploadingManagerCard(null);
     e.target.value = '';
+  };
+
+  const handleSaveManagerContact = async (managerId) => {
+    setSavingContactNumber(true);
+    const { error } = await supabase.from('profiles').update({ manager_contact_number: contactNumberInput.trim() || null }).eq('id', managerId);
+    setSavingContactNumber(false);
+    if (error) { showError(error.message); return; }
+    showSuccess('Contact number updated.');
+    setEditingContactManagerId(null);
+    fetchManagers();
   };
 
   // ── Player Stats (manual card editor) ─────────────────
@@ -1147,6 +1160,43 @@ export default function AdminPage() {
                         <input type="file" accept="image/*" hidden disabled={uploadingManagerCard === m.id}
                           onChange={e => handleManagerCardAvatarUpload(e, m.id)} />
                       </label>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 46, marginTop: 10 }}>
+                      <IoCallOutline size={14} color="var(--muted)" style={{ flexShrink: 0 }} />
+                      {editingContactManagerId === m.id ? (
+                        <>
+                          <input
+                            autoFocus type="tel" value={contactNumberInput}
+                            onChange={e => setContactNumberInput(e.target.value)}
+                            placeholder="+60 12-345 6789"
+                            style={{
+                              flex: 1, maxWidth: 200, background: 'var(--card2)', color: 'var(--text)',
+                              border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12,
+                            }}
+                          />
+                          <button onClick={() => handleSaveManagerContact(m.id)} disabled={savingContactNumber} style={{
+                            background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6,
+                            padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: savingContactNumber ? 0.6 : 1,
+                          }}>{savingContactNumber ? 'Saving…' : 'Save'}</button>
+                          <button onClick={() => setEditingContactManagerId(null)} disabled={savingContactNumber} style={{
+                            background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 6,
+                            padding: '4px 10px', fontSize: 11, cursor: 'pointer',
+                          }}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: 11, color: 'var(--muted)', flex: 1 }}>
+                            {m.manager_contact_number || 'No contact number set'}
+                          </span>
+                          <button
+                            onClick={() => { setEditingContactManagerId(m.id); setContactNumberInput(m.manager_contact_number || ''); }}
+                            style={{
+                              background: 'var(--card2)', color: 'var(--accent)', border: '1px solid var(--border)',
+                              borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                            }}
+                          >{m.manager_contact_number ? 'Edit' : 'Add'}</button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );

@@ -296,7 +296,7 @@ export default function GameDetailPage() {
     const [{ data: managerProfileData }, { data: managerStatsData }] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, name, avatar_url, manager_card_avatar_url, position, total_points, games_played, card_stats, is_subscribed, subscription_expires_at, equipped_border')
+        .select('id, name, avatar_url, manager_card_avatar_url, manager_contact_number, position, total_points, games_played, card_stats, is_subscribed, subscription_expires_at, equipped_border')
         .eq('id', managerUserId)
         .maybeSingle(),
       supabase.rpc('get_manager_stats', { p_manager_id: managerUserId }),
@@ -516,6 +516,7 @@ export default function GameDetailPage() {
               gamesManaged={managerStats?.games_managed ?? 0}
               satisfactionScore={managerStats?.satisfaction_score ?? 10}
               reviewCount={managerStats?.review_count ?? 0}
+              contactNumber={managerProfile.manager_contact_number}
             />
             <button onClick={() => setShowManagerCard(false)} style={{
               background: 'rgba(255,255,255,0.08)', color: '#fff',
