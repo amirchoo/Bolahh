@@ -1033,11 +1033,14 @@ export default function AdminPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
           {[
             { label: 'Upcoming Games',  val: games.filter(isUpcomingGame).length, icon: <GiSoccerBall size={24} color="var(--accent)" /> },
-            { label: 'Active Managers', val: managers.length, icon: <IoPeople size={24} color="var(--accent)" /> },
+            { label: 'Active Managers', val: managers.length, icon: <IoPeople size={24} color="var(--accent)" />, onClick: () => setActiveTab('managers') },
             { label: 'Pending Requests', val: gameRequests.length, icon: <MdSportsSoccer size={24} color="var(--accent)" /> },
             { label: 'Active Banners',  val: banners.filter(b => b.active).length, icon: <IoImages size={24} color="var(--accent)" /> },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+            <div
+              key={s.label} onClick={s.onClick}
+              style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', cursor: s.onClick ? 'pointer' : 'default' }}
+            >
               <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: 'var(--accent)', letterSpacing: 1 }}>{s.val}</div>
               <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 2 }}>{s.label}</div>
