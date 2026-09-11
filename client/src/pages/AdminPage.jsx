@@ -2559,12 +2559,12 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                       );
                     })}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 16 }}>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                     <button
                       onClick={() => cancelBadgeCategory(typeInfo.key)}
                       disabled={!dirty || saving}
                       style={{
-                        background: 'var(--card2)', color: dirty ? 'var(--text)' : 'var(--muted)',
+                        flex: 1, background: 'var(--card2)', color: dirty ? 'var(--text)' : 'var(--muted)',
                         border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px',
                         fontSize: 13, fontWeight: 700, cursor: (dirty && !saving) ? 'pointer' : 'default',
                         opacity: dirty ? 1 : 0.5,
@@ -2574,7 +2574,7 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                       onClick={() => saveBadgeCategory(typeInfo.key)}
                       disabled={!dirty || saving}
                       style={{
-                        background: (dirty && !saving) ? 'var(--accent)' : 'var(--card2)',
+                        flex: 1, background: (dirty && !saving) ? 'var(--accent)' : 'var(--card2)',
                         color: (dirty && !saving) ? '#fff' : 'var(--muted)', border: 'none',
                         borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 700,
                         cursor: (dirty && !saving) ? 'pointer' : 'default',
