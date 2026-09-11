@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
-import { ACHIEVEMENT_REQUIREMENTS, computeTop3Tiers } from '../lib/achievements';
+import { fetchAchievementRequirements, computeTop3Tiers } from '../lib/achievements';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoClose, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
@@ -55,6 +55,7 @@ export default function ProfilePage() {
   const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
   const [showAchievementsModal, setShowAchievementsModal] = useState(false);
   const [achievementTop3, setAchievementTop3] = useState({ gangsa: false, perak: false, emas: false });
+  const [achievementReqs, setAchievementReqs] = useState(null);
   const [openTooltip, setOpenTooltip] = useState(null);
   const [selectedBadges, setSelectedBadges] = useState([]);
   const [committedBadgesKey, setCommittedBadgesKey] = useState('[]');
@@ -68,8 +69,13 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!showAchievementsModal || !profile) return;
     setOpenTooltip(null);
-    supabase.from('profiles').select('id, total_points').gt('total_points', 0)
-      .then(({ data }) => setAchievementTop3(computeTop3Tiers(profile, data || [])));
+    Promise.all([
+      supabase.from('profiles').select('id, total_points').gt('total_points', 0),
+      fetchAchievementRequirements(),
+    ]).then(([{ data }, reqs]) => {
+      setAchievementTop3(computeTop3Tiers(profile, data || []));
+      setAchievementReqs(reqs);
+    });
   }, [showAchievementsModal, profile]);
 
   useEffect(() => {
@@ -693,7 +699,7 @@ export default function ProfilePage() {
                   }}>{typeInfo.label.toUpperCase()}</div>
                   <div style={{ display: 'flex', gap: 12 }}>
                     {Object.keys(BADGE_RARITY_COLORS).map(rarity => {
-                      const req = ACHIEVEMENT_REQUIREMENTS[typeInfo.key][rarity];
+                      const req = achievementReqs?.[typeInfo.key]?.[rarity] || { text: 'Loading…', met: () => false };
                       const unlocked = isSuperAdmin || req.met(profile, achievementTop3);
                       const selected = selectedBadges.some(b => b.type === typeInfo.key && b.rarity === rarity);
                       const tooltipKey = `${typeInfo.key}-${rarity}`;
