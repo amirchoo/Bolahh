@@ -253,7 +253,7 @@ export default function LeaderboardPage() {
     return (
       <div>
         {/* Tier tab row */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {TIER_ORDER.map(tier => {
             const isActive = activeTier === tier;
             const tc = TIER_COLORS[tier];
@@ -354,8 +354,10 @@ export default function LeaderboardPage() {
           })}
         </div>
 
-        {/* View mode toggle */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {/* View mode toggle — 10px to the tier tabs row below it in Tier
+            mode, but 12px in Global mode where it sits directly above the
+            first leaderboard card instead. */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: viewMode === 'tier' ? 10 : 12 }}>
           {[['global', 'Global Rank'], ['tier', 'Tier']].map(([mode, label]) => (
             <button
               key={mode}
