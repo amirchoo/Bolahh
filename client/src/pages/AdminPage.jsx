@@ -608,7 +608,7 @@ export default function AdminPage() {
   // number to derive from (it's a tier gate), so it keeps its own text input.
   const autoBadgeLabel = (type, threshold) => {
     const n = threshold || 0;
-    if (type === 'matches') return `Play ${n} match${n === 1 ? '' : 'es'}`;
+    if (type === 'matches') return `Played ${n} match${n === 1 ? '' : 'es'}`;
     if (type === 'mvp') return `Become MVP ${n} time${n === 1 ? '' : 's'}`;
     return '';
   };
