@@ -458,9 +458,13 @@ export default function ProfilePage() {
           }}><IoClose size={20} /></button>
 
           <div onClick={e => e.stopPropagation()}>
+            {/* 220×305 matches the canvas's own 520×720 aspect ratio exactly
+                (720/520 × 220) — any mismatch here has the browser stretch
+                the rendered PNG non-uniformly to fill the box, which is
+                exactly the kind of distortion this preview needs to avoid. */}
             {cardPreviewUrl
-              ? <img src={cardPreviewUrl} alt="card preview" style={{ width: 220, height: 308, borderRadius: 12, display: 'block', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }} />
-              : <div style={{ width: 220, height: 308, borderRadius: 12, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13 }}>Generating…</div>
+              ? <img src={cardPreviewUrl} alt="card preview" style={{ width: 220, height: 305, borderRadius: 12, display: 'block', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }} />
+              : <div style={{ width: 220, height: 305, borderRadius: 12, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13 }}>Generating…</div>
             }
           </div>
 

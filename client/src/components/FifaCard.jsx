@@ -128,7 +128,7 @@ export const STAR_PLACEMENT = {
 // measured value OVR/rank would clip their own top edge by ~1.7px against
 // the content box on Gangsa specifically. The nudge is imperceptible on
 // Novis/Perak/Emas and gives Gangsa a couple of px of real clearance.
-const NOVIS_CONTENT_LAYOUT = {
+export const NOVIS_CONTENT_LAYOUT = {
   ovrBottom: { n: 270, s: 173 }, ovrLeft: { n: -1, s: 0 },
   posBottom: { n: 259, s: 162 }, posLeft: { n: 2, s: 0 },
   rankBottom:    { n: 302, s: 191 },   rankLeft:    { n: 0, s: 0 },
@@ -174,11 +174,22 @@ export function getCardSubTier(rank) {
   return rank?.endsWith(' III') ? 3 : rank?.endsWith(' II') ? 2 : rank?.endsWith(' I') ? 1 : null;
 }
 
+// Single source of truth for each rank color's palette — keyed the same way
+// getCardColorKey() classifies a rank, so cardCanvas.js (the static
+// share-image renderer) can look a theme up by that same key instead of
+// hand-duplicating these values, which is exactly how they drifted out of
+// sync before (Perak silently stayed on its old blue in the saved image
+// after the live card moved to silver).
+export const CARD_COLOR_THEMES = {
+  emas:   { stops: ['#b8860b', '#fad40f', '#b8860b'], border: '#fad40f', text: '#3a2a00', muted: '#6b4e00', statBg: 'rgba(0,0,0,0.2)' },
+  perak:  { stops: ['#6e7378', '#d6d9dc', '#6e7378'], border: '#b0b4b8', text: '#202224', muted: '#4a4d50', statBg: 'rgba(0,0,0,0.15)' },
+  gangsa: { stops: ['#7c4a1a', '#cd7f32', '#7c4a1a'], border: '#cd7f32', text: '#2a1400', muted: '#5a3010', statBg: 'rgba(0,0,0,0.2)' },
+  novis:  { stops: ['#2a2d30', '#3d4144', '#2a2d30'], border: '#555',    text: '#e8e9eb', muted: '#aaa',    statBg: 'rgba(255,255,255,0.1)' },
+};
+
 export function getCardTheme(rank) {
-  if (rank.startsWith('Emas'))   return { bg: 'linear-gradient(145deg, #b8860b, #fad40f, #b8860b)', border: '#fad40f', text: '#3a2a00', muted: '#6b4e00', statBg: 'rgba(0,0,0,0.2)' };
-  if (rank.startsWith('Perak'))  return { bg: 'linear-gradient(145deg, #6e7378, #d6d9dc, #6e7378)', border: '#b0b4b8', text: '#202224', muted: '#4a4d50', statBg: 'rgba(0,0,0,0.15)' };
-  if (rank.startsWith('Gangsa')) return { bg: 'linear-gradient(145deg, #7c4a1a, #cd7f32, #7c4a1a)', border: '#cd7f32', text: '#2a1400', muted: '#5a3010', statBg: 'rgba(0,0,0,0.2)' };
-  return                                { bg: 'linear-gradient(145deg, #2a2d30, #3d4144, #2a2d30)', border: '#555',    text: '#e8e9eb', muted: '#aaa',    statBg: 'rgba(255,255,255,0.1)' };
+  const t = CARD_COLOR_THEMES[getCardColorKey(rank) || 'novis'];
+  return { bg: `linear-gradient(145deg, ${t.stops[0]}, ${t.stops[1]}, ${t.stops[2]})`, border: t.border, text: t.text, muted: t.muted, statBg: t.statBg };
 }
 
 export function calcOverall(stats) {
