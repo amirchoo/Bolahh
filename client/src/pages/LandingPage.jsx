@@ -13,6 +13,7 @@ import { MdOutlineAutoMode } from "react-icons/md";
 import { LiaUserFriendsSolid } from "react-icons/lia";
 import { supabase } from '../lib/supabaseClient';
 import { useTranslation } from 'react-i18next';
+import FifaCard from '../components/FifaCard';
 
 const RANKS = [
   { name: 'Novis',      color: '#7088a0', bg: 'linear-gradient(145deg,#2a2d30,#3d4144)', border: '#555',    ovr: '0–30'  },
@@ -45,51 +46,9 @@ const STEP_ICONS = [<IoSearchCircleOutline />, <IoWallet/>, <FaRankingStar />];
 const FEATURE_ICONS = [<IoMdFootball/>, <IoWallet/>, <FaRankingStar />, <TbPlayCard7Filled/>, <FaUserFriends/>, <FaClipboardList/>];
 const FEATURE_KEYS = ['booking', 'wallet', 'rank', 'card', 'friends', 'manager'];
 
-// Inline demo card (no external imports needed)
-function DemoCard({ floatOffset }) {
-  const stats = { pac: 97, sho: 95, pas: 96, dri: 99, def: 94, phy: 99 };
-  const overall = Math.round(Object.values(stats).reduce((a,b)=>a+b,0)/6);
-  return (
-    <div style={{
-      width: 220, height: 330, borderRadius: 16, flexShrink: 0,
-      background: 'linear-gradient(145deg,#b8860b,#ffd700,#b8860b)',
-      border: '2px solid #ffd700',
-      boxShadow: '0 32px 80px rgba(255,215,0,0.25), 0 8px 32px rgba(0,0,0,0.6)',
-      position: 'relative', overflow: 'hidden',
-      transform: `translateY(${floatOffset}px) rotate(-4deg)`,
-      transition: 'transform 0.1s linear',
-    }}>
-      <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg,rgba(255,255,255,0.15) 0%,transparent 50%)', pointerEvents:'none', zIndex:2 }} />
-      <div style={{ position:'absolute', top:12, left:14, zIndex:3 }}>
-        <div style={{ fontFamily:"'Bebas Neue'", fontSize:44, color:'#3a2a00', lineHeight:1, letterSpacing:1 }}>{overall}</div>
-        <div style={{ fontFamily:"'Space Mono'", fontSize:11, color:'#3a2a00', fontWeight:700, letterSpacing:1, marginTop:2 }}>MF</div>
-      </div>
-      <div style={{ position:'absolute', top:12, right:12, zIndex:3, fontFamily:"'Bebas Neue'", fontSize:10, color:'#6b4e00', letterSpacing:1 }}>EMAS I</div>
-      <div style={{
-        position:'absolute', top:44, left:'50%', transform:'translateX(-50%)',
-        width:108, height:108, borderRadius:'50%', overflow:'hidden',
-        border:'3px solid #ffd700', background:'rgba(0,0,0,0.2)', zIndex:3,
-        display:'flex', alignItems:'center', justifyContent:'center',
-      }}>
-        <span style={{ fontFamily:"'Space Mono'", fontSize:28, fontWeight:700, color:'#3a2a00' }}>CH</span>
-      </div>
-      <div style={{ position:'absolute', top:160, left:0, right:0, textAlign:'center', zIndex:3, fontFamily:"'Bebas Neue'", fontSize:17, color:'#3a2a00', letterSpacing:1.5 }}>CHONALDO7</div>
-      <div style={{ position:'absolute', top:182, left:16, right:16, height:1, background:'rgba(255,215,0,0.4)', zIndex:3 }} />
-      <div style={{ position:'absolute', top:190, left:10, right:10, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:4, zIndex:3 }}>
-        {Object.entries(stats).map(([k,v]) => (
-          <div key={k} style={{ background:'rgba(0,0,0,0.2)', borderRadius:5, padding:'4px', textAlign:'center' }}>
-            <div style={{ fontFamily:"'Space Mono'", fontSize:14, fontWeight:700, color:'#3a2a00', lineHeight:1 }}>{v}</div>
-            <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00', letterSpacing:0.5, marginTop:1 }}>{k.toUpperCase()}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ position:'absolute', bottom:8, left:10, right:10, display:'flex', justifyContent:'space-between', zIndex:3, borderTop:'1px solid rgba(255,215,0,0.4)', paddingTop:5 }}>
-        <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00' }}><span style={{ fontWeight:700, color:'#3a2a00' }}>12</span> GAMES PLAYED</div>
-        <div style={{ fontFamily:"'Space Mono'", fontSize:8, color:'#6b4e00' }}><span style={{ fontWeight:700, color:'#3a2a00' }}>{overall}</span> OVR</div>
-      </div>
-    </div>
-  );
-}
+// Demo data for the FifaCard shown on the landing page (hero + showcase section)
+const DEMO_PROFILE = { name: 'CHONALDO7', position: 'Midfielder', games_played: 12 };
+const DEMO_STATS = { pac: 97, sho: 95, pas: 96, dri: 99, def: 94, phy: 99 };
 
 function useScrollReveal() {
   const ref = useRef(null);
@@ -423,7 +382,9 @@ export default function LandingPage() {
               background: 'radial-gradient(circle, rgba(255,215,0,0.12) 0%, transparent 70%)',
               pointerEvents: 'none', borderRadius: '50%'
             }} />
-            <DemoCard floatOffset={floatOffset} />
+            <div style={{ transform: `translateY(${floatOffset}px) rotate(-4deg)`, transition: 'transform 0.1s linear' }}>
+              <FifaCard profile={DEMO_PROFILE} cardStats={DEMO_STATS} rank="Emas I" size="normal" interactive />
+            </div>
             {/* Floating badges */}
             <div style={{
               position:'absolute', top: -10, right: -30,
@@ -613,7 +574,9 @@ export default function LandingPage() {
           {/* Left — card */}
           <div className={`reveal ${cardVisible ? 'visible' : ''}`} style={{ flexShrink:0, position:'relative', margin:'0 auto' }}>
             <div style={{ position:'absolute', inset:-60, background:'radial-gradient(circle, rgba(255,215,0,0.08) 0%, transparent 70%)', pointerEvents:'none', borderRadius:'50%' }} />
-            <DemoCard floatOffset={floatOffset * 0.5} />
+            <div style={{ transform: `translateY(${floatOffset * 0.5}px)`, transition: 'transform 0.1s linear' }}>
+              <FifaCard profile={DEMO_PROFILE} cardStats={DEMO_STATS} rank="Emas I" size="normal" interactive />
+            </div>
           </div>
 
           {/* Right — info */}

@@ -5,7 +5,6 @@ import TutorialModal from '../components/TutorialModal';
 import { RANKS, getRank, getRankColor } from '../lib/rankUtils';
 import { calcOverall, getCardTheme } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
-import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { IoCheckmarkCircle, IoClose, IoCalendar, IoChevronDown, IoHelpCircleOutline, IoCloseCircle } from 'react-icons/io5';
 import { GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
@@ -1065,7 +1064,6 @@ export default function ManagerWalkthroughPage() {
                         const theme = getCardTheme(rank);
                         return (
                           <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: 'rgba(0,0,0,0.18)', position: 'relative' }}>
-                            <EquippedBorderFrame equippedBorder={p?.equipped_border} context="roster" borderRadius={8} thickness="6px 7px 6px 7px" />
                             <div style={{ position: 'relative', flexShrink: 0 }}>
                               <PlayerAvatar profile={p} size={30} borderColor={theme.border} background={theme.statBg} />
                               <div style={{ position: 'absolute', bottom: -2, right: -2, width: 15, height: 15, borderRadius: '50%', background: tc.text, color: '#1e2123', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, border: '1.5px solid rgba(0,0,0,0.4)' }}>{bibAssign[uid]}</div>

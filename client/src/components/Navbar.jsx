@@ -8,7 +8,14 @@ import { AiOutlineUser as IconProfile } from 'react-icons/ai';
 import { GiSoccerKick as IconGames } from "react-icons/gi";
 import { useTranslation } from 'react-i18next';
 
-
+// Every page renders its own <Navbar/> (there's no shared layout wrapping
+// the router), so navigating between tabs unmounts the old page's Navbar
+// and mounts a brand-new instance for the new page — component state can't
+// carry the sliding indicator's "previous" position across that boundary.
+// This module-level variable survives it instead (it's just a JS binding,
+// untouched by React mount/unmount), so the fresh instance still knows
+// which tab it's animating FROM.
+let lastMobileNavPath = null;
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -125,6 +132,25 @@ export default function Navbar() {
     ...(isAdmin ? [{ path: '/manager', label: t('navbar.manager'), icon: <IconManager size={18} /> }] : []),
     ...(isSuperAdmin ? [{ path: '/admin', label: t('navbar.admin'), icon: <IconAdmin size={18} /> }] : []),
   ];
+
+  // Sliding tab indicator's geometric position — deliberately decoupled
+  // from `isActive` (which drives the tapped tab's text/icon color
+  // immediately). Starts each fresh mount at the *previous* tab (see
+  // lastMobileNavPath above) and is nudged to the real active tab a frame
+  // later, so the CSS transition below actually has a "from" state to
+  // animate instead of appearing already-arrived.
+  const mobileActiveIndex = mobileNavItems.findIndex(item => isActive(item.path));
+  const [mobileIndicatorIndex, setMobileIndicatorIndex] = useState(() => {
+    const prevIndex = mobileNavItems.findIndex(item => item.path === lastMobileNavPath);
+    return prevIndex >= 0 ? prevIndex : mobileActiveIndex;
+  });
+  useEffect(() => {
+    lastMobileNavPath = location.pathname;
+    if (mobileActiveIndex < 0) return;
+    const id = requestAnimationFrame(() => setMobileIndicatorIndex(mobileActiveIndex));
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   return (
     <>
@@ -375,19 +401,44 @@ export default function Navbar() {
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
+        {/* Shared sliding highlight — one pill + top stroke that glides
+            between tabs via transform, instead of each button fading its
+            own static highlight in place. Positioned/sized as a fraction
+            of the bar's own width so it tracks mobileNavItems.length
+            (which varies for admins) without hardcoding a tab count.
+            Rendered before the buttons and given no z-index so it stacks
+            in DOM order — the buttons below are `position: relative` (see
+            their own style) so they still paint on top of it. */}
+        {(() => {
+          if (mobileIndicatorIndex < 0) return null;
+          const widthPct = 100 / mobileNavItems.length;
+          const sharedStyle = {
+            position: 'absolute', left: 0,
+            width: `${widthPct}%`,
+            transform: `translateX(${mobileIndicatorIndex * 100}%)`,
+            transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+            pointerEvents: 'none',
+          };
+          return (
+            <>
+              <div style={{ ...sharedStyle, top: 0, height: 2, background: 'var(--accent)' }} />
+              <div style={{ ...sharedStyle, top: 0, bottom: 0, background: 'rgba(240,157,81,0.08)' }} />
+            </>
+          );
+        })()}
         {mobileNavItems.map(({ path, label, icon }) => (
           <button
             key={path}
             onClick={() => navigate(path)}
             style={{
+              position: 'relative',
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               justifyContent: 'center', gap: 4,
-              background: isActive(path) ? 'rgba(240,157,81,0.08)' : 'transparent',
+              background: 'transparent',
               border: 'none', cursor: 'pointer',
               color: isActive(path) ? 'var(--accent)' : 'var(--muted)',
               padding: '10px 0 8px',
-              transition: 'color 0.15s, background 0.15s',
-              borderTop: isActive(path) ? '2px solid var(--accent)' : '2px solid transparent',
+              transition: 'color 0.15s',
             }}
           >
             {icon}

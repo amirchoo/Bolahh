@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import { RANKS, getRank, getRankColor } from '../lib/rankUtils';
 import { getCardTheme, calcOverall } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
-import EquippedBorderFrame from '../components/EquippedBorderFrame';
 import { IoCheckmarkCircle, IoCloseCircle, IoClose, IoCalendar, IoRemoveCircle, IoConstruct, IoCallOutline, IoChevronDown } from 'react-icons/io5';
 import { GiSoccerBall, GiTrophy, GiGoalKeeper } from 'react-icons/gi';
 import { LuLightbulb, LuMoon, LuCoffee } from 'react-icons/lu';
@@ -338,7 +337,7 @@ export default function GameRatingPage() {
     // otherwise a render could slip in between and the auto-save effect would
     // persist the still-default (unrestored) state, clobbering real progress.
     const [{ data: profileData }, { data: existing }] = await Promise.all([
-      supabase.from('profiles').select('id, name, avatar_url, total_points, games_played, card_stats, equipped_border').in('id', userIds),
+      supabase.from('profiles').select('id, name, avatar_url, total_points, games_played, card_stats').in('id', userIds),
       supabase.from('game_ratings').select('user_id').eq('game_id', id).limit(1),
     ]);
 
@@ -1147,7 +1146,6 @@ export default function GameRatingPage() {
                               padding: '6px 8px', borderRadius: 8,
                               background: 'rgba(0,0,0,0.18)', position: 'relative',
                             }}>
-                              <EquippedBorderFrame equippedBorder={p?.equipped_border} context="roster" borderRadius={8} thickness="6px 7px 6px 7px" />
                               <div style={{ position: 'relative', flexShrink: 0 }}>
                                 <PlayerAvatar profile={p} size={30} borderColor={theme.border} background={theme.statBg} />
                                 <div style={{

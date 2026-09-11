@@ -4,12 +4,13 @@ import { getCached, setCached } from '../lib/dataCache';
 import { usePersistedState } from '../lib/usePersistedState';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import FifaCard from '../components/FifaCard';
 import { getRank, getRankTier } from '../lib/rankUtils';
-import { getCardTheme, STATS, POSITION_ABBR } from '../components/FifaCard';
-import EquippedBorderFrame from '../components/EquippedBorderFrame';
+import { getCardTheme } from '../components/FifaCard';
 import { IconLoading } from '../components/Icons';
 import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
-import { FaLocationDot, FaMedal } from 'react-icons/fa6';
+import { FaMedal } from 'react-icons/fa6';
+import { UserRoundPlus } from 'lucide-react';
 import { PLAYER_AREAS } from '../lib/areas';
 
 const AREAS = ['All Areas', ...PLAYER_AREAS];
@@ -28,14 +29,6 @@ const TIER_ORDER = ['emas', 'perak', 'gangsa'];
 const TIER_DISPLAY = { emas: 'EMAS', perak: 'PERAK', gangsa: 'GANGSA' };
 const TIER_COLORS = { emas: '#FFD700', perak: '#6ec8e8', gangsa: '#cd7f32' };
 
-// Key stats highlighted per position
-const POS_KEY_STATS = {
-  Goalkeeper: ['def', 'phy'],
-  Defender:   ['def', 'phy'],
-  Midfielder: ['pas', 'dri'],
-  Attacker:   ['sho', 'pac'],
-};
-
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const [players, setPlayers] = useState([]);
@@ -45,6 +38,7 @@ export default function LeaderboardPage() {
   const [viewMode, setViewMode] = usePersistedState('lb_view', 'global');
   const [activeTier, setActiveTier] = usePersistedState('lb_tier', 'emas');
   const [page, setPage] = useState(1);
+  const [viewingPlayer, setViewingPlayer] = useState(null); // { profile, cardStats }
 
   // Any filter/tab change can shrink the list below the current page — reset to page 1.
   useEffect(() => { setPage(1); }, [areaFilter, posFilter, viewMode, activeTier]);
@@ -61,7 +55,7 @@ export default function LeaderboardPage() {
     // total_points is the authoritative OVR — synced every time a user visits their profile
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats, equipped_border')
+      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats, achievement_badges')
       .gt('total_points', 0)
       .order('total_points', { ascending: false });
 
@@ -89,8 +83,39 @@ export default function LeaderboardPage() {
     return true;
   });
 
-  const keyStats = POS_KEY_STATS[posFilter] || [];
+  const openPlayerCard = async (player) => {
+    const cardStats = { pac: player.pac, sho: player.sho, pas: player.pas, dri: player.dri, def: player.def, phy: player.phy };
+    if (player.id === user.id) {
+      setViewingPlayer({ profile: player, cardStats, friendStatus: 'self' });
+      return;
+    }
+    setViewingPlayer({ profile: player, cardStats, friendStatus: 'loading' });
+    const { data } = await supabase
+      .from('friendships')
+      .select('sender_id, receiver_id, status')
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${player.id}),and(sender_id.eq.${player.id},receiver_id.eq.${user.id})`)
+      .maybeSingle();
 
+    let friendStatus = 'none';
+    if (data) {
+      if (data.status === 'accepted') friendStatus = 'friends';
+      else if (data.sender_id === user.id) friendStatus = 'sent';
+      else friendStatus = 'incoming';
+    }
+    setViewingPlayer(prev => (prev && prev.profile.id === player.id) ? { ...prev, friendStatus } : prev);
+  };
+
+  const sendFriendRequest = async () => {
+    const targetId = viewingPlayer.profile.id;
+    setViewingPlayer(prev => ({ ...prev, friendStatus: 'sent' }));
+    await supabase.from('friendships').insert({ sender_id: user.id, receiver_id: targetId, status: 'pending' });
+  };
+
+  const acceptFriendRequest = async () => {
+    const targetId = viewingPlayer.profile.id;
+    setViewingPlayer(prev => ({ ...prev, friendStatus: 'friends' }));
+    await supabase.from('friendships').update({ status: 'accepted' }).eq('sender_id', targetId).eq('receiver_id', user.id);
+  };
 
   const renderPlayerRow = (player, pos) => {
     const rank = getRank(player.overall);
@@ -101,17 +126,15 @@ export default function LeaderboardPage() {
     return (
       <div
         key={player.id}
+        onClick={() => openPlayerCard(player)}
         style={{
           background: theme.bg,
           border: `1.5px solid ${theme.border}`,
-          boxShadow: isSelf ? '0 0 0 2px var(--accent)' : 'none',
           borderRadius: 14, padding: '12px 14px',
           display: 'flex', alignItems: 'center', gap: 12,
-          position: 'relative',
+          position: 'relative', cursor: 'pointer',
         }}
       >
-        <EquippedBorderFrame equippedBorder={player.equipped_border} context="leaderboard" borderRadius={14} />
-
         {/* Rank number */}
         <div style={{
           width: 28, flexShrink: 0,
@@ -125,72 +148,50 @@ export default function LeaderboardPage() {
             : `#${pos}`}
         </div>
 
-        {/* Mini card swatch — statBg (not theme.bg) so it stands out against the row,
-            which now carries the same rank gradient as its background */}
-        <div style={{ width: 36, height: 50, flexShrink: 0, borderRadius: 6,
-            background: theme.statBg,
-            border: `1.5px solid ${theme.border}`,
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden',
-          }}>
-          {player.avatar_url ? (
-            <img src={player.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-          ) : (
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: theme.text }}>
-              {(player.name || '?')[0].toUpperCase()}
-            </div>
-          )}
-          <div style={{ fontFamily: "'Space Mono'", fontSize: 6, color: theme.text, fontWeight: 700, marginTop: 2, letterSpacing: 0.5 }}>
-            {POSITION_ABBR[player.position] || '-'}
-          </div>
+        {/* Avatar */}
+        <div style={{
+          width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+          background: player.avatar_url ? 'transparent' : theme.statBg,
+          border: `1.5px solid ${theme.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 17, fontWeight: 700, color: theme.text, overflow: 'hidden',
+        }}>
+          {player.avatar_url
+            ? <img src={player.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : (player.name?.[0] || '?').toUpperCase()}
         </div>
 
         {/* Name + meta */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
               {player.name || 'Unknown'}
             </span>
+            {isSelf && (
+              <span style={{
+                background: theme.statBg, color: theme.text, flexShrink: 0,
+                fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+                borderRadius: 20, padding: '3px 8px',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              }}>YOU</span>
+            )}
             {isSubscribed && (
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14, borderRadius: '50%', background: '#4a9eff', flexShrink: 0, fontSize: 9, color: '#fff' }}><IoCheckmark size={9} /></span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: theme.text, fontFamily: "'Space Mono'" }}>{rank}</span>
-            {player.area && (
-              <span style={{ fontSize: 11, color: theme.muted, display: 'flex', alignItems: 'center', gap: 3 }}>
-                <FaLocationDot size={9} />{player.area}
-              </span>
-            )}
-          </div>
-          {/* Stats — key stats for the active position stay full-strength, others dim */}
-          <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-            {STATS.map(s => {
-              const isKey = keyStats.includes(s.key);
-              return (
-                <div key={s.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <div style={{ fontSize: 9, color: isKey ? theme.text : theme.muted, fontFamily: "'Space Mono'", fontWeight: isKey ? 700 : 400 }}>
-                    {s.label}
-                  </div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: isKey ? theme.text : theme.muted, fontFamily: "'Space Mono'" }}>
-                    {player[s.key] || 30}
-                  </div>
-                </div>
-              );
-            })}
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: "'Bebas Neue'", fontSize: 12, letterSpacing: 1, color: theme.text }}>
+              {rank}{player.position && ` · ${player.position.toUpperCase()}`}
+            </span>
           </div>
         </div>
 
         {/* OVR */}
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ textAlign: 'center', flexShrink: 0 }}>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: 32, color: theme.text, lineHeight: 1, letterSpacing: 1 }}>
             {player.overall || 30}
           </div>
           <div style={{ fontSize: 9, color: theme.muted, fontFamily: "'Space Mono'", letterSpacing: 1 }}>OVR</div>
-          {player.games_played > 0 && (
-            <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>{player.games_played} games</div>
-          )}
         </div>
       </div>
     );
@@ -385,6 +386,56 @@ export default function LeaderboardPage() {
           </div>
         )}
       </div>
+
+      {/* FIFA Card Modal */}
+      {viewingPlayer && (
+        <div
+          onClick={() => setViewingPlayer(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <FifaCard
+              profile={viewingPlayer.profile}
+              cardStats={viewingPlayer.cardStats}
+              rank={getRank(viewingPlayer.profile.total_points || 0)}
+              achievementBadges={viewingPlayer.profile.achievement_badges}
+              size="normal"
+              interactive
+            />
+            {viewingPlayer.friendStatus === 'friends' ? (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                color: 'var(--accent)', fontSize: 14, fontWeight: 700,
+              }}><IoCheckmark size={16} />Friends</div>
+            ) : viewingPlayer.friendStatus === 'sent' ? (
+              <div style={{
+                background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
+                border: '1px solid rgba(240,157,81,0.3)', borderRadius: 10,
+                padding: '10px 32px', fontSize: 14, fontWeight: 600,
+              }}>Request Sent</div>
+            ) : viewingPlayer.friendStatus === 'incoming' ? (
+              <button onClick={acceptFriendRequest} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: 'var(--accent)', color: '#fff', border: 'none',
+                borderRadius: 10, padding: '10px 32px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              }}><UserRoundPlus size={18} />Accept Request</button>
+            ) : viewingPlayer.friendStatus !== 'self' && (
+              <button
+                onClick={sendFriendRequest}
+                disabled={viewingPlayer.friendStatus === 'loading'}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: 'var(--accent)', color: '#fff', border: 'none',
+                  borderRadius: 10, padding: '10px 32px', fontSize: 14, fontWeight: 600,
+                  cursor: viewingPlayer.friendStatus === 'loading' ? 'default' : 'pointer',
+                  opacity: viewingPlayer.friendStatus === 'loading' ? 0.6 : 1,
+                }}
+              ><UserRoundPlus size={18} />Add Friend</button>
+            )}
+            <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0 }}>Tap anywhere to close.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

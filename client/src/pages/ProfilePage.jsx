@@ -7,11 +7,13 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { getRank, getRankColor } from '../lib/rankUtils';
 import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
+import { ACHIEVEMENT_REQUIREMENTS, computeTop3Tiers } from '../lib/achievements';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
-import { RiTeamLine } from 'react-icons/ri';
-import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward } from 'react-icons/io5';
+import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
-import FifaCard, { calcOverall } from '../components/FifaCard';
+import FifaCard, { calcOverall, AchievementBadgeIcon, BADGE_TYPE_LIST, BADGE_RARITY_COLORS, BADGE_RARITY_LABELS } from '../components/FifaCard';
+import BadgeReorderList from '../components/BadgeReorderList';
+import ProgressionPanel from '../components/ProgressionPanel';
 import AvatarPicker from '../components/AvatarPicker';
 import { useTranslation } from 'react-i18next';
 import { PLAYER_AREAS } from '../lib/areas';
@@ -19,6 +21,7 @@ import { resizeImageFile } from '../lib/imageResize';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
 const GENDERS = ['Male', 'Female', 'Rather not say'];
+const CARD_DESIGNS = ['Novis', 'Gangsa III', 'Gangsa II', 'Gangsa I', 'Perak III', 'Perak II', 'Perak I', 'Emas III', 'Emas II', 'Emas I'];
 
 export default function ProfilePage() {
   const { user, isAdmin } = useAuth();
@@ -28,6 +31,7 @@ export default function ProfilePage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [showProgression, setShowProgression] = useState(false);
   const [form, setForm] = useState({ name: '', position: '', gender: '', age: '', area: '', phone: '' });
   const [savedPhone, setSavedPhone] = useState('');
   const [saving, setSaving] = useState(false);
@@ -45,7 +49,24 @@ export default function ProfilePage() {
   const [premiumBgs, setPremiumBgs] = useState([]);
   const [selectedBg, setSelectedBg] = useState(DEFAULT_BG);
   const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
-  const [showBordersModal, setShowBordersModal] = useState(false);
+  const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+  const [achievementTop3, setAchievementTop3] = useState({ gangsa: false, perak: false, emas: false });
+  const [openTooltip, setOpenTooltip] = useState(null);
+  const [selectedBadges, setSelectedBadges] = useState([]);
+  const [committedBadgesKey, setCommittedBadgesKey] = useState('[]');
+  const [showMaxBadgesPopup, setShowMaxBadgesPopup] = useState(false);
+  const [badgesError, setBadgesError] = useState('');
+  const [savingBadges, setSavingBadges] = useState(false);
+
+  // Standings are computed live off everyone's current total_points (see
+  // computeTop3Tiers), so fetch fresh each time the gallery opens rather
+  // than keeping it around stale between visits.
+  useEffect(() => {
+    if (!showAchievementsModal || !profile) return;
+    setOpenTooltip(null);
+    supabase.from('profiles').select('id, total_points').gt('total_points', 0)
+      .then(({ data }) => setAchievementTop3(computeTop3Tiers(profile, data || [])));
+  }, [showAchievementsModal, profile]);
 
   useEffect(() => {
     if (!user) return;
@@ -98,9 +119,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!showCardModal || !profile) return;
-    drawCardImage({ profile, cardStats, rank: getRank(calcOverall(cardStats)), bgUrl: selectedBg.src, equippedBorder: profile.equipped_border })
+    const previewRank = (isAdmin && profile.card_design_override) || getRank(calcOverall(cardStats));
+    drawCardImage({ profile, cardStats, rank: previewRank, bgUrl: selectedBg.src, achievementBadges: profile.achievement_badges })
       .then(canvas => setCardPreviewUrl(canvas.toDataURL('image/png')));
-  }, [showCardModal, selectedBg, cardStats, profile?.equipped_border]);
+  }, [showCardModal, selectedBg, cardStats, profile?.card_design_override, profile?.achievement_badges, isAdmin]);
 
   const fetchProfile = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -236,6 +258,25 @@ export default function ProfilePage() {
     if (!error) setProfile(prev => ({ ...prev, avatar_url: url }));
   };
 
+  const handleCardDesignChange = async (value) => {
+    const override = value || null;
+    setProfile(prev => ({ ...prev, card_design_override: override }));
+    await supabase.from('profiles').update({ card_design_override: override }).eq('id', user.id);
+  };
+
+  const handleBadgesChange = async (badges) => {
+    setSavingBadges(true);
+    setBadgesError('');
+    const { error } = await supabase.from('profiles').update({ achievement_badges: badges }).eq('id', user.id);
+    setSavingBadges(false);
+    if (error) {
+      setBadgesError('Could not save your badges. Please try again.');
+      return false;
+    }
+    setProfile(prev => ({ ...prev, achievement_badges: badges }));
+    return true;
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { setSaveMsg(t('profile.errors.emptyUsername')); return; }
     const age = form.age ? parseInt(form.age) : null;
@@ -267,7 +308,7 @@ export default function ProfilePage() {
   };
 
   const getCardCanvas = () =>
-    drawCardImage({ profile, cardStats, rank, bgUrl: selectedBg.src, equippedBorder: profile?.equipped_border });
+    drawCardImage({ profile, cardStats, rank: displayRank, bgUrl: selectedBg.src, achievementBadges: profile?.achievement_badges });
 
   const handleShareCard = async () => {
     setSharing(true);
@@ -280,7 +321,7 @@ export default function ProfilePage() {
           if (navigator.canShare?.({ files: [file] })) {
             await navigator.share({
               title: `${profile?.name}'s Bolahh Card`,
-              text: `${rank} · ${profile?.total_points || 30} OVR · bolahh.com`,
+              text: `${displayRank} · ${profile?.total_points || 30} OVR · bolahh.com`,
               files: [file],
             });
           } else {
@@ -331,7 +372,11 @@ export default function ProfilePage() {
   }
 
   const rank = getRank(calcOverall(cardStats));
-  const rankColor = getRankColor(rank);
+  // Admin-only cosmetic override — picks any available design for their own
+  // card regardless of real stats (see CARD_DESIGNS picker below). Null for
+  // everyone else, and null resets an admin back to their real rank too.
+  const displayRank = (isAdmin && profile?.card_design_override) || rank;
+  const rankColor = getRankColor(displayRank);
   const isSubscribed = profile?.is_subscribed && profile?.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
 
   return (
@@ -343,7 +388,6 @@ export default function ProfilePage() {
           .profile-header { flex-direction: column !important; align-items: center !important; text-align: center !important; }
           .profile-header .edit-btn { margin-top: 12px; width: 100%; }
           .profile-info { align-items: center !important; }
-          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
         .avatar-hover-overlay { pointer-events: none; }
         div:hover > .avatar-hover-overlay { opacity: 1 !important; }
@@ -414,9 +458,13 @@ export default function ProfilePage() {
           }}><IoClose size={20} /></button>
 
           <div onClick={e => e.stopPropagation()}>
+            {/* 220×305 matches the canvas's own 520×720 aspect ratio exactly
+                (720/520 × 220) — any mismatch here has the browser stretch
+                the rendered PNG non-uniformly to fill the box, which is
+                exactly the kind of distortion this preview needs to avoid. */}
             {cardPreviewUrl
-              ? <img src={cardPreviewUrl} alt="card preview" style={{ width: 220, height: 308, borderRadius: 12, display: 'block', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }} />
-              : <div style={{ width: 220, height: 308, borderRadius: 12, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13 }}>Generating…</div>
+              ? <img src={cardPreviewUrl} alt="card preview" style={{ width: 220, height: 305, borderRadius: 12, display: 'block', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }} />
+              : <div style={{ width: 220, height: 305, borderRadius: 12, background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13 }}>Generating…</div>
             }
           </div>
 
@@ -464,37 +512,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Borders Modal */}
-      {showBordersModal && (
-        <div
-          onClick={() => setShowBordersModal(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.97)', backdropFilter: 'blur(10px)',
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            gap: 16, padding: '24px 16px', overflowY: 'auto',
-          }}
-        >
-          <button onClick={() => setShowBordersModal(false)} style={{
-            position: 'absolute', top: 16, right: 16,
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-            color: '#fff', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}><IoClose size={20} /></button>
-
-          <div onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Bebas Neue'", fontSize: 22, letterSpacing: 2, color: '#fff', marginBottom: 10 }}>
-              CARD BORDERS
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--muted)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 0.5 }}>
-              Coming Soon
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
         <h2 className="fade-up" style={{
@@ -511,39 +528,41 @@ export default function ProfilePage() {
             marginBottom: 20, cursor: 'pointer', position: 'relative',
           }}
         >
-          <FifaCard profile={profile} cardStats={cardStats} rank={rank} size="normal" equippedBorder={profile?.equipped_border} onAvatarClick={() => setShowAvatarModal(true)} />
+          <FifaCard profile={profile} cardStats={cardStats} rank={displayRank} size="normal" achievementBadges={profile?.achievement_badges} onAvatarClick={() => setShowAvatarModal(true)} interactive memberSince={user?.created_at} />
           <div className="card-tap-hint" style={{
             marginTop: 8, fontSize: 11, color: 'var(--muted)',
             fontFamily: "'Space Mono'", letterSpacing: 1,
           }}>
             {t('profile.tapToShare')}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 10 }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowBordersModal(true); }}
-              style={{
-                background: 'rgba(240,157,81,0.1)', border: '1px solid rgba(240,157,81,0.3)',
-                borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
-                color: 'var(--accent)', fontSize: 12, fontWeight: 700,
-                fontFamily: "'Space Mono'", letterSpacing: 1,
-              }}
-            >BORDERS</button>
-            <button
-              onClick={(e) => { e.stopPropagation(); navigate('/guide#ranks'); }}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                color: 'var(--accent)', fontSize: 12, fontWeight: 600, textDecoration: 'underline',
-              }}
-            >How does the rank system work?</button>
-          </div>
+          {isAdmin && (
+            <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+              <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'", letterSpacing: 1 }}>ADMIN · CARD DESIGN</span>
+              <select
+                value={profile?.card_design_override || ''}
+                onChange={e => handleCardDesignChange(e.target.value)}
+                style={{
+                  background: 'var(--card2)', color: 'var(--text)', border: '1px solid var(--border)',
+                  borderRadius: 8, padding: '5px 10px', fontSize: 12, cursor: 'pointer',
+                }}
+              >
+                <option value="">Auto (based on stats)</option>
+                {CARD_DESIGNS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          )}
+
         </div>
 
         <button
-          onClick={() => navigate('/progression')}
+          onClick={() => { setShowProgression(v => !v); setEditing(false); setShowAchievementsModal(false); }}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-            background: 'var(--card)', border: '1px solid var(--border)',
-            borderRadius: 14, padding: '14px 18px', marginBottom: 16, cursor: 'pointer',
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderBottom: showProgression ? 'none' : '1px solid var(--border)',
+            borderRadius: showProgression ? '14px 14px 0 0' : 14,
+            padding: '14px 18px', marginBottom: showProgression ? 0 : 16, cursor: 'pointer',
           }}
         >
           <span style={{
@@ -555,25 +574,236 @@ export default function ProfilePage() {
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: 15, letterSpacing: 1, color: 'var(--text)' }}>MY PROGRESSION</div>
             <div style={{ fontSize: 12, color: 'var(--muted)' }}>See your level climb over time</div>
           </span>
-          <IoChevronForward size={16} color="var(--muted)" />
+          <IoChevronForward size={16} color="var(--muted)" style={{ transform: showProgression ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
         </button>
 
+        {/* Always mounted (just hidden) so its data fetch starts as soon as
+            the profile page loads, rather than only once the user expands
+            it — by the time they click, it's already loaded. */}
+        <div
+          className={showProgression ? 'slide-down' : undefined}
+          style={{
+            display: showProgression ? 'block' : 'none',
+            background: 'var(--card)', border: '1px solid var(--border)', borderTop: 'none',
+            borderRadius: '0 0 14px 14px', padding: '20px', marginBottom: 16,
+          }}
+        >
+          <ProgressionPanel showRankBadge={false} />
+        </div>
+
         {/* Action row */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, justifyContent: 'center' }}>
-          <button onClick={() => setEditing(!editing)} disabled={saving} style={{
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+          <button onClick={() => { setEditing(v => !v); setShowAchievementsModal(false); setShowProgression(false); }} disabled={saving} style={{
+            flex: 1,
             background: editing ? 'var(--accent)' : 'transparent',
             color: editing ? '#fff' : 'var(--accent)',
             border: '1.5px solid var(--accent)', borderRadius: 10, padding: '8px 24px',
             fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
           }}>{saving ? t('profile.form.saving') : editing ? t('profile.cancelEdit') : t('profile.editProfile')}</button>
-          <button onClick={() => navigate('/friends')} style={{
-            background: 'transparent', color: 'var(--accent)',
+          <button onClick={() => { setShowAchievementsModal(v => !v); setEditing(false); setShowProgression(false); }} style={{
+            flex: 1,
+            background: showAchievementsModal ? 'var(--accent)' : 'transparent',
+            color: showAchievementsModal ? '#fff' : 'var(--accent)',
             border: '1.5px solid var(--accent)', borderRadius: 10,
             padding: '8px 24px', fontSize: 13, fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: 6
-          }}><RiTeamLine size={14} /> {t('profile.friends')}</button>
+          }}>{showAchievementsModal ? 'Close Badges' : 'Edit Badges'}</button>
         </div>
         <input ref={fileInputRef} type="file" accept={isSubscribed ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png'} style={{ display: 'none' }} onChange={handleAvatarUpload} />
+
+        {/* Achievements panel — a trophy case (what's unlocked and why),
+            where clicking any unlocked tile IS the selection mechanism: it
+            adds that (type, rarity) to selectedBadges, clicking a different
+            tier of an already-picked type re-tiers it in place, and
+            clicking its active tile again removes it. The list below (see
+            BadgeReorderList) mirrors selectedBadges exactly — empty when
+            nothing's picked, a row appears the instant a tile is picked and
+            disappears the instant it's deselected — and can also remove a
+            row directly as a shortcut, but adding only ever happens up here,
+            since only the gallery knows which tier is currently unlocked.
+            Display order is just each badge's index in selectedBadges, so
+            there's nothing to separately "save" the order of. Admin has
+            every tile unlocked, so admin can pick freely too, same
+            mechanism. */}
+        {showAchievementsModal && profile && (() => {
+          // Adjusting state during render (React's documented pattern) so
+          // the draft resets exactly when the caller's real badges change
+          // (profile switch, a fresh load) but not on every render of an
+          // unrelated state update.
+          const badgesKey = JSON.stringify(profile.achievement_badges || []);
+          if (badgesKey !== committedBadgesKey) {
+            setCommittedBadgesKey(badgesKey);
+            setSelectedBadges(profile.achievement_badges || []);
+          }
+          const badgesDirty = JSON.stringify(selectedBadges) !== badgesKey;
+
+          const handleTileClick = (typeKey, rarity, unlocked) => {
+            if (!unlocked) return;
+            setSelectedBadges(prev => {
+              const idx = prev.findIndex(b => b.type === typeKey);
+              if (idx === -1) {
+                if (prev.length >= BADGE_TYPE_LIST.length) {
+                  setShowMaxBadgesPopup(true);
+                  return prev;
+                }
+                return [...prev, { type: typeKey, rarity }];
+              }
+              if (prev[idx].rarity === rarity) return prev.filter((_, i) => i !== idx);
+              return prev.map((b, i) => (i === idx ? { ...b, rarity } : b));
+            });
+          };
+
+          return (
+            <div className="fade-up-2" style={{
+              background: 'var(--card)', border: '1px solid var(--border)',
+              borderRadius: 16, padding: '20px', marginBottom: 16,
+            }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 4 }}>
+                BADGES
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
+                {isAdmin && 'Admin view — every tier unlocked. '}Display your feats on your player card! (Select up to 3)
+              </div>
+
+              {BADGE_TYPE_LIST.map(typeInfo => (
+                <div key={typeInfo.key} style={{ marginBottom: 24 }}>
+                  <div style={{
+                    fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700,
+                    letterSpacing: 1, color: 'var(--accent)', marginBottom: 10,
+                  }}>{typeInfo.label.toUpperCase()}</div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {Object.keys(BADGE_RARITY_COLORS).map(rarity => {
+                      const req = ACHIEVEMENT_REQUIREMENTS[typeInfo.key][rarity];
+                      const unlocked = isAdmin || req.met(profile, achievementTop3);
+                      const selected = selectedBadges.some(b => b.type === typeInfo.key && b.rarity === rarity);
+                      const tooltipKey = `${typeInfo.key}-${rarity}`;
+                      const tooltipOpen = openTooltip === tooltipKey;
+                      return (
+                        <div key={rarity} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                          <div
+                            onMouseEnter={() => setOpenTooltip(tooltipKey)}
+                            onMouseLeave={() => setOpenTooltip(k => (k === tooltipKey ? null : k))}
+                            onClick={() => { setOpenTooltip(k => (k === tooltipKey ? null : tooltipKey)); handleTileClick(typeInfo.key, rarity, unlocked); }}
+                            style={{
+                              position: 'relative', width: 56, height: 56,
+                              // Selected reads through both a warm dim-accent
+                              // fill and a thin accent stroke — the fill
+                              // alone read a little too quiet next to the
+                              // unlocked tiles' own vivid rarity color.
+                              background: selected ? 'color-mix(in srgb, var(--accent-dim) 35%, var(--card2))' : 'var(--card2)',
+                              border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
+                              borderRadius: 12, padding: 11, cursor: unlocked ? 'pointer' : 'default',
+                            }}
+                          >
+                            <AchievementBadgeIcon type={typeInfo.key} rarity={rarity} />
+                            {!unlocked && (
+                              <div style={{
+                                position: 'absolute', inset: 0, borderRadius: 'inherit',
+                                background: 'rgba(0,0,0,0.72)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                <IoLockClosed size={15} color="rgba(255,255,255,0.75)" style={{ transform: 'translateY(-2px)' }} />
+                              </div>
+                            )}
+                            {tooltipOpen && (
+                              <div style={{
+                                position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+                                marginBottom: 8, background: '#000', border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: 8, padding: '6px 10px', width: 150,
+                                fontSize: 11, lineHeight: 1.4, zIndex: 1,
+                                pointerEvents: 'none',
+                              }}>
+                                <div style={{ fontWeight: 700, color: unlocked ? '#4ade80' : 'var(--muted)', marginBottom: 2 }}>
+                                  {unlocked ? 'Unlocked' : 'Locked'}
+                                </div>
+                                <div style={{ color: '#fff' }}>{req.text}</div>
+                              </div>
+                            )}
+                          </div>
+                          <span style={{
+                            display: 'inline-block',
+                            background: unlocked ? `${BADGE_RARITY_COLORS[rarity]}30` : 'var(--card2)',
+                            color: unlocked ? BADGE_RARITY_COLORS[rarity] : 'var(--muted)',
+                            border: `1px solid ${unlocked ? `${BADGE_RARITY_COLORS[rarity]}70` : 'var(--border)'}`,
+                            borderRadius: 999, padding: '2px 8px',
+                            fontSize: 9, fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase',
+                          }}>{BADGE_RARITY_LABELS[rarity]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 18px' }} />
+
+              <BadgeReorderList badges={selectedBadges} onChange={setSelectedBadges} />
+              {badgesError && (
+                <div style={{ fontSize: 12, color: '#ff6b6b', marginTop: 10 }}>{badgesError}</div>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button
+                  onClick={() => { setSelectedBadges(profile.achievement_badges || []); setBadgesError(''); setShowAchievementsModal(false); }}
+                  style={{
+                    flex: 1, padding: '8px 10px',
+                    background: 'transparent', color: 'var(--text)',
+                    border: '1px solid var(--border)', borderRadius: 8,
+                    fontSize: 13, fontWeight: 700,
+                  }}
+                >
+                  {t('profile.form.cancel')}
+                </button>
+                <button
+                  onClick={async () => {
+                    const ok = await handleBadgesChange(selectedBadges);
+                    if (ok) setShowAchievementsModal(false);
+                  }}
+                  disabled={!badgesDirty || savingBadges}
+                  style={{
+                    flex: 1,
+                    background: badgesDirty ? 'var(--accent)' : 'var(--card2)',
+                    color: badgesDirty ? '#fff' : 'var(--muted)',
+                    border: `1px solid ${badgesDirty ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 8, padding: '8px 10px',
+                    fontSize: 13, fontWeight: 700,
+                    opacity: savingBadges ? 0.6 : 1,
+                    cursor: badgesDirty && !savingBadges ? 'pointer' : 'default',
+                  }}
+                >
+                  {savingBadges ? 'Saving...' : 'Apply changes'}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Max-3 popup */}
+        {showMaxBadgesPopup && (
+          <div
+            onClick={() => setShowMaxBadgesPopup(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1100,
+              background: 'rgba(0,0,0,0.6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 16,
+            }}
+          >
+            <div onClick={e => e.stopPropagation()} style={{
+              background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16,
+              padding: 24, maxWidth: 300, textAlign: 'center',
+            }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 8 }}>
+                ONLY 3 BADGES
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+                You can only select 3 badges. Remove one before picking another.
+              </p>
+              <button onClick={() => setShowMaxBadgesPopup(false)} style={{
+                width: '100%', background: 'var(--accent)', color: '#fff', border: 'none',
+                borderRadius: 8, padding: '8px 10px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}>Got it</button>
+            </div>
+          </div>
+        )}
 
         {/* Nudge banner */}
         {!editing && profile && (!profile.gender || !profile.age || !profile.area || !savedPhone) && (
@@ -610,9 +840,10 @@ export default function ProfilePage() {
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.positionLabel')}</label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 {POSITIONS.map(p => (
                   <button key={p} onClick={() => setForm({ ...form, position: form.position === p ? '' : p })} style={{
+                    flex: 1,
                     background: form.position === p ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
                     color: form.position === p ? 'var(--accent)' : 'var(--text)',
                     border: `1px solid ${form.position === p ? 'var(--accent)' : 'var(--border)'}`,
@@ -635,29 +866,31 @@ export default function ProfilePage() {
                 ))}
               </div>
             </div>
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.ageLabel')}</label>
-              <input type="number" placeholder="e.g. 22" min="10" max="70"
-                value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} />
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.phoneLabel')}</label>
-              <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
-                <span style={{
-                  display: 'flex', alignItems: 'center',
-                  background: '#1a1e20', border: '1px solid var(--border)', borderRadius: 8,
-                  padding: '12px 14px', color: 'var(--text)', fontSize: 14,
-                  fontFamily: "'Space Mono'", flexShrink: 0,
-                }}>+60</span>
-                <input
-                  type="tel" placeholder="12-345 6789"
-                  value={form.phone || ''}
-                  onChange={e => setForm({ ...form, phone: e.target.value.replace(/[^0-9]/g, '') })}
-                  style={{ flex: 1 }}
-                />
+            <div style={{ marginTop: 14, display: 'flex', gap: 12 }}>
+              <div style={{ flex: 2, minWidth: 0 }}>
+                <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.phoneLabel')}</label>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+                  <span style={{
+                    display: 'flex', alignItems: 'center',
+                    background: '#1a1e20', border: '1px solid var(--border)', borderRadius: 8,
+                    padding: '12px 14px', color: 'var(--text)', fontSize: 14,
+                    fontFamily: "'Space Mono'", flexShrink: 0,
+                  }}>+60</span>
+                  <input
+                    type="tel" placeholder="12-345 6789"
+                    value={form.phone || ''}
+                    onChange={e => setForm({ ...form, phone: e.target.value.replace(/[^0-9]/g, '') })}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                  {t('signup.phoneHint')}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
-                {t('signup.phoneHint')}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.ageLabel')}</label>
+                <input type="number" placeholder="e.g. 22" min="10" max="70"
+                  value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} style={{ width: '100%' }} />
               </div>
             </div>
             <div style={{ marginTop: 14 }}>
@@ -674,28 +907,15 @@ export default function ProfilePage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
-                {saving ? t('profile.form.saving') : t('profile.form.saveChanges')}
-              </button>
               <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '', phone: savedPhone }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
                 {t('profile.form.cancel')}
+              </button>
+              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
+                {saving ? t('profile.form.saving') : t('profile.form.saveChanges')}
               </button>
             </div>
           </div>
         )}
-
-        {/* Stats */}
-        <div className="fade-up-3 stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
-          {[
-            { labelKey: 'profile.stats.gamesJoined', val: profile?.games_played || 0 },
-            { labelKey: 'profile.stats.memberSince', val: new Date(user?.created_at).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' }) },
-          ].map(s => (
-            <div key={s.labelKey} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px' }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, color: 'var(--accent)', letterSpacing: 1 }}>{s.val}</div>
-              <div style={{ color: 'var(--text)', fontSize: 12, marginTop: 2 }}>{t(s.labelKey)}</div>
-            </div>
-          ))}
-        </div>
 
         {/* Wallet */}
         <div

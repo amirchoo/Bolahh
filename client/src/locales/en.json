@@ -223,7 +223,7 @@
     "title": "MY PROFILE",
     "tapToShare": "TAP TO VIEW & SHARE",
     "editProfile": "Edit Profile",
-    "cancelEdit": "Cancel Edit",
+    "cancelEdit": "Close Profile",
     "friends": "Friends",
     "loading": "Loading profile...",
     "avatarModal": {
@@ -259,10 +259,6 @@
       "Male": "Male",
       "Female": "Female",
       "Rather not say": "Rather not say"
-    },
-    "stats": {
-      "gamesJoined": "Games Joined",
-      "memberSince": "Member Since"
     },
     "wallet": {
       "title": "BOLAHH WALLET",
