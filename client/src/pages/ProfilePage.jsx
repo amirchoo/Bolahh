@@ -284,6 +284,7 @@ export default function ProfilePage() {
       return false;
     }
     setProfile(prev => ({ ...prev, achievement_badges: badges }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     return true;
   };
 
@@ -306,6 +307,7 @@ export default function ProfilePage() {
     setProfile({ ...profile, name: form.name.trim(), position: form.position, gender: form.gender || null, age: age || null, area: form.area || null });
     setEditing(false);
     setSaving(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const downloadBlob = (blob, filename) => {
@@ -589,7 +591,7 @@ export default function ProfilePage() {
             border: '1px solid var(--border)',
             borderBottom: showProgression ? 'none' : '1px solid var(--border)',
             borderRadius: showProgression ? '14px 14px 0 0' : 14,
-            padding: '14px 18px', marginBottom: showProgression ? 0 : 16, cursor: 'pointer',
+            padding: '14px 18px', marginBottom: showProgression ? 0 : 14, cursor: 'pointer',
           }}
         >
           <span style={{
@@ -612,7 +614,7 @@ export default function ProfilePage() {
           style={{
             display: showProgression ? 'block' : 'none',
             background: 'var(--card)', border: '1px solid var(--border)', borderTop: 'none',
-            borderRadius: '0 0 14px 14px', padding: '20px', marginBottom: 16,
+            borderRadius: '0 0 14px 14px', padding: '20px', marginBottom: 14,
           }}
         >
           <ProgressionPanel showRankBadge={false} />
@@ -682,7 +684,7 @@ export default function ProfilePage() {
           return (
             <div className="fade-up-2" style={{
               background: 'var(--card)', border: '1px solid var(--border)',
-              borderRadius: 16, padding: '20px', marginBottom: 16,
+              borderRadius: 16, padding: '20px', marginBottom: 14,
             }}>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 4 }}>
                 BADGES
@@ -763,7 +765,7 @@ export default function ProfilePage() {
               ))}
 
               {selectedBadges.length > 0 && (
-                <div style={{ marginTop: 14 }}>
+                <div style={{ marginTop: 18 }}>
                   <BadgeReorderList badges={selectedBadges} onChange={setSelectedBadges} />
                 </div>
               )}
@@ -799,7 +801,7 @@ export default function ProfilePage() {
                     cursor: badgesDirty && !savingBadges ? 'pointer' : 'default',
                   }}
                 >
-                  {savingBadges ? 'Saving...' : 'Apply changes'}
+                  {savingBadges ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -839,7 +841,7 @@ export default function ProfilePage() {
         {!editing && profile && (!profile.gender || !profile.age || !profile.area || !savedPhone) && (
           <div style={{
             background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.3)',
-            borderRadius: 12, padding: '12px 16px', marginBottom: 16,
+            borderRadius: 12, padding: '12px 16px', marginBottom: 14,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
           }}>
             <span style={{ fontSize: 13, color: 'var(--accent)' }}>
@@ -857,7 +859,7 @@ export default function ProfilePage() {
         {editing && (
           <div className="fade-up-2" style={{
             background: 'var(--card)', border: '1px solid var(--border)',
-            borderRadius: 16, padding: '20px', marginBottom: 16
+            borderRadius: 16, padding: '20px', marginBottom: 14
           }}>
             {saveMsg && (
               <div style={{ marginBottom: 14, background: 'rgba(240,101,67,0.1)', border: '1px solid rgba(240,101,67,0.25)', borderRadius: 8, padding: '8px 14px', color: 'var(--red)', fontSize: 13 }}>
@@ -985,7 +987,7 @@ export default function ProfilePage() {
           style={{
             background: 'linear-gradient(135deg, #1c1e21, #27292d)',
             border: '1px solid rgba(240,157,81,0.25)',
-            borderRadius: 16, padding: '18px 20px', marginBottom: 16,
+            borderRadius: 16, padding: '18px 20px', marginBottom: 14,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             position: 'relative', overflow: 'hidden', cursor: 'pointer'
           }}
@@ -1015,7 +1017,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Upcoming Games */}
-        <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
+        <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 14 }}>
           <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{t('profile.upcoming.title')}</span>
             <span style={{ background: 'rgba(240,157,81,0.12)', color: 'var(--accent)', border: '1px solid rgba(240,157,81,0.25)', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontFamily: "'Space Mono'", fontWeight: 700 }}>

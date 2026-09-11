@@ -205,10 +205,9 @@ export function formatMemberSinceDate(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
-  const day = String(d.getDate()).padStart(2, '0');
   const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
   const year = String(d.getFullYear()).slice(-2);
-  return `${day} ${month} ${year}`;
+  return `${month} ${year}`;
 }
 
 export function buildCustomTheme(form) {

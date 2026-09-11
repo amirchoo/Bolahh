@@ -205,7 +205,7 @@ export default function LeaderboardPage() {
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
     if (totalPages <= 1) return null;
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 14 }}>
         <button
           onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page === 1}
@@ -355,7 +355,7 @@ export default function LeaderboardPage() {
         </div>
 
         {/* View mode toggle — 10px to the tier tabs row below it in Tier
-            mode, but 12px in Global mode where it sits directly above the
+            mode, but 14px in Global mode where it sits directly above the
             first leaderboard card instead. */}
         <div style={{ display: 'flex', gap: 10, marginBottom: viewMode === 'tier' ? 10 : 14 }}>
           {[['global', 'Global Rank'], ['tier', 'Tier']].map(([mode, label]) => (
