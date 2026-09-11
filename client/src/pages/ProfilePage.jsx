@@ -9,7 +9,7 @@ import { getRank, getRankColor } from '../lib/rankUtils';
 import { drawCardImage, DEFAULT_BG } from '../lib/cardCanvas';
 import { ACHIEVEMENT_REQUIREMENTS, computeTop3Tiers } from '../lib/achievements';
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
-import { IoClose, IoCheckmark, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
+import { IoClose, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
 import { Check as IconCheck, X as IconX } from 'lucide-react';
 import FifaCard, { calcOverall, AchievementBadgeIcon, BADGE_TYPE_LIST, BADGE_RARITY_COLORS, BADGE_RARITY_LABELS } from '../components/FifaCard';
@@ -521,15 +521,17 @@ export default function ProfilePage() {
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
           {t('profile.title')}
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 3,
-            position: 'relative', top: -1,
-            background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${isSubscribed ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
-            color: isSubscribed ? '#4ade80' : 'var(--muted)',
-            borderRadius: 20, padding: '3px 8px',
-            fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, letterSpacing: 1,
-          }}>
+          <span
+            onClick={() => navigate('/subscription')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+              position: 'relative', top: -1, cursor: 'pointer',
+              background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${isSubscribed ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`,
+              color: isSubscribed ? '#4ade80' : 'var(--muted)',
+              borderRadius: 20, padding: '3px 8px',
+              fontFamily: "'Space Mono'", fontSize: 9, fontWeight: 700, letterSpacing: 1,
+            }}>
             {isSubscribed ? <IconCheck size={9} /> : <IconX size={9} />}
             {isSubscribed ? 'VERIFIED' : 'NOT VERIFIED'}
           </span>
@@ -967,58 +969,6 @@ export default function ProfilePage() {
           >
             {t('profile.wallet.topup')}
           </button>
-        </div>
-
-        {/* Subscription */}
-        <div
-          className="fade-up-3"
-          onClick={() => navigate('/subscription')}
-          style={{
-            background: isSubscribed
-              ? 'linear-gradient(135deg, #0f3824, #1a5c3a)'
-              : 'linear-gradient(135deg, #1c1e21, #27292d)',
-            border: isSubscribed
-              ? '1px solid rgba(74,222,128,0.3)'
-              : '1px solid rgba(240,157,81,0.15)',
-            borderRadius: 16, padding: '16px 20px', marginBottom: 16,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            cursor: 'pointer', position: 'relative', overflow: 'hidden',
-          }}
-          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-        >
-          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: isSubscribed ? '#4ade8033' : 'rgba(255,255,255,0.06)',
-              border: isSubscribed ? '2px solid #4ade8066' : '2px solid rgba(255,255,255,0.1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, color: isSubscribed ? '#4ade80' : 'var(--muted)',
-            }}><IoCheckmark size={16} /></div>
-            <div>
-              <div style={{ fontSize: 10, color: isSubscribed ? 'rgba(74,222,128,0.7)' : 'rgba(240,157,81,0.65)', fontFamily: "'Space Mono'", fontWeight: 700, letterSpacing: 2, marginBottom: 3 }}>
-                {t('profile.subscription.title')}
-              </div>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, lineHeight: 1, color: isSubscribed ? '#4ade80' : '#fff' }}>
-                {isSubscribed ? t('profile.subscription.active') : t('profile.subscription.get')}
-              </div>
-              {isSubscribed && profile?.subscription_expires_at && (
-                <div style={{ fontSize: 11, color: 'rgba(74,222,128,0.6)', marginTop: 3 }}>
-                  {t('profile.subscription.expires')} {new Date(profile.subscription_expires_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{
-            background: isSubscribed ? 'rgba(74,222,128,0.15)' : 'var(--accent)',
-            color: isSubscribed ? '#4ade80' : '#fff',
-            border: isSubscribed ? '1px solid rgba(74,222,128,0.3)' : 'none',
-            borderRadius: 10, padding: '8px 16px', fontWeight: 700,
-            fontSize: 12, fontFamily: "'Bebas Neue'", letterSpacing: 1.5, flexShrink: 0,
-          }}>
-            {isSubscribed ? t('profile.subscription.renew') : t('profile.subscription.price')}
-          </div>
         </div>
 
         {/* Upcoming Games */}
