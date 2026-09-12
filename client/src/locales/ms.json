@@ -150,7 +150,7 @@
     "genders": {
       "Male": "Lelaki",
       "Female": "Perempuan",
-      "Rather not say": "Tidak mahu kongsi"
+      "Other": "Lain-lain"
     },
     "errors": {
       "fillAll": "Sila isi semua medan.",
@@ -258,7 +258,7 @@
     "genders": {
       "Male": "Lelaki",
       "Female": "Perempuan",
-      "Rather not say": "Tidak mahu kongsi"
+      "Other": "Lain-lain"
     },
     "wallet": {
       "title": "DOMPET BOLAHH",

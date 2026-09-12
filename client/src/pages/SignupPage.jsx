@@ -149,7 +149,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const genders = ['Male', 'Female', 'Rather not say'];
+  const genders = ['Male', 'Female', 'Other'];
   const areas = PLAYER_AREAS;
 
   const advance = () => { setStepDir('forward'); setStep(s => s + 1); };
