@@ -779,7 +779,7 @@ export default function ProfilePage() {
                     flex: 1, padding: '8px 10px',
                     background: 'transparent', color: 'var(--text)',
                     border: '1px solid var(--border)', borderRadius: 8,
-                    fontSize: 13, fontWeight: 700,
+                    fontSize: 13, fontWeight: 400,
                   }}
                 >
                   {t('profile.form.cancel')}
@@ -867,13 +867,16 @@ export default function ProfilePage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />
-              <span style={{ fontFamily: "'Space Mono'", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Basic Info</span>
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.usernameLabel')}</label>
-              <input placeholder="e.g. hazif77" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.usernameLabel')}</label>
+                <input placeholder="e.g. hazif77" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div style={{ flex: '0 0 100px' }}>
+                <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.ageLabel')}</label>
+                <input type="number" placeholder="e.g. 22" min="10" max="70"
+                  value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} style={{ width: '100%' }} />
+              </div>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.positionLabel')}</label>
@@ -888,7 +891,7 @@ export default function ProfilePage() {
                 ))}
               </div>
             </div>
-            <div>
+            <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.genderLabel')}</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 {GENDERS.map(g => (
@@ -900,13 +903,6 @@ export default function ProfilePage() {
                   }}>{t(`profile.genders.${g}`)}</button>
                 ))}
               </div>
-            </div>
-
-            <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />
-              <span style={{ fontFamily: "'Space Mono'", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Contact</span>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.phoneLabel')}</label>
@@ -927,18 +923,6 @@ export default function ProfilePage() {
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
                 {t('signup.phoneHint')}
               </div>
-            </div>
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.ageLabel')}</label>
-              <input type="number" placeholder="e.g. 22" min="10" max="70"
-                value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} style={{ width: 120 }} />
-            </div>
-
-            <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />
-              <span style={{ fontFamily: "'Space Mono'", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Location</span>
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.areaLabel')}</label>
@@ -975,10 +959,10 @@ export default function ProfilePage() {
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-              <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '', phone: savedPhone }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
+              <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '', phone: savedPhone }); }} style={{ flex: 1, padding: '8px 10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 400 }}>
                 {t('profile.form.cancel')}
               </button>
-              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
+              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '8px 10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
                 {saving ? t('profile.form.saving') : t('profile.form.saveChanges')}
               </button>
             </div>
