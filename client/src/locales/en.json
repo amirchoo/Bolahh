@@ -150,7 +150,7 @@
     "genders": {
       "Male": "Male",
       "Female": "Female",
-      "Rather not say": "Rather not say"
+      "Other": "Other"
     },
     "errors": {
       "fillAll": "Please fill in all fields.",
@@ -258,7 +258,7 @@
     "genders": {
       "Male": "Male",
       "Female": "Female",
-      "Rather not say": "Rather not say"
+      "Other": "Other"
     },
     "wallet": {
       "title": "BOLAHH WALLET",

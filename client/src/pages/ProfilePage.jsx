@@ -21,7 +21,10 @@ import { PLAYER_AREAS, PLAYER_DISTRICTS, stateForPlayerArea } from '../lib/areas
 import { resizeImageFile } from '../lib/imageResize';
 
 const POSITIONS = ['Attacker', 'Midfielder', 'Defender', 'Goalkeeper'];
-const GENDERS = ['Male', 'Female', 'Rather not say'];
+const GENDERS = ['Male', 'Female', 'Other'];
+// Profiles saved before the "Rather not say" -> "Other" rename still hold
+// the old value — treat it as Other until the user re-saves their profile.
+const normalizeGender = (g) => (g === 'Rather not say' ? 'Other' : g);
 const CARD_DESIGNS = ['Novis', 'Gangsa III', 'Gangsa II', 'Gangsa I', 'Perak III', 'Perak II', 'Perak I', 'Emas III', 'Emas II', 'Emas I'];
 
 export default function ProfilePage() {
@@ -876,22 +879,12 @@ export default function ProfilePage() {
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.genderLabel')}</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {GENDERS.slice(0, 2).map(g => (
-                    <button key={g} onClick={() => setForm({ ...form, gender: form.gender === g ? '' : g })} style={{
-                      background: form.gender === g ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                      color: form.gender === g ? 'var(--accent)' : 'var(--text)',
-                      border: `1px solid ${form.gender === g ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: 8, padding: '10px 8px', fontSize: 13, fontWeight: 500, textAlign: 'center'
-                    }}>{t(`profile.genders.${g}`)}</button>
-                  ))}
-                </div>
-                {GENDERS.slice(2).map(g => (
-                  <button key={g} onClick={() => setForm({ ...form, gender: form.gender === g ? '' : g })} style={{
-                    background: form.gender === g ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
-                    color: form.gender === g ? 'var(--accent)' : 'var(--text)',
-                    border: `1px solid ${form.gender === g ? 'var(--accent)' : 'var(--border)'}`,
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                {GENDERS.map(g => (
+                  <button key={g} onClick={() => setForm({ ...form, gender: normalizeGender(form.gender) === g ? '' : g })} style={{
+                    background: normalizeGender(form.gender) === g ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
+                    color: normalizeGender(form.gender) === g ? 'var(--accent)' : 'var(--text)',
+                    border: `1px solid ${normalizeGender(form.gender) === g ? 'var(--accent)' : 'var(--border)'}`,
                     borderRadius: 8, padding: '10px 8px', fontSize: 13, fontWeight: 500, textAlign: 'center'
                   }}>{t(`profile.genders.${g}`)}</button>
                 ))}
