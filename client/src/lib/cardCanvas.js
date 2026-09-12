@@ -270,15 +270,31 @@ function drawCardShape(ctx, colorKey, shapeDef, originX, originY, stops, borderC
   ctx.fill(shapePath);
 
   ctx.strokeStyle = borderColor;
-  ctx.lineWidth = 3;
+  // Matches the live card's own shape outline exactly (FifaCard.jsx uses
+  // `strokeWidth={1.7 / shapeScale}`, targeting ~2 physical px at "normal"
+  // size) — this used to be a flat 3, nearly double, which read as a
+  // visibly thicker border on the exported PNG than on the live card.
+  ctx.lineWidth = 1.7;
   ctx.stroke(shapePath);
   ctx.restore();
 
   // ── Sub-tier star(s) ──────────────────────────────────
   if (starSet && starPlacement) {
     ctx.save();
-    ctx.translate(originX + starPlacement.left, originY + starPlacement.top);
-    ctx.scale(starPlacement.width / starSet.viewBoxW, starPlacement.height / starSet.viewBoxH);
+    // The live card renders this as an <svg> with no preserveAspectRatio
+    // override, so the browser applies the default "xMidYMid meet": scale
+    // uniformly by whichever axis is more constraining, then center on the
+    // other axis — never stretching the star out of proportion. A plain
+    // ctx.scale(width/viewBoxW, height/viewBoxH) here would stretch
+    // non-uniformly instead (placement boxes are rarely the same aspect
+    // ratio as their star set's viewBox), which is exactly what made
+    // exported cards' stars read as squished/stretched, with the stroke
+    // rendering unevenly thick along whichever axis got over-scaled.
+    const uniformScale = Math.min(starPlacement.width / starSet.viewBoxW, starPlacement.height / starSet.viewBoxH);
+    const offsetX = (starPlacement.width - starSet.viewBoxW * uniformScale) / 2;
+    const offsetY = (starPlacement.height - starSet.viewBoxH * uniformScale) / 2;
+    ctx.translate(originX + starPlacement.left + offsetX, originY + starPlacement.top + offsetY);
+    ctx.scale(uniformScale, uniformScale);
     ctx.fillStyle = shapeGradient(ctx, starSet.viewBoxW, starSet.viewBoxH, stops);
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = 1.7 * starSet.viewBoxW / starPlacement.width;
@@ -351,6 +367,7 @@ async function drawShapedCardContent(ctx, { profile, cardStats, rank, t, bodyBot
   ctx.textAlign = 'left';
   ctx.textBaseline = 'bottom';
   ctx.font = `700 44px 'Bebas Neue', sans-serif`;
+  ctx.letterSpacing = '1px';
   ctx.fillText(String(overall), 14 + L.ovrLeft.n, bodyBottom - L.ovrBottom.n);
 
   // Position
@@ -362,6 +379,7 @@ async function drawShapedCardContent(ctx, { profile, cardStats, rank, t, bodyBot
   ctx.fillStyle = t.muted;
   ctx.textAlign = 'right';
   ctx.fillText(rank, w - 12 + L.rankLeft.n, bodyBottom - L.rankBottom.n);
+  ctx.letterSpacing = '0px';
 
   // Avatar
   const avR = 54; // 108px diameter, matching FifaCard's normal-size avatar
@@ -408,6 +426,7 @@ async function drawShapedCardContent(ctx, { profile, cardStats, rank, t, bodyBot
   ctx.fillStyle = t.text;
   ctx.font = `700 17px 'Bebas Neue', sans-serif`;
   ctx.textBaseline = 'bottom';
+  ctx.letterSpacing = '1.5px';
 
   if (isSubscribed) {
     const tickR = 7, tickGap = 4;
@@ -424,6 +443,7 @@ async function drawShapedCardContent(ctx, { profile, cardStats, rank, t, bodyBot
     ctx.arc(tickCX, tickCY, tickR, 0, Math.PI * 2);
     ctx.fillStyle = '#4a9eff';
     ctx.fill();
+    ctx.letterSpacing = '0px';
     ctx.fillStyle = '#fff';
     ctx.font = `700 8px 'Space Mono', monospace`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -431,6 +451,7 @@ async function drawShapedCardContent(ctx, { profile, cardStats, rank, t, bodyBot
   } else {
     ctx.textAlign = 'center';
     ctx.fillText(playerName, w / 2 + L.nameLeft.n, nameBottomY);
+    ctx.letterSpacing = '0px';
   }
 
   // Stats 3×2 grid — bottom-anchored as a whole, matching the live card's
@@ -457,8 +478,10 @@ async function drawShapedCardContent(ctx, { profile, cardStats, rank, t, bodyBot
     ctx.fillText(String(cardStats[key] || 0), sx + colW / 2, rowTopY + 19);
 
     ctx.fillStyle = t.muted;
-    ctx.font = `700 8px 'Space Mono', monospace`;
+    ctx.font = `400 8px 'Space Mono', monospace`;
+    ctx.letterSpacing = '0.5px';
     ctx.fillText(STAT_LABELS[i], sx + colW / 2, rowTopY + 30);
+    ctx.letterSpacing = '0px';
   });
 
   // Bottom row — games played, left-aligned, matching the live card's front
@@ -483,7 +506,15 @@ async function drawShapedCardContent(ctx, { profile, cardStats, rank, t, bodyBot
 export async function drawCardImage({ profile, cardStats, rank, bgUrl, customTheme, achievementBadges }) {
   await ensureFontsLoaded();
 
-  const DPR = Math.min(window.devicePixelRatio || 1, 3);
+  // Exported cards used to scale only by the device's own pixel ratio, so a
+  // standard (non-retina) screen produced a flat 520×720 PNG — well under
+  // HD. Flooring the scale at whatever it takes to hit 2160px tall (a
+  // 4K-equivalent 1560×2160 output) guarantees a crisp, shareable image on
+  // every device — cheap to render since every element here is a vector
+  // path, not a raster upscale — while still scaling up further on
+  // high-DPI screens.
+  const MIN_OUTPUT_H = 2160;
+  const DPR = Math.max(Math.min(window.devicePixelRatio || 1, 3), MIN_OUTPUT_H / CH);
   const canvas = document.createElement('canvas');
   canvas.width  = CW * DPR;
   canvas.height = CH * DPR;

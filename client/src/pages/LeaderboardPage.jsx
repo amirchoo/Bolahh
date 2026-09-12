@@ -319,7 +319,7 @@ export default function LeaderboardPage() {
               border: `1.5px solid ${areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--border)'}`,
               color: areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--text)',
               borderRadius: 10, padding: '10px 36px 10px 14px',
-              fontSize: 12, fontFamily: "'DM Sans'", fontWeight: 900,
+              fontSize: 13, fontFamily: "'DM Sans'", fontWeight: 900,
               cursor: 'pointer', outline: 'none',
             }}
           >
