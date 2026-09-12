@@ -11,7 +11,7 @@ import { fetchAchievementRequirements, computeTop3Tiers } from '../lib/achieveme
 import { IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoClose, IoCalendar, IoTime, IoShareOutline, IoDownload, IoTrendingUpOutline, IoChevronForward, IoLockClosed } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
-import { Check as IconCheck, X as IconX } from 'lucide-react';
+import { Check as IconCheck, X as IconX, ChevronDown } from 'lucide-react';
 import FifaCard, { calcOverall, AchievementBadgeIcon, BADGE_TYPE_LIST, BADGE_RARITY_COLORS, BADGE_RARITY_LABELS } from '../components/FifaCard';
 import BadgeReorderList from '../components/BadgeReorderList';
 import ProgressionPanel from '../components/ProgressionPanel';
@@ -526,8 +526,8 @@ export default function ProfilePage() {
 
       <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
-        <h2 className="fade-up" style={{
-          fontFamily: "'Bebas Neue'", fontSize: 32,
+        <h2 style={{
+          fontFamily: "'Bebas Neue'", fontSize: 36,
           letterSpacing: 3, marginBottom: 20, color: 'var(--text)',
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
@@ -584,6 +584,7 @@ export default function ProfilePage() {
         </div>
 
         <button
+          className="fade-up-2"
           onClick={() => { setShowProgression(v => !v); setEditing(false); setShowAchievementsModal(false); }}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 12,
@@ -621,20 +622,22 @@ export default function ProfilePage() {
         </div>
 
         {/* Action row */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <div className="fade-up-2" style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
           <button onClick={() => { setEditing(v => !v); setShowAchievementsModal(false); setShowProgression(false); }} disabled={saving} style={{
             flex: 1,
-            background: editing ? 'var(--accent)' : 'transparent',
-            color: editing ? '#fff' : 'var(--accent)',
-            border: '1.5px solid var(--accent)', borderRadius: 10, padding: '8px 24px',
-            fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
-          }}>{saving ? t('profile.form.saving') : editing ? t('profile.cancelEdit') : t('profile.editProfile')}</button>
+            background: editing ? 'var(--accent)' : 'var(--card)',
+            color: editing ? '#fff' : 'var(--muted)',
+            border: `1px solid ${editing ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: 8, padding: '8px 16px',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.6 : 1,
+          }}>{editing ? t('profile.cancelEdit') : t('profile.editProfile')}</button>
           <button onClick={() => { setShowAchievementsModal(v => !v); setEditing(false); setShowProgression(false); }} style={{
             flex: 1,
-            background: showAchievementsModal ? 'var(--accent)' : 'transparent',
-            color: showAchievementsModal ? '#fff' : 'var(--accent)',
-            border: '1.5px solid var(--accent)', borderRadius: 10,
-            padding: '8px 24px', fontSize: 13, fontWeight: 600,
+            background: showAchievementsModal ? 'var(--accent)' : 'var(--card)',
+            color: showAchievementsModal ? '#fff' : 'var(--muted)',
+            border: `1px solid ${showAchievementsModal ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: 8, padding: '8px 16px',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
           }}>{showAchievementsModal ? 'Close Badges' : 'Edit Badges'}</button>
         </div>
         <input ref={fileInputRef} type="file" accept={isSubscribed ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png'} style={{ display: 'none' }} onChange={handleAvatarUpload} />
@@ -686,15 +689,12 @@ export default function ProfilePage() {
               background: 'var(--card)', border: '1px solid var(--border)',
               borderRadius: 16, padding: '20px', marginBottom: 14,
             }}>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 18, letterSpacing: 1.5, color: 'var(--text)', marginBottom: 4 }}>
-                BADGES
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
-                {isSuperAdmin && 'Admin view — every tier unlocked. '}Display your feats on your player card! (Select up to 3)
+              <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 14, textTransform: 'uppercase' }}>
+                {isSuperAdmin && 'Admin view — every tier unlocked. '}Equip Badges (Max 3)
               </div>
 
               {BADGE_TYPE_LIST.map(typeInfo => (
-                <div key={typeInfo.key} style={{ marginBottom: 14 }}>
+                <div key={typeInfo.key} style={{ marginBottom: 16 }}>
                   <div style={{
                     fontFamily: "'Space Mono'", fontSize: 12, fontWeight: 700,
                     letterSpacing: 1, color: 'var(--accent)', marginBottom: 10,
@@ -839,7 +839,7 @@ export default function ProfilePage() {
 
         {/* Nudge banner */}
         {!editing && profile && (!profile.gender || !profile.age || !profile.area || !savedPhone) && (
-          <div style={{
+          <div className="fade-up-2" style={{
             background: 'rgba(240,157,81,0.08)', border: '1px solid rgba(240,157,81,0.3)',
             borderRadius: 12, padding: '12px 16px', marginBottom: 14,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
@@ -869,7 +869,7 @@ export default function ProfilePage() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />
-              <span style={{ fontFamily: "'Space Mono'", fontSize: 10.5, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Basic Info</span>
+              <span style={{ fontFamily: "'Space Mono'", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Basic Info</span>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.usernameLabel')}</label>
@@ -877,7 +877,7 @@ export default function ProfilePage() {
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.positionLabel')}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {POSITIONS.map(p => (
                   <button key={p} onClick={() => setForm({ ...form, position: form.position === p ? '' : p })} style={{
                     background: form.position === p ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
@@ -890,7 +890,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.genderLabel')}</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 {GENDERS.map(g => (
                   <button key={g} onClick={() => setForm({ ...form, gender: normalizeGender(form.gender) === g ? '' : g })} style={{
                     background: normalizeGender(form.gender) === g ? 'rgba(240,157,81,0.15)' : 'var(--card2)',
@@ -902,15 +902,15 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div style={{ height: 1, background: 'var(--border)', margin: '22px 0' }} />
+            <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />
-              <span style={{ fontFamily: "'Space Mono'", fontSize: 10.5, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Contact</span>
+              <span style={{ fontFamily: "'Space Mono'", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Contact</span>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{t('profile.form.phoneLabel')}</label>
-              <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: 10 }}>
                 <span style={{
                   display: 'flex', alignItems: 'center',
                   background: '#1a1e20', border: '1px solid var(--border)', borderRadius: 8,
@@ -934,15 +934,15 @@ export default function ProfilePage() {
                 value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} style={{ width: 120 }} />
             </div>
 
-            <div style={{ height: 1, background: 'var(--border)', margin: '22px 0' }} />
+            <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />
-              <span style={{ fontFamily: "'Space Mono'", fontSize: 10.5, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Location</span>
+              <span style={{ fontFamily: "'Space Mono'", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Location</span>
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 10, display: 'block' }}>{t('profile.form.areaLabel')}</label>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 10 }}>
                 {PLAYER_AREAS.map(a => (
                   <button key={a} onClick={() => setForm({ ...form, area: stateForPlayerArea(form.area) === a ? '' : PLAYER_DISTRICTS[a][0] })} style={{
                     flex: 1,
@@ -954,22 +954,27 @@ export default function ProfilePage() {
                 ))}
               </div>
               {stateForPlayerArea(form.area) && (
-                <div style={{ marginTop: 10 }}>
-                  <label style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, display: 'block' }}>District in {stateForPlayerArea(form.area)}</label>
-                  <select
-                    value={PLAYER_DISTRICTS[stateForPlayerArea(form.area)].includes(form.area) ? form.area : ''}
-                    onChange={e => setForm({ ...form, area: e.target.value })}
-                    style={{ width: '100%' }}
-                  >
-                    {PLAYER_DISTRICTS[stateForPlayerArea(form.area)].map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+                <div style={{ marginTop: 14 }}>
+                  <label style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1, marginBottom: 6, display: 'block' }}>DISTRICT</label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={PLAYER_DISTRICTS[stateForPlayerArea(form.area)].includes(form.area) ? form.area : ''}
+                      onChange={e => setForm({ ...form, area: e.target.value })}
+                      style={{ width: '100%', appearance: 'none' }}
+                    >
+                      {PLAYER_DISTRICTS[stateForPlayerArea(form.area)].map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                    <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}>
+                      <ChevronDown size={18} color="var(--muted)" />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
               <button onClick={() => { setEditing(false); setSaveMsg(''); setForm({ name: profile?.name || '', position: profile?.position || '', gender: profile?.gender || '', age: profile?.age?.toString() || '', area: profile?.area || '', phone: savedPhone }); }} style={{ flex: 1, padding: '10px', background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13 }}>
                 {t('profile.form.cancel')}
               </button>
@@ -1062,7 +1067,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Past Games */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+        <div className="fade-up-3" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{t('profile.past.title')}</span>
             {recentGames.length > 0 && (

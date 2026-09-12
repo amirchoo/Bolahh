@@ -790,7 +790,8 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
       position: 'relative', width: '100%', height: '100%',
       transformStyle: 'preserve-3d', WebkitTransformStyle: 'preserve-3d',
       transform: `rotateY(${rotation}deg)`,
-      transition: reducedMotion ? 'none' : 'transform 0.7s cubic-bezier(0.22,1,0.36,1)',
+      transition: reducedMotion ? 'none' : 'transform 0.8s cubic-bezier(0.65,0,0.35,1)',
+      willChange: 'transform',
     }}>
     {/* translateZ(1px) — Safari sometimes lets a backface-hidden pane show
         through anyway when it (or a descendant, here the shape SVG's own

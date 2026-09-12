@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700;900&family=Space+Mono:wght@400;700&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -94,9 +94,9 @@ button {
   50% { opacity: 0.5; }
 }
 
-.fade-up { animation: fadeUp 0.45s ease both; }
-.fade-up-2 { animation: fadeUp 0.45s 0.1s ease both; }
-.fade-up-3 { animation: fadeUp 0.45s 0.2s ease both; }
+.fade-up { animation: fadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fade-up-2 { animation: fadeUp 0.65s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fade-up-3 { animation: fadeUp 0.65s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-16px); }

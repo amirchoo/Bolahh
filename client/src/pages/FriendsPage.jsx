@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar';
 import FifaCard, { getCardTheme } from '../components/FifaCard';
@@ -10,7 +9,7 @@ import { getRank } from '../lib/rankUtils';
 import {IconFriends, IconUpcoming, IconLoading } from '../components/Icons';
 import { IoSearch, IoPeople, IoMailOpen, IoCheckmark } from 'react-icons/io5';
 import { FaLocationDot } from 'react-icons/fa6';
-import { UserRoundPlus } from 'lucide-react';
+import { UserRoundPlus, ChevronDown } from 'lucide-react';
 import { PLAYER_AREAS, PLAYER_DISTRICTS } from '../lib/areas';
 
 const AREA_OPTIONS = ['All Areas', ...PLAYER_AREAS];
@@ -20,7 +19,6 @@ const areaMatchValues = (state) => [state, ...(PLAYER_DISTRICTS[state] || [])];
 const PROFILE_FIELDS = 'id, name, position, area, avatar_url, total_points, games_played, is_subscribed, subscription_expires_at, card_stats, achievement_badges, equipped_border, created_at';
 
 export default function FriendsPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [friends, setFriends] = useState([]);
@@ -343,20 +341,10 @@ export default function FriendsPage() {
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar />
-      <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-          <div>
-            <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 36, letterSpacing: 3, color: 'var(--text)', marginBottom: 4 }}>FRIENDS</h1>
-            <p style={{ color: 'var(--muted)', fontSize: 14 }}>Manage your connections</p>
-          </div>
-          <button onClick={() => navigate('/profile')} style={{
-            background: 'transparent', color: 'var(--muted)',
-            border: '1px solid var(--border)', borderRadius: 8,
-            padding: '7px 16px', fontSize: 13
-          }}>← Back</button>
-        </div>
+        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: 36, letterSpacing: 3, color: 'var(--text)', margin: '0 0 20px' }}>FRIENDS</h1>
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
@@ -366,14 +354,14 @@ export default function FriendsPage() {
               background: activeTab === tab.key ? 'var(--accent)' : 'var(--card)',
               color: activeTab === tab.key ? '#fff' : 'var(--muted)',
               border: `1px solid ${activeTab === tab.key ? 'var(--accent)' : 'var(--border)'}`,
-              padding: '8px 16px', fontSize: 13,
+              padding: '8px 16px', fontSize: 13, fontWeight: 700,
             }}>{tab.label}</button>
           ))}
         </div>
 
         {/* ── FRIENDS TAB ── */}
         {activeTab === 'friends' && (
-          <div>
+          <div className="fade-up-3">
             {loading ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)' }}><IconLoading size={40} /></div>
             ) : friends.length === 0 ? (
@@ -433,13 +421,15 @@ export default function FriendsPage() {
                   border: `1.5px solid ${areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--border)'}`,
                   color: areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--text)',
                   borderRadius: 10, padding: '10px 36px 10px 14px',
-                  fontSize: 13, fontFamily: "'DM Sans'", fontWeight: 600,
+                  fontSize: 13, fontFamily: "'DM Sans'", fontWeight: 900,
                   cursor: 'pointer', outline: 'none',
                 }}
               >
                 {AREA_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
-              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--muted)', fontSize: 12 }}>▾</div>
+              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}>
+                <ChevronDown size={18} color="var(--muted)" />
+              </div>
             </div>
 
             {searching && (
