@@ -205,10 +205,9 @@ export function formatMemberSinceDate(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
-  const day = String(d.getDate()).padStart(2, '0');
   const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
   const year = String(d.getFullYear()).slice(-2);
-  return `${day} ${month} ${year}`;
+  return `${month} ${year}`;
 }
 
 export function buildCustomTheme(form) {
@@ -314,7 +313,7 @@ export const BADGE_TYPES = {
     iconPath: 'M480,-80C424.667,-80 372.667,-90.5 324,-111.5C275.333,-132.5 233,-161 197,-197C161,-233 132.5,-275.333 111.5,-324C90.5,-372.667 80,-424.667 80,-480C80,-535.333 90.5,-587.333 111.5,-636C132.5,-684.667 161,-727 197,-763C233,-799 275.333,-827.5 324,-848.5C372.667,-869.5 424.667,-880 480,-880C535.333,-880 587.333,-869.5 636,-848.5C684.667,-827.5 727,-799 763,-763C799,-727 827.5,-684.667 848.5,-636C869.5,-587.333 880,-535.333 880,-480C880,-424.667 869.5,-372.667 848.5,-324C827.5,-275.333 799,-233 763,-197C727,-161 684.667,-132.5 636,-111.5C587.333,-90.5 535.333,-80 480,-80ZM680,-580L734,-598L750,-652C728.667,-684 703,-711.5 673,-734.5C643,-757.5 610,-774.667 574,-786L520,-748L520,-692L680,-580ZM280,-580L440,-692L440,-748L386,-786C350,-774.667 317,-757.5 287,-734.5C257,-711.5 231.333,-684 210,-652L226,-598L280,-580ZM238,-272L284,-276L314,-330L256,-504L200,-524L160,-494C160,-450.667 166,-411.167 178,-375.5C190,-339.833 210,-305.333 238,-272ZM531,-164C547.667,-166.667 564,-170.667 580,-176L608,-236L582,-280L378,-280L352,-236L380,-176C396,-170.667 412.333,-166.667 429,-164C445.667,-161.333 462.667,-160 480,-160C497.333,-160 514.333,-161.333 531,-164ZM390,-360L570,-360L626,-520L480,-622L336,-520L390,-360ZM722,-272C750,-305.333 770,-339.833 782,-375.5C794,-411.167 800,-450.667 800,-494L760,-522L704,-504L646,-330L676,-276L722,-272Z',
   },
   mvp: {
-    label: 'MVP Awards',
+    label: 'MVP Award',
     diamondTransform: 'translate(-2143.391315,-1374.559767) translate(1415.282746,1263.41941) matrix(0.68217,0.68217,-0.68217,0.68217,595.194448,-1930.974514)',
     path1: 'M1623.982,1389.419C1624.477,1389.419 1624.951,1389.615 1625.301,1389.965C1625.651,1390.315 1625.848,1390.79 1625.848,1391.285L1625.848,1407.431C1625.848,1407.926 1625.651,1408.401 1625.301,1408.751C1624.951,1409.1 1624.477,1409.297 1623.982,1409.297C1620.191,1409.297 1611.626,1409.297 1607.835,1409.297C1607.34,1409.297 1606.866,1409.1 1606.516,1408.751C1606.166,1408.401 1605.969,1407.926 1605.969,1407.431L1605.969,1391.285C1605.969,1390.79 1606.166,1390.315 1606.516,1389.965C1606.866,1389.615 1607.34,1389.419 1607.835,1389.419L1623.982,1389.419Z',
     path2: 'M1623.982,1388.123C1624.82,1388.123 1625.624,1388.456 1626.217,1389.049C1626.81,1389.642 1627.143,1390.446 1627.143,1391.285L1627.143,1407.431C1627.143,1408.27 1626.81,1409.074 1626.217,1409.667C1625.624,1410.26 1624.82,1410.593 1623.982,1410.593L1607.835,1410.593C1606.997,1410.593 1606.193,1410.26 1605.6,1409.667C1605.007,1409.074 1604.674,1408.27 1604.674,1407.431L1604.674,1391.285C1604.674,1390.446 1605.007,1389.642 1605.6,1389.049C1606.193,1388.456 1606.997,1388.123 1607.835,1388.123L1623.982,1388.123ZM1623.982,1389.419L1607.835,1389.419C1607.34,1389.419 1606.866,1389.615 1606.516,1389.965C1606.166,1390.315 1605.969,1390.79 1605.969,1391.285L1605.969,1407.431C1605.969,1407.926 1606.166,1408.401 1606.516,1408.751C1606.866,1409.1 1607.34,1409.297 1607.835,1409.297L1623.982,1409.297C1624.477,1409.297 1624.951,1409.1 1625.301,1408.751C1625.651,1408.401 1625.848,1407.926 1625.848,1407.431L1625.848,1391.285C1625.848,1390.79 1625.651,1390.315 1625.301,1389.965C1624.951,1389.615 1624.477,1389.419 1623.982,1389.419Z',
@@ -379,10 +378,10 @@ const BADGE_OUTLINE_COLORS = {
 // with the others, not just briefly coincide.
 const SHINE_DURATION = 2.6;
 const BADGE_SHINE = {
-  common: { opacity: 0.04, shimmer: false },
-  rare: { opacity: 0.15, shimmer: false },
-  epic: { opacity: 0.22, shimmer: true },
-  legendary: { opacity: 0.4, shimmer: true },
+  common: { opacity: 0.08, shimmer: false },
+  rare: { opacity: 0.25, shimmer: false },
+  epic: { opacity: 0.35, shimmer: true },
+  legendary: { opacity: 0.6, shimmer: true },
 };
 
 // A negative delay/begin-offset pinned to the wall clock (rather than 0,
@@ -791,7 +790,8 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
       position: 'relative', width: '100%', height: '100%',
       transformStyle: 'preserve-3d', WebkitTransformStyle: 'preserve-3d',
       transform: `rotateY(${rotation}deg)`,
-      transition: reducedMotion ? 'none' : 'transform 0.7s cubic-bezier(0.22,1,0.36,1)',
+      transition: reducedMotion ? 'none' : 'transform 0.8s cubic-bezier(0.65,0,0.35,1)',
+      willChange: 'transform',
     }}>
     {/* translateZ(1px) — Safari sometimes lets a backface-hidden pane show
         through anyway when it (or a descendant, here the shape SVG's own
@@ -1215,7 +1215,7 @@ export default function FifaCard({ profile, cardStats, rank, size = 'normal', on
           <svg
             width={w} height={bodyH}
             viewBox={`0 0 ${w} ${bodyH}`}
-            style={{ position: 'absolute', top: headroomTop + shapeCrownOffset, left: 0, overflow: 'visible' }}
+            style={{ position: 'absolute', top: headroomTop + shapeCrownOffset - 6, left: 0, overflow: 'visible' }}
           >
             {gridLevels.map((frac, gi) => (
               <polygon

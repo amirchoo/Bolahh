@@ -6,11 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import FifaCard from '../components/FifaCard';
 import { getRank, getRankTier } from '../lib/rankUtils';
-import { getCardTheme } from '../components/FifaCard';
+import { getCardTheme, CARD_COLOR_THEMES } from '../components/FifaCard';
 import { IconLoading } from '../components/Icons';
-import { IoTrophyOutline, IoCheckmark } from 'react-icons/io5';
+import { IoCheckmark } from 'react-icons/io5';
 import { FaMedal } from 'react-icons/fa6';
-import { UserRoundPlus } from 'lucide-react';
+import { UserRoundPlus, ChevronDown } from 'lucide-react';
 import { PLAYER_AREAS, stateForPlayerArea } from '../lib/areas';
 
 const AREAS = ['All Areas', ...PLAYER_AREAS];
@@ -27,7 +27,11 @@ const PAGE_SIZE = 15;
 
 const TIER_ORDER = ['emas', 'perak', 'gangsa'];
 const TIER_DISPLAY = { emas: 'EMAS', perak: 'PERAK', gangsa: 'GANGSA' };
-const TIER_COLORS = { emas: '#FFD700', perak: '#6ec8e8', gangsa: '#cd7f32' };
+// Derived from CARD_COLOR_THEMES (the same source the actual cards render
+// from) rather than duplicated, so this stroke never drifts from the card
+// colors again the way it did when Perak's card was redesigned from blue to
+// silver and this constant was never updated to match.
+const TIER_COLORS = { emas: CARD_COLOR_THEMES.emas.border, perak: CARD_COLOR_THEMES.perak.border, gangsa: CARD_COLOR_THEMES.gangsa.border };
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
@@ -55,7 +59,7 @@ export default function LeaderboardPage() {
     // total_points is the authoritative OVR — synced every time a user visits their profile
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats, achievement_badges')
+      .select('id, name, position, area, avatar_url, games_played, is_subscribed, subscription_expires_at, total_points, card_stats, achievement_badges, created_at')
       .gt('total_points', 0)
       .order('total_points', { ascending: false });
 
@@ -201,7 +205,7 @@ export default function LeaderboardPage() {
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
     if (totalPages <= 1) return null;
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 14 }}>
         <button
           onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page === 1}
@@ -234,7 +238,7 @@ export default function LeaderboardPage() {
     const pageItems = filtered.slice(start, start + PAGE_SIZE);
     return (
       <>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {pageItems.map((player, idx) => renderPlayerRow(player, start + idx + 1))}
         </div>
         {renderPagination(filtered.length)}
@@ -242,37 +246,38 @@ export default function LeaderboardPage() {
     );
   };
 
+  const renderTierTabs = () => (
+    <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+      {TIER_ORDER.map(tier => {
+        const isActive = activeTier === tier;
+        const tc = TIER_COLORS[tier];
+        return (
+          <button
+            key={tier}
+            onClick={() => setActiveTier(tier)}
+            style={{
+              flex: 1,
+              background: isActive ? `${tc}18` : 'var(--card)',
+              color: isActive ? tc : 'var(--muted)',
+              border: `1.5px solid ${isActive ? tc : 'var(--border)'}`,
+              borderRadius: 10, padding: '8px 0',
+              fontFamily: "'Bebas Neue'", fontSize: 14, letterSpacing: 2,
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            {TIER_DISPLAY[tier]}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const renderTierList = () => {
     const tierPlayers = filtered.filter(p => getRankTier(getRank(p.overall)) === activeTier);
     const color = TIER_COLORS[activeTier];
 
     return (
       <div>
-        {/* Tier tab row */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-          {TIER_ORDER.map(tier => {
-            const isActive = activeTier === tier;
-            const tc = TIER_COLORS[tier];
-            return (
-              <button
-                key={tier}
-                onClick={() => setActiveTier(tier)}
-                style={{
-                  flex: 1,
-                  background: isActive ? `${tc}18` : 'var(--card)',
-                  color: isActive ? tc : 'var(--muted)',
-                  border: `1.5px solid ${isActive ? tc : 'var(--border)'}`,
-                  borderRadius: 10, padding: '8px 0',
-                  fontFamily: "'Bebas Neue'", fontSize: 16, letterSpacing: 2,
-                  cursor: 'pointer', transition: 'all 0.15s',
-                }}
-              >
-                {TIER_DISPLAY[tier]}
-              </button>
-            );
-          })}
-        </div>
-
         {tierPlayers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 13 }}>
             No {TIER_DISPLAY[activeTier]} players for this filter.
@@ -282,7 +287,7 @@ export default function LeaderboardPage() {
           const pageItems = tierPlayers.slice(start, start + PAGE_SIZE);
           return (
             <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {pageItems.map((player, idx) => renderPlayerRow(player, start + idx + 1))}
               </div>
               {renderPagination(tierPlayers.length)}
@@ -299,15 +304,12 @@ export default function LeaderboardPage() {
 
       <div className="page-wrap" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <IoTrophyOutline size={28} color="var(--accent)" />
-          <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: 32, letterSpacing: 3, color: 'var(--text)', margin: 0 }}>
-            LEADERBOARD
-          </h2>
-        </div>
+        <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: 36, letterSpacing: 3, color: 'var(--text)', margin: '0 0 20px' }}>
+          LEADERBOARDS
+        </h2>
 
         {/* Area filter — dropdown */}
-        <div style={{ position: 'relative', marginBottom: 10 }}>
+        <div style={{ position: 'relative', marginBottom: 14 }}>
           <select
             value={areaFilter}
             onChange={e => setAreaFilter(e.target.value)}
@@ -317,17 +319,19 @@ export default function LeaderboardPage() {
               border: `1.5px solid ${areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--border)'}`,
               color: areaFilter !== 'All Areas' ? 'var(--accent)' : 'var(--text)',
               borderRadius: 10, padding: '10px 36px 10px 14px',
-              fontSize: 13, fontFamily: "'DM Sans'", fontWeight: 600,
+              fontSize: 12, fontFamily: "'DM Sans'", fontWeight: 900,
               cursor: 'pointer', outline: 'none',
             }}
           >
             {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
-          <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--muted)', fontSize: 12 }}>▾</div>
+          <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex' }}>
+            <ChevronDown size={18} color="var(--muted)" />
+          </div>
         </div>
 
         {/* Position filter — compact tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
           {POSITION_TABS.map(({ value, label }) => {
             const isActive = posFilter === value;
             return (
@@ -350,19 +354,21 @@ export default function LeaderboardPage() {
           })}
         </div>
 
-        {/* View mode toggle */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        {/* View mode toggle — 10px to the tier tabs row below it in Tier
+            mode, but 14px in Global mode where it sits directly above the
+            first leaderboard card instead. */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: viewMode === 'tier' ? 10 : 14 }}>
           {[['global', 'Global Rank'], ['tier', 'Tier']].map(([mode, label]) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
               style={{
+                flex: 1,
                 background: viewMode === mode ? 'var(--accent)' : 'var(--card)',
-                color: viewMode === mode ? '#111' : 'var(--muted)',
+                color: viewMode === mode ? '#fff' : 'var(--muted)',
                 border: `1px solid ${viewMode === mode ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 8, padding: '7px 16px',
-                fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                fontFamily: "'DM Sans'", transition: 'all 0.15s',
+                borderRadius: 8, padding: '8px 16px',
+                fontSize: 13, fontWeight: 700, cursor: 'pointer',
               }}
             >
               {label}
@@ -370,21 +376,25 @@ export default function LeaderboardPage() {
           ))}
         </div>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>
-            <IconLoading size={48} />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)', fontSize: 14 }}>
-            No players found for this filter.
-          </div>
-        ) : viewMode === 'tier' ? renderTierList() : renderGlobalList()}
+        {viewMode === 'tier' && !loading && filtered.length > 0 && renderTierTabs()}
 
-        {!loading && filtered.length > 0 && (
-          <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'" }}>
-            {filtered.length} player{filtered.length !== 1 ? 's' : ''} ranked
-          </div>
-        )}
+        <div className="fade-up-3">
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>
+              <IconLoading size={48} />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)', fontSize: 14 }}>
+              No players found for this filter.
+            </div>
+          ) : viewMode === 'tier' ? renderTierList() : renderGlobalList()}
+
+          {!loading && filtered.length > 0 && (
+            <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--muted)', fontFamily: "'Space Mono'" }}>
+              {filtered.length} player{filtered.length !== 1 ? 's' : ''} ranked
+            </div>
+          )}
+        </div>
       </div>
 
       {/* FIFA Card Modal */}
@@ -401,6 +411,7 @@ export default function LeaderboardPage() {
               achievementBadges={viewingPlayer.profile.achievement_badges}
               size="normal"
               interactive
+              memberSince={viewingPlayer.profile.created_at}
             />
             {viewingPlayer.friendStatus === 'friends' ? (
               <div style={{
@@ -432,7 +443,7 @@ export default function LeaderboardPage() {
                 }}
               ><UserRoundPlus size={18} />Add Friend</button>
             )}
-            <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0 }}>Tap anywhere to close.</p>
+            <p style={{ color: 'var(--muted)', fontSize: 11, margin: 0, fontFamily: "'Space Mono'", letterSpacing: 1 }}>TAP ANYWHERE TO CLOSE</p>
           </div>
         </div>
       )}

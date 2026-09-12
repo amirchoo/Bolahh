@@ -9,7 +9,8 @@ import { LuToilet, LuTag, LuMedal } from 'react-icons/lu';
 import { CiShop } from 'react-icons/ci';
 import { IoCheckmarkDoneCircleSharp, IoClose, IoImages, IoCamera, IoPeople, IoSearch, IoStatsChart, IoCard, IoPersonCircle, IoMegaphone, IoMailUnread, IoMenu, IoWallet, IoCallOutline } from 'react-icons/io5';
 import { MdError, MdOutlineStadium, MdSave, MdSportsSoccer, MdOutlineCalendarMonth, MdOutlineCancel } from 'react-icons/md';
-import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall } from '../components/FifaCard';
+import { Badge as IconBadge } from 'lucide-react';
+import FifaCard, { getCardTheme, POSITION_ABBR, STATS, calcOverall, BADGE_TYPE_LIST, BADGE_RARITY_LABELS, BADGE_RARITY_COLORS, AchievementBadgeIcon } from '../components/FifaCard';
 import PlayerAvatar from '../components/PlayerAvatar';
 import { BadgeSlotEditor, badgesToSlots, slotsToBadges } from '../components/BadgeSlotEditor';
 import { drawCardImage } from '../lib/cardCanvas';
@@ -47,6 +48,11 @@ export default function AdminPage() {
   const [cardBgs, setCardBgs] = useState([]);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [editingField, setEditingField] = useState(null);
+
+  // ── Badge requirements state ───────────────────────────
+  const [badgeReqs, setBadgeReqs] = useState([]);
+  const [badgeReqDrafts, setBadgeReqDrafts] = useState([]);
+  const [savingBadgeType, setSavingBadgeType] = useState(null); // type currently saving
 
   // ── Banners state ─────────────────────────────────────
   const [banners, setBanners] = useState([]);
@@ -148,7 +154,7 @@ export default function AdminPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([fetchFields(), fetchCardBgs(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin(), fetchManagers(), fetchGames()]);
+    await Promise.all([fetchFields(), fetchCardBgs(), fetchBanners(), fetchCoupons(), fetchGameRequests(), fetchAvatarPresetsAdmin(), fetchManagers(), fetchGames(), fetchBadgeRequirements()]);
     setLoading(false);
   };
 
@@ -585,6 +591,60 @@ export default function AdminPage() {
     if (data) setBanners(data);
   };
 
+  // ── Badge requirements ─────────────────────────────────
+  // badgeReqs is the last-saved (committed) state; badgeReqDrafts is what the
+  // inputs actually bind to. Edits only touch the draft, so "Cancel Changes"
+  // can snap a whole category back to its committed rows, and "Save" only
+  // writes (and re-commits) the one category it belongs to — a mistake in
+  // one category's inputs can't block saving another's.
+  const fetchBadgeRequirements = async () => {
+    const { data } = await supabase.from('badge_requirements').select('*').order('type').order('rarity');
+    if (data) { setBadgeReqs(data); setBadgeReqDrafts(data); }
+  };
+
+  // 'matches'/'mvp' requirement text is just their threshold count in a
+  // sentence — no reason to let it drift from the number, so it's derived
+  // here instead of being its own free-text field. 'ranked' has no single
+  // number to derive from (it's a tier gate), so it keeps its own text input.
+  const autoBadgeLabel = (type, threshold) => {
+    const n = threshold || 0;
+    if (type === 'matches') return `Played ${n} match${n === 1 ? '' : 'es'}`;
+    if (type === 'mvp') return `Become MVP ${n} time${n === 1 ? '' : 's'}`;
+    return '';
+  };
+
+  // One description per category (not per rarity row, unlike autoBadgeLabel
+  // above) — shown once under the category title.
+  const CATEGORY_SUBTEXT = {
+    matches: 'Played XX matches',
+    mvp: 'Become MVP XX times',
+    ranked: 'Unlocked by reaching, or having already passed, a rank tier.',
+  };
+
+  const updateBadgeReqField = (type, rarity, patch) => {
+    setBadgeReqDrafts(prev => prev.map(r => (r.type === type && r.rarity === rarity) ? { ...r, ...patch } : r));
+  };
+
+  const badgeCategoryDirty = (type) =>
+    JSON.stringify(badgeReqDrafts.filter(r => r.type === type)) !== JSON.stringify(badgeReqs.filter(r => r.type === type));
+
+  const cancelBadgeCategory = (type) => {
+    setBadgeReqDrafts(prev => prev.map(r => (r.type === type) ? badgeReqs.find(x => x.type === type && x.rarity === r.rarity) : r));
+  };
+
+  const saveBadgeCategory = async (type) => {
+    setSavingBadgeType(type);
+    const rows = badgeReqDrafts.filter(r => r.type === type);
+    const results = await Promise.all(rows.map(row => supabase.from('badge_requirements')
+      .update({ label: row.label, threshold: row.threshold, tier: row.tier })
+      .eq('type', row.type).eq('rarity', row.rarity)));
+    setSavingBadgeType(null);
+    const failed = results.find(r => r.error);
+    if (failed) { showError(failed.error.message); return; }
+    setBadgeReqs(prev => prev.map(r => (r.type === type) ? rows.find(x => x.rarity === r.rarity) : r));
+    showSuccess('Badge requirements updated.');
+  };
+
   const showSuccess = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
   const showError   = (msg) => { setError(msg); setSuccess(''); };
 
@@ -793,6 +853,7 @@ export default function AdminPage() {
         { key: 'cardmaker',   label: 'Card Maker',       icon: IoCard },
         { key: 'backgrounds', label: 'Card Backgrounds', icon: IoImages },
         { key: 'avatars',     label: 'Avatars',          icon: IoPersonCircle },
+        { key: 'badges',      label: 'Badges',           icon: IconBadge },
       ],
     },
     {
@@ -1025,8 +1086,8 @@ export default function AdminPage() {
 
         <button className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} style={{
           width: '100%', alignItems: 'center', gap: 8,
-          background: 'rgba(240,157,81,0.1)', color: 'var(--accent)',
-          border: '1px solid rgba(240,157,81,0.3)', borderRadius: 10, padding: '12px 14px',
+          background: 'color-mix(in srgb, var(--accent) 14%, var(--card2))', color: 'var(--accent)',
+          border: '1px solid color-mix(in srgb, var(--accent) 40%, var(--card2))', borderRadius: 10, padding: '12px 14px',
           fontSize: 14, fontWeight: 700, marginBottom: 20,
           position: 'sticky', top: 64, zIndex: 50,
         }}>
@@ -2439,6 +2500,128 @@ create policy "Manage banners" on banners for all using (true);`}</code>
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── BADGES TAB ── */}
+        {activeTab === 'badges' && (
+          <div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20, marginBottom: 20 }}>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 2, color: 'var(--text)', marginBottom: 6 }}>BADGE REQUIREMENTS</div>
+              <p style={{ color: 'var(--muted)', fontSize: 13 }}>
+                Edit the unlock requirement for each achievement badge tier.
+              </p>
+            </div>
+
+            {BADGE_TYPE_LIST.map(typeInfo => {
+              const dirty = badgeCategoryDirty(typeInfo.key);
+              const saving = savingBadgeType === typeInfo.key;
+              return (
+                <div key={typeInfo.key} style={sectionCard}>
+                  <div style={{ fontFamily: "'Space Mono'", fontSize: 13, fontWeight: 700, letterSpacing: 1, color: 'var(--accent)', lineHeight: 1.4 }}>
+                    {typeInfo.label.toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4, marginTop: 6, marginBottom: 14 }}>
+                    {CATEGORY_SUBTEXT[typeInfo.key]}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {['common', 'rare', 'epic', 'legendary'].map(rarity => {
+                      const row = badgeReqDrafts.find(r => r.type === typeInfo.key && r.rarity === rarity);
+                      if (!row) return null;
+                      const pill = (
+                        <span style={{
+                          flexShrink: 0, width: 78, textAlign: 'center',
+                          background: `${BADGE_RARITY_COLORS[rarity]}22`, color: BADGE_RARITY_COLORS[rarity],
+                          border: `1px solid ${BADGE_RARITY_COLORS[rarity]}55`,
+                          borderRadius: 999, padding: '4px 0', fontSize: 11, fontWeight: 700,
+                          textTransform: 'uppercase', letterSpacing: 0.3,
+                        }}>{BADGE_RARITY_LABELS[rarity]}</span>
+                      );
+                      const icon = (
+                        <div style={{ flexShrink: 0, width: 36, height: 36 }}>
+                          <AchievementBadgeIcon type={typeInfo.key} rarity={rarity} />
+                        </div>
+                      );
+                      return (
+                        <div key={rarity} style={{
+                          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                          padding: '10px 12px', borderRadius: 10,
+                          background: 'var(--card2)', border: '1px solid var(--border)',
+                        }}>
+                          {typeInfo.key === 'ranked' ? (
+                            <>
+                              {icon}
+                              {pill}
+                              <input
+                                value={row.label}
+                                onChange={e => updateBadgeReqField(row.type, row.rarity, { label: e.target.value })}
+                                placeholder="Requirement text shown to players"
+                                style={{
+                                  flex: '1 1 220px', minWidth: 160, background: 'var(--card)', border: '1px solid var(--border)',
+                                  borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
+                                }}
+                              />
+                              <select
+                                value={row.tier || ''}
+                                onChange={e => updateBadgeReqField(row.type, row.rarity, { tier: e.target.value || null })}
+                                style={{
+                                  flexShrink: 0, background: 'var(--card)', border: '1px solid var(--border)',
+                                  borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
+                                }}
+                              >
+                                <option value="">Always (no requirement)</option>
+                                <option value="gangsa">Reach/pass Gangsa</option>
+                                <option value="perak">Reach/pass Perak</option>
+                                <option value="emas">Reach Emas</option>
+                              </select>
+                            </>
+                          ) : (
+                            <>
+                              {icon}
+                              {pill}
+                              <input
+                                type="number" min={0}
+                                value={row.threshold ?? 0}
+                                onChange={e => {
+                                  const threshold = Number(e.target.value);
+                                  updateBadgeReqField(row.type, row.rarity, { threshold, label: autoBadgeLabel(row.type, threshold) });
+                                }}
+                                style={{
+                                  flexShrink: 0, width: 80, marginLeft: 'auto', background: 'var(--card)', border: '1px solid var(--border)',
+                                  borderRadius: 8, padding: '7px 10px', color: 'var(--text)', fontSize: 13,
+                                }}
+                              />
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                    <button
+                      onClick={() => cancelBadgeCategory(typeInfo.key)}
+                      disabled={!dirty || saving}
+                      style={{
+                        flex: 1, background: 'var(--card2)', color: dirty ? 'var(--text)' : 'var(--muted)',
+                        border: '1px solid var(--border)', borderRadius: 8, padding: '8px 16px',
+                        fontSize: 13, fontWeight: 700, cursor: (dirty && !saving) ? 'pointer' : 'default',
+                        opacity: dirty ? 1 : 0.5,
+                      }}
+                    >Cancel Changes</button>
+                    <button
+                      onClick={() => saveBadgeCategory(typeInfo.key)}
+                      disabled={!dirty || saving}
+                      style={{
+                        flex: 1, background: (dirty && !saving) ? 'var(--accent)' : 'var(--card2)',
+                        color: (dirty && !saving) ? '#fff' : 'var(--muted)', border: 'none',
+                        borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 700,
+                        cursor: (dirty && !saving) ? 'pointer' : 'default',
+                      }}
+                    >{saving ? 'Saving…' : 'Save'}</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

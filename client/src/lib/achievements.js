@@ -1,17 +1,13 @@
+import { supabase } from './supabaseClient';
 import { getRank, getRankTier } from './rankUtils';
 
-// Requirement text + a `met` check per (achievement type, rarity). Types
-// match BADGE_TYPES' keys in FifaCard.jsx (matches/mvp/ranked) exactly, so
-// this can drive both the achievement gallery and (later) real unlocking
-// wherever a badge's rarity is currently picked by hand.
-//
 // mvp_count: game_ratings' admin_bonus was flattened (see
 // 20260831010000_flatten_game_award_ranking.sql) so every manager award
 // pick counts equally — there's no persisted "the one true MVP" anymore,
 // only "won an award N times". mvp_count is the closest real signal to
-// "become MVP", so that's what these thresholds check against.
+// "become MVP", so that's what the 'mvp' type's thresholds check against.
 //
-// ranked tiers check the player's CURRENT standing (today's total_points)
+// 'ranked' tiers check the player's CURRENT standing (today's total_points)
 // for their CURRENT tier, but treat any tier they've already ranked past
 // as automatically satisfied — once you're in Perak you've necessarily
 // beaten every Gangsa player who stayed behind, so there's no need to have
@@ -24,39 +20,46 @@ function hasPassedTier(profile, tier) {
   return TIER_ORDER.indexOf(current) > TIER_ORDER.indexOf(tier);
 }
 
-export const ACHIEVEMENT_REQUIREMENTS = {
-  matches: {
-    common: { text: 'Play 3 matches', met: p => (p?.games_played || 0) >= 3 },
-    rare: { text: 'Play 10 matches', met: p => (p?.games_played || 0) >= 10 },
-    epic: { text: 'Play 25 matches', met: p => (p?.games_played || 0) >= 25 },
-    legendary: { text: 'Play 50 matches', met: p => (p?.games_played || 0) >= 50 },
-  },
-  mvp: {
-    common: { text: 'Become MVP 1 time', met: p => (p?.mvp_count || 0) >= 1 },
-    rare: { text: 'Become MVP 5 times', met: p => (p?.mvp_count || 0) >= 5 },
-    epic: { text: 'Become MVP 15 times', met: p => (p?.mvp_count || 0) >= 15 },
-    legendary: { text: 'Become MVP 30 times', met: p => (p?.mvp_count || 0) >= 30 },
-  },
-  ranked: {
-    common: { text: 'Joined Bolahh', met: () => true },
-    rare: { text: 'Reach Top 3 in Gangsa tier or higher', met: (p, top3) => hasPassedTier(p, 'gangsa') || !!top3?.gangsa },
-    epic: { text: 'Reach Top 3 in Perak tier or higher', met: (p, top3) => hasPassedTier(p, 'perak') || !!top3?.perak },
-    // Emas is the top tier — there's nothing higher to qualify through, so
-    // this stays a live check: only players currently top 3 in Emas unlock it.
-    legendary: { text: 'Reach Top 3 in Emas tier', met: (p, top3) => !!top3?.emas },
-  },
-};
+// Which profile column each non-ranked type's threshold checks against.
+const STAT_FIELD = { matches: 'games_played', mvp: 'mvp_count' };
 
 export const ACHIEVEMENT_RARITIES = ['legendary', 'epic', 'rare', 'common'];
+
+// Requirement text + a `met` check per (achievement type, rarity), loaded
+// from the admin-editable `badge_requirements` table (see the admin Badges
+// tab and 20260912000000_add_badge_requirements_table.sql) instead of being
+// hardcoded here, so thresholds/tiers/copy can be retuned without a deploy.
+// Types match BADGE_TYPES' keys in FifaCard.jsx (matches/mvp/ranked).
+//
+// For 'ranked' rows, `tier` is the tier a player must have passed or be
+// currently top-3 in — this single column reproduces the same rule for
+// every rarity, common (tier: null) included: hasPassedTier(p, 'emas') is
+// never true (nothing ranks above emas), so 'legendary' correctly reduces
+// to "must be top-3 in Emas right now", exactly like 'rare'/'epic' reduce
+// to "passed the tier, or currently top-3 in it".
+export async function fetchAchievementRequirements() {
+  const { data } = await supabase.from('badge_requirements').select('*');
+  const reqs = {};
+  (data || []).forEach(row => {
+    reqs[row.type] = reqs[row.type] || {};
+    reqs[row.type][row.rarity] = {
+      text: row.label,
+      met: row.type === 'ranked'
+        ? (p, top3) => !row.tier || hasPassedTier(p, row.tier) || !!top3?.[row.tier]
+        : p => (p?.[STAT_FIELD[row.type]] || 0) >= (row.threshold || 0),
+    };
+  });
+  return reqs;
+}
 
 // The highest tier `profile` currently qualifies for on `type`, or null if
 // they haven't met even the common requirement yet — used to cap what a
 // player is allowed to pick for a badge slot (they can display any tier up
-// to this, never one they haven't earned).
-export function highestEarnedRarity(type, profile, top3) {
-  const reqs = ACHIEVEMENT_REQUIREMENTS[type];
-  if (!reqs) return null;
-  return ACHIEVEMENT_RARITIES.find(r => reqs[r].met(profile, top3)) || null;
+// to this, never one they haven't earned). `reqs` is a fetchAchievementRequirements() result.
+export function highestEarnedRarity(type, profile, top3, reqs) {
+  const typeReqs = reqs?.[type];
+  if (!typeReqs) return null;
+  return ACHIEVEMENT_RARITIES.find(r => typeReqs[r]?.met(profile, top3)) || null;
 }
 
 // Whether `profile` currently sits top-3 in each competitive tier, given

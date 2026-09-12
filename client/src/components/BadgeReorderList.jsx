@@ -35,7 +35,7 @@ export default function BadgeReorderList({ badges, onChange }) {
               style={{
                 flexShrink: 0, width: 16, textAlign: 'center', padding: 0,
                 background: 'transparent', border: 'none',
-                color: 'var(--accent)', fontSize: 13, fontWeight: 700,
+                color: 'var(--accent)', fontSize: 12, fontWeight: 700,
                 fontFamily: "'Space Mono', monospace", cursor: 'pointer',
               }}
             >
